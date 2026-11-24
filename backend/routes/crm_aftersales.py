@@ -2954,7 +2954,7 @@ async def contracts_compliance(user=Depends(get_crm_user)):
             "contract_id": cid, "contract_number": c.get("contract_number"),
             "company_name": c.get("company_name") or c.get("title") or "Contract",
             "tier": c.get("contract_type") or c.get("tier"),
-            "annual_value": c.get("annual_value", 0),
+            "annual_value": c.get("annual_value"),
             "start_date": c.get("start_date"), "end_date": c.get("end_date"),
             "billing_frequency": c.get("billing_frequency"),
             "service": service, "billing": billing,

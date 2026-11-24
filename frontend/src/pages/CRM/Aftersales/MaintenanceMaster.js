@@ -37,9 +37,9 @@ function download(API, headers, path, name) {
   }).catch(e => toast.error(e.response?.status === 400 ? 'Nothing committed yet' : 'Download failed'));
 }
 
-function Btn({ children, onClick, disabled, testId, primary, c }) {
+function Btn({ children, onClick, disabled, testId, primary, c, title }) {
   return (
-    <button onClick={onClick} disabled={disabled} data-testid={testId}
+    <button onClick={onClick} disabled={disabled} data-testid={testId} title={title}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
             style={primary ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
               : { background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
@@ -51,15 +51,20 @@ function Btn({ children, onClick, disabled, testId, primary, c }) {
 function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
   const [cls, setCls] = useState('');
   const [rows, setRows] = useState({ rows: [], count: 0 });
+  const [rowsLoading, setRowsLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [createCustomers, setCreateCustomers] = useState(false);
   const s = upload.summary || {};
   useEffect(() => {
     if (upload.state === 'parsing' || upload.state === 'classifying') return;
+    setRowsLoading(true);
     axios.get(`${API}/crm/v2/aftersales/maintenance-master/uploads/${upload.id}/rows`, { headers: headers(), params: { cls } })
-      .then(r => setRows(r.data)).catch(() => setRows({ rows: [], count: 0 }));
+      .then(r => setRows(r.data)).catch(() => setRows({ rows: [], count: 0 })).finally(() => setRowsLoading(false));
   }, [API, headers, upload.id, upload.state, cls]);
   const commit = async () => {
+    const n = s.counts || {};
+    const msg = `Commit this workbook into Contract Management?\n\nNew contracts: ${n.new_contract || 0}\nMatched (linked, CRM kept): ${(n.matched_unchanged || 0) + (n.matched_differences || 0)}\nMissing information (imported with exceptions): ${n.missing_information || 0}\nRequires review (held until decided): ${n.requires_review || 0}\nDuplicates / overlaps (held): ${n.duplicate_overlap || 0}\n\n${createCustomers ? 'Unmatched customers WILL be created.' : 'Rows with unmatched customers will be held.'}\nNo visits, invoices, emails or Sicon writes are created.`;
+    if (!window.confirm(msg)) return;
     setBusy(true);
     try {
       await axios.post(`${API}/crm/v2/aftersales/maintenance-master/uploads/${upload.id}/commit`,
@@ -115,7 +120,8 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
               <td className="px-2 whitespace-nowrap">
                 {r.state === 'staged' && (r.match?.candidates || []).map(k => (
                   <button key={k.id} onClick={() => decide(r.id, 'link_company', k.id)} data-testid={`mm-link-${r.id}-${k.id}`}
-                          className="mr-1 px-1.5 py-0.5 rounded border" style={{ borderColor: c.border }}>Use {k.name}</button>))}
+                          className="mr-1 px-1.5 py-0.5 rounded border" style={{ borderColor: c.border }}
+                          title={k.id}>Use {k.name}{k.ref ? ` (${k.ref})` : ` (no account ref · ${k.id.slice(0, 6)})`}</button>))}
                 {r.state === 'staged' && r.match?.status === 'new' && (
                   <button onClick={() => decide(r.id, 'create_customer')} data-testid={`mm-create-${r.id}`}
                           className="px-1.5 py-0.5 rounded border" style={{ borderColor: c.border }}>New customer</button>)}
@@ -123,7 +129,9 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
             </tr>))}</tbody>
         </table>
       </div>
-      <div className="text-[11px]" style={{ color: c.textDim }}>{rows.count} rows in this view (first 50 shown).</div>
+      <div className="text-[11px]" style={{ color: c.textDim }} data-testid="mm-rows-count">
+        {rowsLoading ? <><Loader2 size={11} className="inline animate-spin" /> Loading rows…</> : `${rows.count} rows in this view (first 50 shown).`}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Btn c={c} testId="mm-report-reconciliation" onClick={() => download(API, headers, `${base}/report?kind=reconciliation`, 'reconciliation.xlsx')}><Download size={13} /> Reconciliation report</Btn>
         <Btn c={c} testId="mm-report-exceptions" onClick={() => download(API, headers, `${base}/report?kind=exceptions`, 'exceptions.xlsx')}><Download size={13} /> Exception report</Btn>
@@ -145,8 +153,12 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
   const [form, setForm] = useState({});
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
-  const load = useCallback(() => axios.get(`${API}/crm/v2/aftersales/maintenance-master/contracts/${id}`, { headers: headers() })
-    .then(r => { setData(r.data); setForm(Object.fromEntries(EDIT_FIELDS.map(([f]) => [f, val(r.data.contract, f)]))); }), [API, headers, id]);
+  const dirty = useRef(false);
+  const load = useCallback((force) => axios.get(`${API}/crm/v2/aftersales/maintenance-master/contracts/${id}`, { headers: headers() })
+    .then(r => {
+      setData(r.data);
+      if (force || !dirty.current) setForm(Object.fromEntries(EDIT_FIELDS.map(([f]) => [f, val(r.data.contract, f)])));
+    }), [API, headers, id]);
   useEffect(() => { load(); }, [load]);
   if (!data) return <Loader2 size={14} className="animate-spin" />;
   const ct = data.contract;
@@ -156,8 +168,11 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
     try {
       await axios.patch(`${API}/crm/v2/aftersales/maintenance-master/contracts/${id}`, { revision: ct.revision, changes, reason },
         { headers: headers() });
-      toast.success('Saved'); setReason(''); load(); onSaved();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Save failed'); if (e.response?.status === 409) load(); }
+      toast.success('Saved'); setReason(''); dirty.current = false; load(true); onSaved();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Save failed');
+      if (e.response?.status === 409) { dirty.current = false; load(true); }
+    }
   };
   const addNote = async () => {
     try { await axios.post(`${API}/crm/v2/aftersales/maintenance-master/contracts/${id}/notes`, { text: note }, { headers: headers() }); setNote(''); load(); }
@@ -180,7 +195,7 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         {EDIT_FIELDS.map(([f, label]) => (
           <label key={f} className="text-[11px]" style={{ color: c.textDim }}>{label}
-            <input value={form[f] ?? ''} onChange={e => setForm(x => ({ ...x, [f]: e.target.value }))} data-testid={`mm-edit-${f}`}
+            <input value={form[f] ?? ''} onChange={e => { dirty.current = true; setForm(x => ({ ...x, [f]: e.target.value })); }} data-testid={`mm-edit-${f}`}
                    className="mt-0.5 w-full text-xs px-2 py-1 rounded-md border" style={inp} />
           </label>))}
       </div>
@@ -254,11 +269,12 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
   const [list, setList] = useState({ uploads: [] });
   const [progress, setProgress] = useState(null);
   const [tick, setTick] = useState(0);
+  const [picked, setPicked] = useState('');
   const fileRef = useRef(null);
   const load = useCallback(() => axios.get(`${API}/crm/v2/aftersales/maintenance-master/uploads`, { headers: headers() })
     .then(r => setList(r.data)).catch(() => setList({ uploads: [] })), [API, headers]);
   useEffect(() => { load(); }, [load, tick]);
-  const latest = list.uploads[0];
+  const latest = list.uploads.find(u => u.id === picked) || list.uploads[0];
   useEffect(() => {
     if (!latest || !['parsing', 'classifying', 'committing'].includes(latest.state)) return undefined;
     const t = setInterval(load, 3000); return () => clearInterval(t);
@@ -301,10 +317,15 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
               {progress !== null ? <><Loader2 size={13} className="animate-spin" /> {progress}%</> : <><UploadCloud size={13} /> Upload workbook</>}
             </Btn></>}
           <Btn c={c} testId="mm-export-current" onClick={() => download(API, headers, '/crm/v2/aftersales/maintenance-master/export/current', 'crm-contracts.xlsx')}><Download size={13} /> Current data (Excel)</Btn>
-          <Btn c={c} testId="mm-export-master" onClick={() => download(API, headers, '/crm/v2/aftersales/maintenance-master/export/master', 'Maintenance Master - updated.xlsx')}><FileSpreadsheet size={13} /> Updated Master workbook</Btn>
+          <Btn c={c} testId="mm-export-master" title="Edits go into their original cells; fields with no column in the workbook are listed on its 'Pulse Fitness Pro changes' sheet" onClick={() => download(API, headers, '/crm/v2/aftersales/maintenance-master/export/master', 'Maintenance Master - updated.xlsx')}><FileSpreadsheet size={13} /> Updated Master workbook</Btn>
           <Btn c={c} testId="mm-refresh" onClick={() => setTick(t => t + 1)}><RotateCw size={13} /></Btn>
         </div>
       </div>
+      {list.uploads.length > 1 && (
+        <select value={latest?.id || ''} onChange={e => setPicked(e.target.value)} data-testid="mm-upload-picker"
+                className="mt-3 text-xs px-2 py-1.5 rounded-lg border max-w-full" style={{ background: 'transparent', borderColor: c.border, color: c.text }}>
+          {list.uploads.map(u => <option key={u.id} value={u.id}>{`${u.filename} · ${(u.created_at || '').slice(0, 16).replace('T', ' ')} · ${u.state}`}</option>)}
+        </select>)}
       {latest ? <UploadPreview API={API} headers={headers} c={c} upload={latest} canApprove={canApprove} onChanged={() => setTick(t => t + 1)} />
         : <div className="mt-3 text-xs" style={{ color: c.textDim }} data-testid="mm-empty">No workbook uploaded yet.</div>}
       <ContractsList API={API} headers={headers} c={c} canApprove={canApprove} refreshKey={tick} />

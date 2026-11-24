@@ -201,11 +201,13 @@ def match_company(idx: dict, m: dict) -> dict:
         c = next(iter(hits.values()))
         return {"status": "matched", "company_id": c["id"], "company_name": c.get("name"), "basis": "account reference"}
     if len(hits) > 1:
-        return {"status": "ambiguous", "candidates": [{"id": c["id"], "name": c.get("name")} for c in hits.values()],
+        return {"status": "ambiguous", "candidates": [{"id": c["id"], "name": c.get("name"),
+                                                       "ref": c.get("sage_account") or c.get("account_number")} for c in hits.values()],
                 "basis": "several customers share these account references"}
     named = idx["name"].get((m.get("customer_name") or "").strip().lower(), {})
     if named:  # a name is supporting evidence only
-        return {"status": "name_only", "candidates": [{"id": c["id"], "name": c.get("name")} for c in named.values()],
+        return {"status": "name_only", "candidates": [{"id": c["id"], "name": c.get("name"),
+                                                       "ref": c.get("sage_account") or c.get("account_number")} for c in named.values()],
                 "basis": "name matches but no account reference confirms it"}
     return {"status": "new", "refs": refs}
 
@@ -253,7 +255,7 @@ def classify(m: dict, cust: dict, existing: dict | None, dup: bool, today: str) 
         return "missing_information", problems
     if cust["status"] in ("ambiguous", "name_only"):
         return "requires_review", [cust["basis"]]
-    return "new_contract", (["new customer — approve creation"] if cust["status"] == "new" else [])
+    return "new_contract", []
 
 
 def sicon_state(contract: dict) -> str:

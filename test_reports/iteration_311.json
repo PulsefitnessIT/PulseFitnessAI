@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 311 — Maintenance Master import / reconciliation / edit / export / deferred Sicon tested end-to-end through the API and the UI (coordinator + aftersales manager) on the public URL. All 13 requested pytest tests pass (MM + service planner + quote-to-contract), plus 10 new tests of my own via the public URL. UI: the panel renders above Live compliance and the CRM contracts list, and 'Sicon writes are switched off' shows. The real 12 Nov upload preview shows correct totals (813 / 8393 / 200) and class chips; the chip filters and all 3 report downloads work. Coordinator has no commit button and the manager does (the real upload was NOT committed and is still 'ready', 0 rows committed). Fictional mmt_ui_ upload done through the UI file input, then committed by the manager with 'Create unmatched customers': 5 contracts created; duplicates and MOD held. Search, status filter and the exceptions checkbox all work. In the editor, saving coordinator name and annual value gave revision 1→2, history old→new with the user, the note was added, and the Sicon queue toast says 'nothing sent'. Both Excel exports download. The Service planner and Build Quote tabs still load. Found no blocking bugs, but found several functional and data-quality problems (below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /uploads/{id}/report?kind=exceptions", "issue": "For the real workbook, the exception report has all 9,406 rows, the same as the reconciliation report. Cause: mm.classify() adds the problem 'new customer — approve creation' to every new_contract row whose customer status is 'new' (8,067 rows), and the exceptions filter includes any row with problems.0. Result: the exception report cannot be used to find real exceptions."},
+      {"endpoint": "_commit_row / mm_exceptions", "issue": "doc['mm_exceptions'] = r.problems is copied as-is, so 'new customer — approve creation' stays on the contract after commit even though the customer was created (or matched). Every imported contract then shows '⚠ Missing / check: new customer — approve creation', and 'Missing information only' returns every contract (5/5 in the test). Drop that problem when the customer is resolved."},
+      {"endpoint": "GET /export/master", "issue": "Edits to coordinator_name and annual_value (the two fields named in the brief) never reach the 'Updated Master workbook'. The real workbook has no 'Contract coordinator' column, and annual_value is derived with no workbook column, so _rebuild_master silently skips them. Confirmed: after saving annual 1625 and coordinator 'TEST_Casey UI', the export has neither. Edits to fields that have their own column (Contract amount, Comments) are written to the original cell (confirmed: 750 / TEST_edited). Either show the user which fields cannot be exported or add a note or column."},
+      {"endpoint": "POST /uploads/{id}/complete", "issue": "same_file_as also matches a failed earlier upload, so the real upload shows 'identical to an earlier upload' because of failed upload fef328cc. This is misleading. Exclude state=failed."},
+      {"endpoint": "POST /contracts/{id}/notes", "issue": "_change() writes revision=(rev+1) for a note, but the contract revision is not incremented. The history revision numbers are therefore off by one for notes."},
+      {"endpoint": "classify_upload", "issue": "Performance: for each row it runs a find_one (overlap check) plus a separate update_one (about 9.4k sequential round trips on the real file). Use bulk_write. The background tasks from asyncio.create_task are not kept in a variable, so they could be garbage-collected (GC'd) before they finish."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ContractEditor", "issue": "Race that loses edits: the editor fetches the contract twice on open (React StrictMode double effect; both GETs seen in the network log). If the user types before the second response arrives, setForm() overwrites their edits. Save then says 'No changes' and the typing is gone. Reproduced once by typing straight after the editor appeared. Guard with an abort/ignore flag, or don't reset the form when it is dirty.", "selector": "[data-testid=mm-editor]", "priority": "MEDIUM"},
+      {"component": "UploadPreview commit", "issue": "'Approve & commit' on the real 9.4k-row upload has no confirmation dialog. One accidental click creates about 8k contracts and customers. Add a confirm step showing the counts.", "selector": "[data-testid=mm-commit]", "priority": "MEDIUM"},
+      {"component": "MaintenanceMasterPanel", "issue": "Only uploads[0] (the newest upload) is ever shown, with no picker for earlier ones. A newer upload (even a failed or test one) hides the staged real upload until that upload is deleted.", "selector": "[data-testid=mm-upload-preview]", "priority": "LOW"},
+      {"component": "UploadPreview rows", "issue": "No loading state. On the large upload the table briefly shows '0 rows in this view' while /rows is loading.", "selector": "[data-testid=mm-rows]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Live compliance (Service tab)", "issue": "Imported contracts whose annual value is unknown (null, e.g. a monthly contract amount) show '£0/yr' instead of 'unknown'.", "affected_selectors": ["afs-compliance-panel"]}
+    ],
+    "design_issues": [
+      {"screen": "Requires review row", "issues": ["Duplicate CRM companies with the same name show two identical 'Use RAF Brize Norton' buttons with nothing to tell them apart (no account ref or id shown)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cm_maintenance_master.py", "/app/backend/tests/test_mm_api_iter311.py", "/app/backend/tests/test_mm_master_export_iter311.py", "/app/backend/tests/mm_ui_seed.py", "/app/test_reports/pytest/mm_results.xml", "/app/test_reports/pytest/mm_api_iter311.xml"],
+  "action_items": [
+    "Stop treating 'new customer — approve creation' as an exception: leave it out of the exceptions report filter, and remove it from mm_exceptions once the customer is created or matched on commit.",
+    "Decide how the Updated Master workbook handles coordinator_name and annual_value edits (the workbook has no column for either); at minimum tell the user they are not exported.",
+    "Add a confirmation dialog with row and customer counts before Approve & commit.",
+    "Fix the ContractEditor double-load race that overwrites form edits.",
+    "Exclude failed uploads from the same_file_as check; consider a selector for earlier uploads in the panel.",
+    "Optional: bulk_write in classify_upload; keep references to background tasks; show 'unknown' instead of £0/yr in Live compliance."
+  ],
+  "critical_code_review_comments": [
+    "mm_import.classify: new_contract rows carry a problem string, so the problem-based filters (exceptions report, mm_exceptions, 'Missing information only') match nearly everything.",
+    "crm_maintenance_master.py is 772 lines (over the 700 limit); split it into upload/commit/edit/export modules.",
+    "export_master appends every active non-MM CRM contract on each export. That is fine now, but it would duplicate rows if the exported workbook is re-imported (no Record ID column in the real workbook), so re-import keys depend on contract number."
+  ],
+  "updated_files": ["/app/backend/tests/test_mm_api_iter311.py", "/app/backend/tests/test_mm_master_export_iter311.py", "/app/backend/tests/mm_ui_seed.py"],
+  "success_rate": {"backend": "100% (24/24 pytest)", "frontend": "~90% (all requested flows work; edit race and data-quality issues noted)"},
+  "test_credentials": "cm.coordinator@ / cm.aftersales@pulsefitness.test, password CmTest2026! (worked). Login is rate-limited; wait about 60s after several logins.",
+  "seed_data_creation": "Uploaded fictional mmt_ui_master.xlsx through the UI and committed it as manager (contracts MMT-*, companies 'MMT *'), plus a TEST_ edit, a note and a Sicon queue entry. All removed with the test file's _cleanup() (verified 0 remaining). Real upload e7a84748 is untouched: state ready, 0 committed rows. The crm audit entries from record_audit for the mmt contracts remain.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "UI login: /crm → gx-login-email + password → coordinator lands on /contract-management; the manager lands on CRM, so goto /contract-management, then crm-nav-contracts. Helper: python tests/mm_ui_seed.py state|seed|cleanup. /tmp/mmt_ui_master.xlsx is created from workbook(). NEVER click mm-commit unless mm-upload-meta contains 'mmt_'. Run test_mm_api_iter311.py only after committing an mmt upload. It skips if MMT-1001 is missing."
+}

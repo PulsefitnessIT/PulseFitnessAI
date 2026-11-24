@@ -25,6 +25,15 @@ router = APIRouter(prefix="/crm/v2/aftersales/maintenance-master", tags=["Mainte
 log = logging.getLogger(__name__)
 CHUNK_MAX = 4 * 1024 * 1024
 FILE_MAX = 200 * 1024 * 1024
+_TASKS: set = set()
+
+
+def _spawn(coro):
+    t = asyncio.get_event_loop().create_task(coro)
+    _TASKS.add(t)
+    t.add_done_callback(_TASKS.discard)
+
+
 CLASSES = ("matched_unchanged", "matched_differences", "new_contract", "duplicate_overlap",
            "missing_information", "requires_review")
 
@@ -106,13 +115,14 @@ async def complete_upload(uid: str, user=Depends(require_crm_perm("contracts.man
     sha = hashlib.sha256(blob).hexdigest()
     fid = await mm.bucket().upload_from_stream(u["filename"], io.BytesIO(blob), metadata={
         "upload_id": uid, "sha256": sha, "organization_id": _org(user)})
-    prior = await db.crm2_mm_uploads.find_one({"organization_id": _org(user), "sha256": sha, "id": {"$ne": uid}},
+    prior = await db.crm2_mm_uploads.find_one({"organization_id": _org(user), "sha256": sha, "id": {"$ne": uid},
+                                               "state": {"$nin": ["failed", "uploading"]}},
                                               {"_id": 0, "id": 1, "created_at": 1})
     await db.crm2_mm_uploads.update_one({"id": uid}, {"$set": {
         "state": "parsing", "sha256": sha, "file_id": str(fid), "received_size": len(blob),
         "same_file_as": (prior or {}).get("id"), "uploaded_at": _now()}})
     await db.crm2_mm_upload_chunks.delete_many({"upload_id": uid})
-    asyncio.get_event_loop().create_task(_parse_job(_org(user), uid, blob))
+    _spawn(_parse_job(_org(user), uid, blob))
     return {"upload_id": uid, "state": "parsing", "sha256": sha, "same_file_as": (prior or {}).get("id")}
 
 
@@ -223,8 +233,9 @@ async def classify_upload(org: str, uid: str) -> dict:
         ops.append((r["id"], {"cls": cls, "problems": problems, "status": st, "match": cust, "evidence": ev,
                               "existing_contract_id": (ex or {}).get("id"), "diff": diff, "conflicts": conflicts,
                               "updates": updates}))
-    for rid, upd in ops:
-        await db.crm2_mm_rows.update_one({"id": rid}, {"$set": upd})
+    from pymongo import UpdateOne
+    for i in range(0, len(ops), 1000):
+        await db.crm2_mm_rows.bulk_write([UpdateOne({"id": rid}, {"$set": upd}) for rid, upd in ops[i:i + 1000]], ordered=False)
     return {"counts": counts, "totals": totals, "held_mod": sum(1 for _, u in ops if u["cls"] == "held_mod"),
             "evidence": {"service_planner_records": len(planner), "sicon_contract_numbers": len(sicon)},
             "conflicts": sum(1 for _, u in ops if u.get("conflicts")), "classified_at": _now()}
@@ -307,7 +318,7 @@ async def commit_upload(uid: str, body: CommitIn, user=Depends(require_crm_perm(
     if body.limit:
         await _commit_job(_org(user), uid, user, body)  # synchronous controlled batch
     else:
-        asyncio.get_event_loop().create_task(_commit_job(_org(user), uid, user, body))
+        _spawn(_commit_job(_org(user), uid, user, body))
     return {"upload_id": uid, "state": "committing"}
 
 
@@ -369,12 +380,12 @@ async def _commit_job(org: str, uid: str, user: dict, body: CommitIn):
         await db.crm2_mm_uploads.update_one({"id": uid}, {"$set": {"state": "commit_failed", "error": str(e)[:500]}})
 
 
-async def _change(contract: dict, field: str, old, new, actor: str, reason: str, approval=None, source="crm_edit"):
+async def _change(contract: dict, field: str, old, new, actor: str, reason: str, approval=None, source="crm_edit", bump=True):
     await db.crm2_contract_changes.insert_one({
         "id": str(uuid.uuid4()), "contract_id": contract["id"], "organization_id": contract["organization_id"],
         "mm_record_key": contract.get("mm_record_key"), "contract_number": contract.get("contract_number"),
         "field": field, "old": old, "new": new, "by": actor, "at": _now(), "reason": reason,
-        "approval": approval, "source": source, "revision": (contract.get("revision") or 1) + 1})
+        "approval": approval, "source": source, "revision": (contract.get("revision") or 1) + (1 if bump else 0)})
 
 
 async def _commit_row(org, u, r, body, made, actor, today) -> str:
@@ -523,7 +534,7 @@ async def add_note(cid: str, body: NoteIn, user=Depends(require_crm_perm("contra
         raise HTTPException(404, "Contract not found")
     note = {"id": str(uuid.uuid4()), "text": body.text.strip(), "by": _who(user), "at": _now()}
     await db.crm2_contracts.update_one({"id": cid}, {"$push": {"mm_notes": note}})
-    await _change(c, "note", None, note["text"], _who(user), "note added")
+    await _change(c, "note", None, note["text"], _who(user), "note added", bump=False)
     return note
 
 
@@ -604,7 +615,7 @@ async def sicon_reconcile(body: SimIn, user=Depends(require_crm_perm("exceptions
                 "sicon_sync.sicon_line_ids": mt.sicon_line_ids, "sicon_sync.identity_verified": True,
                 "sicon_sync.state": "ready_for_sync", "sicon_sync.verified_by": _who(user), "sicon_sync.verified_at": _now()}})
             await _change(c, "sicon_contract_id", c.get("sicon_contract_id"), mt.sicon_contract_id, _who(user),
-                          "Sicon identity reconciled", source="sicon_reconcile")
+                          "Sicon identity reconciled", source="sicon_reconcile", bump=False)
     return {**out, "applied": body.apply, "external_writes": 0}
 
 
@@ -679,7 +690,7 @@ async def export_current(user=Depends(require_crm_perm("contracts.read"))):
     return _send(blob, f"crm-contracts-{datetime.now(timezone.utc):%Y-%m-%d}.xlsx")
 
 
-def _rebuild_master(blob: bytes, edits: list, appended: list) -> bytes:
+def _rebuild_master(blob: bytes, edits: list, appended: list, changes: list) -> bytes:
     """Original workbook, original layout/formulas — only edited cells changed, new contracts appended."""
     import openpyxl
     wb = openpyxl.load_workbook(io.BytesIO(blob))
@@ -701,6 +712,10 @@ def _rebuild_master(blob: bytes, edits: list, appended: list) -> bytes:
                 if col:
                     ws.cell(row=nxt, column=col, value=value)
             nxt += 1
+    ws = wb.create_sheet("Pulse Fitness Pro changes")
+    ws.append(["Sheet", "Row", "Contract number", "Field", "Workbook column", "Old", "New", "Changed by", "Changed at", "Reason"])
+    for ch in changes:
+        ws.append(ch)
     out = io.BytesIO()
     wb.save(out)
     return out.getvalue()
@@ -714,22 +729,32 @@ async def export_master(user=Depends(require_crm_perm("contracts.read"))):
     if not u:
         raise HTTPException(400, "No committed Maintenance Master yet.")
     rev = {v: k for k, v in mm.FIELDS.items()}
-    edits, appended = [], []
+    edits, appended, changes = [], [], []
+    pos = {r["record_key"]: {"sheet": r["sheet"], "row": r["row"]} async for r in db.crm2_mm_rows.find(
+        {"upload_id": u["id"], "role": "contract"}, {"_id": 0, "record_key": 1, "sheet": 1, "row": 1})}
     async for c in db.crm2_contracts.find({"organization_id": org, "mm_record_key": {"$type": "string"}},
                                           {"_id": 0, "mm_source.raw": 0}):
-        src = c.get("mm_source") or {}
-        if src.get("upload_id") != u["id"] and src.get("sha256") != u.get("sha256"):
+        src = pos.get(c["mm_record_key"])
+        if not src:
             continue
+        written = set()
         for f in mm.edited_fields(c):
             if f in rev:
                 edits.append((src["sheet"], src["row"], rev[f], mm.current(c, f)))
+                written.add(f)
+        if mm.edited_fields(c):
+            async for h in db.crm2_contract_changes.find({"contract_id": c["id"], "field": {"$ne": "note"}}, {"_id": 0}).sort("at", 1):
+                changes.append([src.get("sheet"), src.get("row"), c.get("contract_number"), h["field"],
+                                rev.get(h["field"]) if h["field"] in written else "no column in workbook — listed here only",
+                                str(h.get("old") if h.get("old") is not None else ""), str(h.get("new") if h.get("new") is not None else ""),
+                                h.get("by"), h.get("at"), h.get("reason")])
     async for c in db.crm2_contracts.find({"organization_id": org, "status": "active", "source": {"$ne": "maintenance_master"},
                                            "mm_record_key": {"$exists": False}}, {"_id": 0}).limit(2000):
         appended.append({"Customer / site": c.get("company_name") or c.get("title"), "Contract number": c.get("contract_number"),
                          "Start date": c.get("start_date"), "Expiry date": c.get("end_date"),
                          "Contract amount (£)": c.get("annual_value"), "Payment frequency": c.get("payment_frequency") or "Annually",
                          "Comments": "Added in Pulse Fitness Pro"})
-    blob = await asyncio.to_thread(_rebuild_master, await _read_file(u), edits, appended)
+    blob = await asyncio.to_thread(_rebuild_master, await _read_file(u), edits, appended, changes)
     return _send(blob, f"Maintenance Master - from Pulse Fitness Pro {datetime.now(timezone.utc):%d.%m.%Y}.xlsx")
 
 
@@ -768,5 +793,5 @@ async def reparse_upload(uid: str, user=Depends(require_crm_perm("contracts.mana
         await db.crm2_mm_uploads.update_one({"id": uid}, {"$set": {"summary": summary}})
         return {"upload_id": uid, "state": u["state"], "reclassified": True}
     await db.crm2_mm_uploads.update_one({"id": uid}, {"$set": {"state": "parsing"}})
-    asyncio.get_event_loop().create_task(_parse_job(_org(user), uid))
+    _spawn(_parse_job(_org(user), uid))
     return {"upload_id": uid, "state": "parsing"}

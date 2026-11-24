@@ -3021,7 +3021,7 @@ function ComplianceCard({ row, API, headers, c, isDark, onChanged }) {
               {row.contract_number || '—'} · expires {row.end_date || '—'}
             </div>
           </div>
-          <span className="text-sm font-bold shrink-0" style={{ color: 'var(--color-success-alt)' }}>{gbp0(row.annual_value)}/yr</span>
+          <span className="text-sm font-bold shrink-0" style={{ color: 'var(--color-success-alt)' }}>{row.annual_value == null ? 'Annual value unknown' : `${gbp0(row.annual_value)}/yr`}</span>
         </div>
         <div className="flex flex-wrap gap-2 ml-6">
           <CompliancePill tone={svcTone} icon={svc.overdue ? AlertTriangle : CalendarClock} testId={`afs-compliance-service-${cid}`}>
