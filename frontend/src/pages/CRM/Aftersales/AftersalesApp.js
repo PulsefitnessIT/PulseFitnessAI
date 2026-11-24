@@ -743,6 +743,14 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
   const [sites, setSites] = useState([]);
   const [dec, setDec] = useState({});
   const [cfgSearch, setCfgSearch] = useState({});
+  const [coSearch, setCoSearch] = useState('');
+  const [coResults, setCoResults] = useState(null);
+  const searchCo = async (q) => {
+    setCoSearch(q);
+    if (q.trim().length < 2) { setCoResults(null); return; }
+    try { const r = await axios.get(`${API}/crm/v2/companies?search=${encodeURIComponent(q.trim())}&limit=25`, { headers: headers() });
+      setCoResults(r.data.companies || r.data.items || r.data || []); } catch { setCoResults([]); }
+  };
   const fileRef = useRef(null);
   useEffect(() => {
     if (!imp?.company_id) { setSites([]); return; }
@@ -805,11 +813,13 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
           <div className="flex flex-wrap items-center gap-2 mb-2 text-xs" data-testid="afs-aq-import-customer" style={{ color: c.text }}>
             Customer: {imp.customer?.company ? <strong>{imp.customer.company.name}</strong> : <span style={{ color: 'var(--color-danger)' }}>not confidently identified — choose</span>}
             {imp.customer?.basis && <span style={{ color: c.textDim }}>({imp.customer.basis})</span>}
-            {!imp.quote_id && <select data-testid="afs-aq-import-customer-select" value="" onChange={e => pickCustomer(e.target.value)} className="px-2 py-1 text-xs rounded-md" style={inpStyle}>
-              <option value="">{imp.customer?.company ? 'Change…' : 'Select customer…'}</option>
-              {(imp.customer?.candidates || []).map(x => <option key={x.id} value={x.id}>{x.name} (suggested)</option>)}
-              {companies.map(x => <option key={`a-${x.id}`} value={x.id}>{x.name}</option>)}
-            </select>}
+            {!imp.quote_id && <>
+              <input data-testid="afs-aq-import-customer-search" placeholder="Search customers…" value={coSearch} onChange={e => searchCo(e.target.value)} className="px-2 py-1 text-xs rounded-md w-40" style={inpStyle} />
+              <select data-testid="afs-aq-import-customer-select" value="" onChange={e => pickCustomer(e.target.value)} className="px-2 py-1 text-xs rounded-md" style={inpStyle}>
+                <option value="">{imp.customer?.company ? 'Change…' : 'Select customer…'}</option>
+                {(imp.customer?.candidates || []).map(x => <option key={x.id} value={x.id}>{x.name} (suggested)</option>)}
+                {(coResults || companies).map(x => <option key={`a-${x.id}`} value={x.id}>{x.name}</option>)}
+              </select></>}
           </div>
           <table className="w-full text-xs" data-testid="afs-aq-import-lines">
             <thead><tr style={{ color: c.textDim }}><th className="text-left py-1">Code</th><th className="text-left">Machine</th><th>Qty</th><th className="text-left">Serials</th><th className="text-left">Match</th><th className="text-left">Decision</th></tr></thead>
@@ -821,7 +831,12 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
                   <td className="text-center">{ln.quantity}</td>
                   <td className="text-[11px]" style={{ color: c.textDim }}>{ln.serials.join(', ') || '—'}{ln.existing_equipment.length > 0 && <div>{ln.existing_equipment.length} on register</div>}</td>
                   <td className="text-[11px]">{ln.matched ? `${ln.matched.model}${ln.matched.console_type ? ` / ${ln.matched.console_type}` : ''} · ${ln.matched.basis}` : '—'}
-                    {(state(ln) === 'review' || !ln.matched) && !ln.flags.includes('already_covered') && (
+                    {(ln.variant_options || []).length > 0 && !dec[ln.line_no]?.config_id && (
+                      <div className="mt-1 flex flex-wrap gap-1">{ln.variant_options.map(v => (
+                        <button key={v.config_id} data-testid={`afs-aq-import-variant-${ln.line_no}-${v.config_id}`} onClick={() => setDec(d => ({ ...d, [ln.line_no]: { decision: 'accepted', config_id: v.config_id } }))}
+                          className="px-1.5 py-0.5 rounded border text-[10px]" style={{ borderColor: c.border, color: c.text }}>{v.model}{v.console_type ? ` / ${v.console_type}` : ''}</button>))}</div>)}
+                    {dec[ln.line_no]?.config_id && <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-success-alt)' }}>Machine chosen</div>}
+                    {(state(ln) === 'review' || !ln.matched) && !ln.flags.includes('already_covered') && !(ln.variant_options || []).length && (
                       <div className="mt-1"><input data-testid={`afs-aq-import-cfg-${ln.line_no}`} placeholder="Find machine…" value={cfgSearch[ln.line_no]?.q || ''} onChange={e => findCfg(ln.line_no, e.target.value)} className="px-1 py-0.5 rounded text-[11px] w-32" style={inpStyle} />
                         {(cfgSearch[ln.line_no]?.rows || []).slice(0, 5).map(r => (
                           <button key={r.id} onClick={() => { setDec(d => ({ ...d, [ln.line_no]: { decision: 'accepted', config_id: r.id } })); setCfgSearch(x => ({ ...x, [ln.line_no]: { q: r.model, rows: [] } })); }}
@@ -831,7 +846,7 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
                   <td>
                     <select data-testid={`afs-aq-import-decision-${ln.line_no}`} value={state(ln)} onChange={e => setDec(d => ({ ...d, [ln.line_no]: { ...(d[ln.line_no] || {}), decision: e.target.value } }))} className="px-1 py-0.5 rounded text-[11px]" style={inpStyle}>
                       {state(ln) === 'review' && <option value="review">Needs review</option>}
-                      <option value="accepted" disabled={!ln.matched && !dec[ln.line_no]?.config_id}>{ln.auto_accepted ? 'Accepted (exact code)' : 'Include'}</option>
+                      <option value="accepted" disabled={(!ln.matched || (ln.variant_options || []).length > 0) && !dec[ln.line_no]?.config_id}>{ln.auto_accepted ? 'Accepted (exact code)' : 'Include'}</option>
                       <option value="excluded">Exclude</option>
                     </select>
                   </td>
@@ -1063,7 +1078,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
         : { asset_ids: fromSale.asset_ids, source_sales_quote_id: fromSale.source_sales_quote_id, source: 'sales_handover' }) : {}),
     }, { headers: headers() }).then(r => {
       setResult(r.data);
-      if (save && fromSale) { if (r.data.existing) toast.info(`Existing maintenance quote ${r.data.quote_number} reused`); clearPrefill(); }
+      if (save && fromSale) toast[r.data.existing ? 'info' : 'success'](r.data.existing ? `Existing maintenance quote ${r.data.quote_number} reused` : `Quote ${r.data.quote_number} saved`);
     }).finally(() => setBusy(false));
   }, [API, headers, companyId, selSites, contractType, level, term, discount, prefill]);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2169,7 +2184,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
               )}
             </div>
           )}
-          {canProcess && ['signed', 'activation_attention'].includes(ag.status) && <button data-testid="afs-ag-activate" onClick={() => activate()} disabled={busy} title={ag.signature?.method === 'customer_esignature' ? 'Signed by the customer' : 'Signature recorded internally'} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
+          {canProcess && ['signed', 'activation_attention'].includes(ag.status) && !(ag.signature?.method === 'customer_esignature' && !ag.signed_document) && <button data-testid="afs-ag-activate" onClick={() => activate()} disabled={busy} title={ag.signature?.method === 'customer_esignature' ? 'Signed by the customer' : 'Signature recorded internally'} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
         </div>
 
         {/* Timeline */}

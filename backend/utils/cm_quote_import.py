@@ -141,19 +141,23 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
         cands = by_sku.get(code.upper(), []) if code else []
         if not cands and product and product.get("model"):
             cands = idx.get(product["model"].strip().lower(), [])
+        options = []
         if cands:
             variants = {(c.get("model"), c.get("console_type") or "") for c in cands}
-            if len(variants) > 1:
+            if len(variants) > 1:  # never pick a variant for the coordinator
                 flags.append("variant_review")
-            from routes.crm_afs_onboarding import _rank_cfg
-            cfg, basis = sorted(cands, key=_rank_cfg, reverse=True)[0], "exact product code"
-        else:
+                options = [{"config_id": c["id"], "model": c.get("model"), "console_type": c.get("console_type") or ""}
+                           for c in cands]
+            else:
+                from routes.crm_afs_onboarding import _rank_cfg
+                cfg, basis = sorted(cands, key=_rank_cfg, reverse=True)[0], "exact product code"
+        if not cands:
             cfg, _, _st = _match_row(idx, ln.get("model"), ln.get("make"))
             if cfg:
                 basis = "model name"
                 flags.append("model_match_only")
         desc = " ".join(str(x) for x in (ln.get("description"), ln.get("model")) if x)
-        if not cfg:
+        if not cfg and not options:
             cat = (product or {}).get("category") or ""
             flags.append("spare_part" if _SPARE.search(desc) or re.search(r"part|spare|accessor", cat, re.I)
                          else "unknown_code")
@@ -193,7 +197,7 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
             "matched": {"config_id": cfg.get("id"), "model": cfg.get("model"), "console_type": cfg.get("console_type") or "",
                         "reference_sku": cfg.get("reference_sku"), "basis": basis,
                         "pricing_status": (pricing or {}).get("pricing_status")} if cfg else None,
-            "existing_equipment": existing, "flags": flags,
+            "variant_options": options, "existing_equipment": existing, "flags": flags,
             "decision": "accepted" if auto else ("excluded" if set(flags) & {"spare_part", "already_covered"}
                                                  else "review"),
             "auto_accepted": auto, "needs_review": not auto,
