@@ -39406,3 +39406,16 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - One Action Centre item per stage (`cm:agreement-complete|sign|activate:{id}`), earlier stages auto-close; none open after activation.
 - UI (existing styles): quote-row "Record acceptance" / "Prepare agreement" / "Open agreement"; agreement progress card (pre-filled → generated → signed → active → service plan → billing) with plan summary; draft start date/visits inputs; prepare dropdown lists accepted quotes only.
 - Tests: backend/tests/test_cm_quote_to_contract.py (+53 CM suite tests green); iteration_302 frontend 100%.
+
+## Jun 2026 — Contract Management Milestone 1: customer e-signature & automated activation (design unchanged)
+- Terms & Conditions: admin (exceptions.approve) uploads PDF/.docx (docx rendered with clause numbering) → pending → approve; sending blocked + `cm:terms-missing` action until approved. User's T&Cs v2026-01-28 pre-loaded as PENDING APPROVAL in preview.
+- Send for Signature: freezes agreement PDF (agreement schedules + approved T&Cs, SHA-256, object storage), 14-day personal link (only hash stored), re-send replaces link, revoke, expiry → action. Email delivery stored truthfully (accepted_by_provider/failed).
+- Public `/as/:token` (public_afs_quote.py `/public/afs/agreement/{token}`): view (→ viewed), PDF, sign (typed name + drawn signature, auto UTC date, authority + consent, document-hash bound, idempotent), decline. Signed copy with signature certificate stored.
+- Auto-activation after customer signature when all checks pass (setting `auto_activate_on_signature`, default on); otherwise one task. Conflict/missing-info review takes precedence over stage task. Signed-document hash checked at activation; content locked after issue.
+- One Action Centre item per agreement stage: complete → send → awaiting signature / email not delivered → activate → (declined).
+- Welcome pack email after activation: once per contract+document version (atomic claim), signed PDF attached, failure → `cm:welcome-failed` action, Resend/Reissue.
+- Contract Coordinator field on CRM customer (CRMCompanies.js); reassignment moves open contract-admin tasks with owner_history; coordinator_history kept.
+- Overdue PPM: next_due = earliest outstanding visit incl. overdue; overdue/booked/cancelled counts.
+- Supplier/service-contact defaults corrected to the user's current agreement (Radnor Park CW12 4TW, Service.Dept@pulsefitness.com, 01260 294600 opt 2, SelfService portal, Mon–Thu 08:00–17:00 / Fri 08:00–15:30).
+- Tests: backend/tests/test_cm_milestone1_esign.py (8) + CM suites = 61 passing; iteration_303 (95%→fixed), iteration_304 100%.
+- Remaining: legal review of e-signature/retention (UK eIDAS/ECA 2000), valid email provider key, Service Planner, Build Quote document import, Finance milestones.

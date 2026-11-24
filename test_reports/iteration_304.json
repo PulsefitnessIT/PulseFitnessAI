@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend retest (Playwright, 1920x1080) of the iteration_303 fixes in Contract Management M1, using the cm.* accounts and fictional TEST_m1rt_ data (linked org, site, company, sent quote). All checks PASSED. (1) Finance (cm.finance) on Contracts > Agreements: afs-terms-card count = 0, and the page has no 'No approved terms' text and no 'could not be loaded' text. The Aftersales Manager sees the card with afs-terms-status 'Approved version 2026-01-28 is attached to every agreement sent for signature.' and the row 'v2026-01-28 ... approved' with View PDF. The coordinator also sees the card. (2) Progress card: Draft shows step2 Sent data-done=no. Ready also shows step2 no. After Send for Signature to signer@example.test, step2 is yes and the toast reads 'Email NOT delivered' (expected in preview). After Withdraw link (toast 'Signature link withdrawn'), step1 Ready is yes and step2 Sent goes back to no; the Send for Signature button is back (it only renders when status=ready) and the timeline shows 'Signature link revoked'. Re-sending sets step2 back to yes. (3) Payment select afs-ag-payment: enabled in draft, enabled in ready, disabled in sent, enabled again after withdraw (ready), disabled once active. (4) Billing label after activation reads 'Billing · 1 invoice' (singular is correct). The plural path is only checked in code (`invoice${n===1?'':'s'}`); a multi-invoice plan was not produced. (5) Regression: coordinator Record acceptance → Generate ('Agreement generated — ready for signature') → Send → public /as/<token> in a logged-out flow (name, email, drawn signature, authority, consent) → as-signed-confirmation. In CRM it then shows Active automatically: steps 0-6 done ('Service plan · 2 visits', 'Billing · 1 invoice') and step 7 'Welcome pack · not delivered' with Resend (expected, because the email provider is invalid). No page errors anywhere. The design is unchanged from iteration_303.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Contracts > Agreements (Finance role)", "issues": ["Pre-existing, outside this retest: Finance still sees the quote action buttons (Record acceptance, Send to customer, Create link) and the 'Prepare agreement' form. Per iteration_303 the backend returns 403 for Finance on these actions, so clicking them only gives an error toast. Consider hiding them when the user lacks agreements.process, the same way the Terms card is now hidden."]},
+      {"screen": "Prepare agreement form", "issues": ["Pre-existing: the Start date uses the browser's native date input (mm/dd/yyyy) rather than the shadcn calendar. Not changed, because the brief says the design must stay unchanged."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/_m1rt_seed.py"],
+  "action_items": ["Optional: hide the quote/prepare actions for Finance (the role lacks agreements.process) to avoid buttons that can only end in a 403 toast."],
+  "critical_code_review_comments": [
+    "TermsCard now gates on perms.includes('agreements.process') and shows a neutral loadErr message instead of a false 'No approved terms'. Good.",
+    "AgreementProgress step 'Sent' = (signature_request && !revoked && pos>=1) || pos>=2. Correct for sent/viewed/ready-after-revoke. 'declined' maps to pos=1, so Sent stays done only while the request is not revoked, which is acceptable.",
+    "AftersalesApp.js is far above 700 lines; consider splitting AgreementsTab, TermsCard and AgreementProgress into their own modules (pre-existing)."
+  ],
+  "updated_files": ["/app/backend/tests/_m1rt_seed.py (new test seed/cleanup helper)"],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100%"},
+  "seed_data_creation": "Created by tests/_m1rt_seed.py seed: organizations TEST_m1rt_org, sites TEST_m1rt_site, crm2_companies TEST_m1rt_co_a, crm2_afs_quotes TEST_m1rt_q_a. Through the UI: agreement PF-MA-D0FE77 (d0fe774d…), plus its contract, schedule, billing, finance_sync, activities, audit and notifications. All were removed by id, agreement id or agreement number with `_m1rt_seed.py cleanup`, followed by a targeted crm2_notifications delete by title 'PF-MA-D0FE77'. Agreement PDFs in object storage may remain. No seeded or user data was changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "There are no quotes in the cm.* org by default. Seed one with `cd /app/backend && python tests/_m1rt_seed.py seed` (cleanup: `python tests/_m1rt_seed.py cleanup`, then delete crm2_notifications whose title contains the agreement number). Run tests/_clear_login_ratelimit.py first. Navigate: /login → /contract-management → the 'Contracts' text tab → afs-tab-agreements. Accept the quote with afs-quote-accept-TEST_m1rt_q_a; the detail opens automatically. The /as/<token> link is inside afs-ag-signature-request. The public signature pad is the first canvas and accepts a mouse drag."
+}

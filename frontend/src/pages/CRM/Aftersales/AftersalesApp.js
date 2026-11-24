@@ -1634,6 +1634,7 @@ function TermsCard({ API, headers, c, isDark }) {
 }
 
 function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
+  const canProcess = (useCRM().user?.crm_permissions || []).includes('agreements.process');
   const [agreements, setAgreements] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [allQuotes, setAllQuotes] = useState([]);
@@ -2089,7 +2090,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
                         <FileCheck2 size={13} /> Open agreement
                       </button>
                     )}
-                    {(['accepted'].includes(q.status) || (!['agreement', 'declined'].includes(q.status) && q.portal_status !== 'declined')) && (
+                    {canProcess && (['accepted'].includes(q.status) || (!['agreement', 'declined'].includes(q.status) && q.portal_status !== 'declined')) && (
                       <button data-testid={`afs-quote-accept-${q.id}`} onClick={() => acceptQuote(q)} disabled={busy || (q.unpriced_count || 0) > 0}
                         title={q.status === 'accepted' ? 'Pre-fill the agreement from this accepted quote' : 'Record that the customer accepted (e.g. by email or phone)'}
                         className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md disabled:opacity-40" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
@@ -2136,7 +2137,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
 
       <TermsCard API={API} headers={headers} c={c} isDark={isDark} />
 
-      <Card c={c} isDark={isDark} className="mb-4">
+      {canProcess && <Card c={c} isDark={isDark} className="mb-4">
         <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Prepare agreement from an accepted quote</p>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs flex-1 min-w-[220px]" style={{ color: c.textDim }}>Quote
@@ -2153,7 +2154,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
             <input type="number" min="1" value={visits} onChange={e => setVisits(e.target.value)} className="block mt-1 w-16 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
           <button data-testid="afs-ag-prepare" onClick={prepare} disabled={!newQuoteId || !startDate || busy} className="px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{busy ? '…' : 'Prepare Agreement'}</button>
         </div>
-      </Card>
+      </Card>}
 
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: c.border }} data-testid="afs-agreements-list">
         {agreements.length === 0 && <p className="text-sm text-center py-10" style={{ color: c.textDim }}>No agreements yet — prepare one from a saved quote above.</p>}
