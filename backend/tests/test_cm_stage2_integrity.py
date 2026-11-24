@@ -136,8 +136,8 @@ def test_renewals_are_prepared_once_and_sent_only_on_approval():
     assert ren["status"] == "renewal_pending_approval"
     assert ren["start_date"] == (old_end + timedelta(days=1)).isoformat()
     assert mdb.crm2_activities.count_documents({"dedupe_key": f"cm:renewal-approval:{rid}", "status": "open"}) == 1
-    assert requests.post(f"{API}/crm/workspace/renewals/{rid}/approve-send", headers=_crm("cm-test-sales"), json={}).status_code == 403
-    r = requests.post(f"{API}/crm/workspace/renewals/{rid}/approve-send", headers=h, json={"uplift_percent": 3.5})
+    assert requests.post(f"{API}/crm/workspace/renewals/{rid}/approve-send", headers=_crm("cm-test-fin"), json={}).status_code == 403
+    r = requests.post(f"{API}/crm/workspace/renewals/{rid}/approve-send", headers=_crm("cm-test-asm"), json={"uplift_percent": 3.5})
     assert r.status_code == 200, r.text
     assert r.json()["annual_value"] == 1035.0
     assert mdb.crm2_contracts.find_one({"id": rid})["status"] == "sent"

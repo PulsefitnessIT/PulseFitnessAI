@@ -1968,19 +1968,36 @@ def _agreement_health(ag):
 
 class AcceptQuoteIn(BaseModel):
     accepted_by: Optional[str] = None
+    start_date: Optional[str] = None
+    payment_method: Optional[str] = None
+    prepare_agreement: bool = True
 
 
 @router.post("/quotes/{quote_id}/accept")
 async def accept_quote(quote_id: str, body: AcceptQuoteIn, user=Depends(require_crm_perm("agreements.process"))):
+    """Record acceptance and pre-fill a draft agreement (one per quote)."""
     of = _of(user)
     q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
     if not q:
         raise HTTPException(404, "Quote not found")
-    await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": {
-        "status": "accepted", "accepted_at": _now(),
-        "accepted_by": body.accepted_by or user.get("email"), "updated_at": _now()}})
-    await record_audit(entity_type="afs_quote", entity_id=quote_id, action="accept", user=user)
-    return {"status": "accepted", "quote_id": quote_id}
+    if q.get("status") in ("declined",) or q.get("portal_status") == "declined":
+        raise HTTPException(400, "This quote was declined — prepare a fresh quote.")
+    if (q.get("unpriced_count") or 0) > 0:
+        raise HTTPException(400, "Resolve unpriced machines before recording acceptance.")
+    if q.get("status") != "agreement":
+        await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": {
+            "status": "accepted", "accepted_at": q.get("accepted_at") or _now(),
+            "accepted_by": body.accepted_by or q.get("accepted_by") or user.get("email"), "updated_at": _now()}})
+        await record_audit(entity_type="afs_quote", entity_id=quote_id, action="accept", user=user)
+    if not body.prepare_agreement:
+        return {"status": "accepted", "quote_id": quote_id}
+    q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
+    ag = await _insert_agreement_from_quote(
+        _org(user), q, user.get("email") or user.get("id"), start_date=body.start_date,
+        payment_method=body.payment_method,
+        timeline_note=f"Agreement pre-filled from accepted quote {q.get('quote_number') or quote_id}")
+    return {"status": "accepted", "quote_id": quote_id, "agreement_id": ag["id"],
+            "agreement_number": ag.get("agreement_number"), "health": _agreement_health(ag)}
 
 
 class PrepareAgreementIn(BaseModel):
@@ -1991,8 +2008,8 @@ class PrepareAgreementIn(BaseModel):
 
 
 async def _insert_agreement_from_quote(org_id, quote, actor, *, start_date=None,
-                                       payment_method="annual", billing_frequency=None,
-                                       visits_per_year=2, timeline_note=None):
+                                       payment_method=None, billing_frequency=None,
+                                       visits_per_year=None, timeline_note=None):
     """Shared: build + insert a DRAFT agreement from a saved quote. Idempotent —
     returns any existing non-cancelled agreement for the same quote. Used by the
     coordinator (prepare) and by public portal acceptance (auto-prep)."""
@@ -2002,16 +2019,11 @@ async def _insert_agreement_from_quote(org_id, quote, actor, *, start_date=None,
     if existing:
         return existing
     doc = await _build_agreement_doc(org_id, quote)
-    if start_date:
-        sd = datetime.strptime(start_date[:10], "%Y-%m-%d")
-        end = sd.replace(year=sd.year + max(1, doc["term_years"]))
-        doc["start_date"] = sd.strftime("%Y-%m-%d")
-        doc["end_date"] = end.strftime("%Y-%m-%d")
-        doc["schedules"]["schedule2_agreement"]["start_date"] = doc["start_date"]
-        doc["schedules"]["schedule2_agreement"]["end_date"] = doc["end_date"]
-    doc["payment_method"] = payment_method
-    doc["billing_frequency"] = billing_frequency or payment_method
-    doc["visits_per_year"] = visits_per_year
+    _apply_dates(doc, start_date or quote.get("requested_start_date"))
+    doc["payment_method"] = payment_method or quote.get("preferred_payment") or "annual"
+    doc["billing_frequency"] = billing_frequency or doc["payment_method"]
+    doc["visits_per_year"] = int(visits_per_year or quote.get("visits_per_year") or 2)
+    doc["source_sales_quote_id"] = quote.get("source_sales_quote_id")
     aid = _id()
     doc.update({
         "id": aid, "organization_id": org_id,
@@ -2025,8 +2037,47 @@ async def _insert_agreement_from_quote(org_id, quote, actor, *, start_date=None,
     })
     doc["health"] = _agreement_health(doc)
     await db.crm2_afs_agreements.insert_one(doc)
-    await db.crm2_afs_quotes.update_one({"id": quote["id"], **of}, {"$set": {"status": "agreement", "updated_at": _now()}})
+    await db.crm2_afs_quotes.update_one({"id": quote["id"], **of}, {"$set": {
+        "status": "agreement", "agreement_id": aid, "updated_at": _now()}})
+    await _agreement_step_action(org_id, doc)
     return await db.crm2_afs_agreements.find_one({"id": aid, **of}, _PUBLIC)
+
+
+def _apply_dates(doc: dict, start_date) -> None:
+    from utils.cm_dates import parse_date, term_end
+    sd = parse_date(start_date)
+    if not sd:
+        return
+    doc["start_date"] = sd.isoformat()
+    doc["end_date"] = term_end(sd, doc.get("term_years") or 1).isoformat()
+    s2 = doc.setdefault("schedules", {}).setdefault("schedule2_agreement", {})
+    s2["start_date"], s2["end_date"] = doc["start_date"], doc["end_date"]
+
+
+_AG_STEPS = {
+    "draft": ("complete", "Complete agreement", "fill the missing details and generate the agreement"),
+    "ready": ("sign", "Awaiting signature", "send for signature or record the customer's signature"),
+    "sent": ("sign", "Awaiting signature", "record the customer's signature"),
+    "signed": ("activate", "Ready to activate", "activate the contract to create the service plan and billing"),
+}
+
+
+async def _agreement_step_action(org_id: str, ag: dict) -> None:
+    """One Action Centre item per agreement stage; earlier stages auto-close."""
+    from utils.cm_actions import raise_action, resolve_action
+    cur = _AG_STEPS.get(ag.get("status"))
+    for key in {"complete", "sign", "activate"} - ({cur[0]} if cur else set()):
+        await resolve_action(org_id, f"cm:agreement-{key}:{ag['id']}", "Agreement moved to the next stage.")
+    if not cur:
+        return
+    reasons = (ag.get("health") or {}).get("reasons") or []
+    tail = f" Outstanding: {'; '.join(reasons[:4])}." if cur[0] == "complete" and reasons else ""
+    await raise_action(org_id, f"cm:agreement-{cur[0]}:{ag['id']}", type_="agreement_step",
+                       subject=f"{cur[1]}: {ag.get('agreement_number')}",
+                       body=f"{ag.get('company_name')} — {cur[2]}.{tail}",
+                       contract={"id": ag["id"], "company_id": ag.get("company_id"),
+                                 "contract_number": ag.get("agreement_number")},
+                       extra={"agreement_id": ag["id"], "quote_id": ag.get("quote_id")})
 
 
 @router.post("/agreements/from-quote/{quote_id}")
@@ -2038,6 +2089,11 @@ async def prepare_agreement(quote_id: str, body: PrepareAgreementIn, user=Depend
     existing = await db.crm2_afs_agreements.find_one(
         {**of, "quote_id": quote_id, "status": {"$nin": ["cancelled", "superseded"]}}, _PUBLIC)
     if existing:
+        if existing.get("status") == "draft" and not existing.get("start_date"):
+            # Auto-prepared on acceptance without a start date — complete it with the coordinator's details.
+            return await patch_agreement(existing["id"], AgreementPatchIn(
+                start_date=body.start_date, visits_per_year=body.visits_per_year,
+                payment_method=body.payment_method), user)
         return existing
     if quote.get("status") != "accepted":
         raise HTTPException(400, "Only an accepted maintenance quotation can proceed to an agreement.")
@@ -2079,6 +2135,8 @@ class AgreementPatchIn(BaseModel):
     direct_debit_received: Optional[bool] = None
     serial_exceptions: Optional[dict] = None   # {machine: "TO_CONFIRM_ON_FIRST_SERVICE"|"NOT_APPLICABLE"}
     resolve_wording: Optional[bool] = None
+    start_date: Optional[str] = None
+    visits_per_year: Optional[int] = None
 
 
 @router.patch("/agreements/{agreement_id}")
@@ -2088,6 +2146,22 @@ async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depend
     if not ag:
         raise HTTPException(404, "Agreement not found")
     patch = {}
+    if body.start_date is not None or body.visits_per_year is not None:
+        if ag.get("status") != "draft":
+            raise HTTPException(400, "Dates and visits can only change while the agreement is a draft.")
+    if body.start_date is not None:
+        from utils.cm_dates import parse_date
+        if not parse_date(body.start_date):
+            raise HTTPException(400, "start_date must be YYYY-MM-DD")
+        tmp = {"term_years": ag.get("term_years"), "schedules": dict(ag.get("schedules") or {})}
+        tmp["schedules"]["schedule2_agreement"] = dict(tmp["schedules"].get("schedule2_agreement") or {})
+        _apply_dates(tmp, body.start_date)
+        patch.update({"start_date": tmp["start_date"], "end_date": tmp["end_date"],
+                      "schedules": tmp["schedules"]})
+    if body.visits_per_year is not None:
+        if not 1 <= body.visits_per_year <= 12:
+            raise HTTPException(400, "Visits per year must be between 1 and 12")
+        patch["visits_per_year"] = body.visits_per_year
     if body.payment_method is not None:
         patch["payment_method"] = body.payment_method
         patch["billing_frequency"] = body.payment_method
@@ -2102,7 +2176,9 @@ async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depend
     merged = {**ag, **patch}
     patch["health"] = _agreement_health(merged)
     await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": patch})
-    return await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    out = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    await _agreement_step_action(_org(user), out)
+    return out
 
 
 @router.post("/agreements/{agreement_id}/generate")
@@ -2118,6 +2194,7 @@ async def generate_agreement(agreement_id: str, user=Depends(require_crm_perm("a
     await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
         "status": "ready", "generated_at": _now(), "timeline": tl, "updated_at": _now()}})
     await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="generate", user=user)
+    await _agreement_step_action(_org(user), {**ag, "status": "ready"})
     return {"status": "ready", "generated_at": _now(), "agreement_number": ag.get("agreement_number")}
 
 
@@ -2150,6 +2227,7 @@ async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(require_c
         "status": "signed", "signature": sig, "signed_at": _now(), "timeline": tl, "updated_at": _now()}})
     await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="sign", user=user,
                        extra={"signatory": body.signatory_name})
+    await _agreement_step_action(_org(user), {**ag, "status": "signed"})
     return {"status": "signed", "signature": sig}
 
 
@@ -2339,6 +2417,7 @@ async def activate_agreement(agreement_id: str, body: Optional[ActivateIn] = Non
         "activation_steps": steps, "timeline": tl, "updated_at": _now()}})
     await resolve_action(org_id, f"cm:activation-conflict:{agreement_id}", "Activated after review.")
     await resolve_action(org_id, f"cm:activation-missing:{agreement_id}", "Information completed.")
+    await _agreement_step_action(org_id, {**ag, "status": "active"})
     await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="activate", user=user,
                        extra={"contract_id": cid, "conflict_override": body.conflict_review_note})
     return {"status": "active", "contract_id": cid, "contract_number": ag.get("agreement_number"), "steps": steps,

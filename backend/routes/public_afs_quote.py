@@ -103,7 +103,7 @@ async def accept_public_afs_quote(shortcode: str, body: AcceptBody):
     if _is_expired(q):
         raise HTTPException(410, "This quote has expired. Please contact Pulse Fitness for a fresh quote.")
     set_payload = {
-        "portal_status": "accepted", "accepted_at": _now(),
+        "portal_status": "accepted", "status": "accepted", "accepted_at": _now(),
         "accepted_by_name": body.name.strip(),
         "accepted_by_note": (body.note or "").strip(),
         "accepted_via": "public_link", "updated_at": _now(),

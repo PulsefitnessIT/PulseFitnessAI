@@ -1509,6 +1509,43 @@ const AG_STATUS = {
   activation_attention: { label: 'Activation Attention', color: 'var(--color-danger)' },
 };
 
+const AG_FLOW = ['draft', 'ready', 'signed', 'active'];
+function AgreementProgress({ ag, c, isDark, API, headers }) {
+  const [plan, setPlan] = useState(null);
+  useEffect(() => {
+    if (!ag.contract_id) { setPlan(null); return; }
+    axios.get(`${API}/crm/v2/aftersales/contracts/${ag.contract_id}/schedules`, { headers: headers() })
+      .then(r => setPlan(r.data)).catch(() => setPlan(null));
+  }, [API, headers, ag.contract_id]);
+  const pos = ag.status === 'sent' ? 1 : ag.status === 'activation_attention' || ag.status === 'activating' ? 2 : AG_FLOW.indexOf(ag.status);
+  const bills = plan?.billing || [];
+  const steps = [
+    ['Agreement pre-filled', true],
+    ['Generated', pos >= 1],
+    ['Signed', pos >= 2],
+    ['Contract active', pos >= 3],
+    [`Service plan${plan ? ` · ${plan.service.required} visits` : ''}`, !!plan && plan.service.required > 0],
+    [`Billing${plan ? ` · ${bills.length} invoices` : ''}`, !!plan && bills.length > 0],
+  ];
+  return (
+    <Card c={c} isDark={isDark} testId="afs-ag-progress" className="mb-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {steps.map(([label, done], i) => (
+          <span key={i} data-testid={`afs-ag-step-${i}`} data-done={done ? 'yes' : 'no'} className="inline-flex items-center gap-1.5 text-xs"
+            style={{ color: done ? c.text : c.textDim }}>
+            {done ? <CheckCircle2 size={13} style={{ color: 'var(--color-success-alt)' }} /> : <Circle size={13} />} {label}
+          </span>
+        ))}
+      </div>
+      {plan && (
+        <p className="text-[11px] mt-2" data-testid="afs-ag-plan-summary" style={{ color: c.textDim }}>
+          Next visit due {plan.service.next_due || '—'} · first invoice {bills[0]?.due_date || '—'} ({gbp(bills[0]?.amount)}) · Sage {plan.contract.sage_sync_status || 'queued'}
+        </p>
+      )}
+    </Card>
+  );
+}
+
 function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
   const [agreements, setAgreements] = useState([]);
   const [quotes, setQuotes] = useState([]);
@@ -1518,7 +1555,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
   const [newQuoteId, setNewQuoteId] = useState('');
-  const [startDate, setStartDate] = useState('2026-07-01');
+  const [startDate, setStartDate] = useState('');
   const [payMethod, setPayMethod] = useState('annual');
   const [visits, setVisits] = useState(2);
   const [sign, setSign] = useState({ signatory_name: '', position: '', email: '', authority_confirmed: false });
@@ -1533,7 +1570,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
       setAgreements(a.data.agreements || []);
       const qs = q.data.quotes || [];
       setAllQuotes(qs);
-      setQuotes(qs.filter(x => ['draft', 'accepted'].includes(x.status)));
+      setQuotes(qs.filter(x => x.status === 'accepted'));
       setPortalLinks(prev => {
         const next = { ...prev };
         qs.forEach(x => { if (x.public_shortcode) next[x.id] = `${window.location.origin}/aq/${x.public_shortcode}`; });
@@ -1636,6 +1673,15 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
 
   const openDetail = (id) => axios.get(`${API}/crm/v2/aftersales/agreements/${id}`, { headers: headers() }).then(r => { setDetail(r.data); setShowSign(false); });
   const refreshDetail = () => detail && openDetail(detail.id);
+  const acceptQuote = async (q) => {
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/quotes/${q.id}/accept`, {}, { headers: headers() });
+      toast.success(`Accepted — agreement ${r.data.agreement_number} pre-filled`);
+      load(); openDetail(r.data.agreement_id);
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not record acceptance'); }
+    finally { setBusy(false); }
+  };
 
   const prepare = async () => {
     if (!newQuoteId) return;
@@ -1646,7 +1692,11 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
       setNewQuoteId(''); load(); openDetail(r.data.id);
     } finally { setBusy(false); }
   };
-  const patch = async (body) => { await axios.patch(`${API}/crm/v2/aftersales/agreements/${detail.id}`, body, { headers: headers() }); refreshDetail(); };
+  const patch = async (body) => {
+    try { await axios.patch(`${API}/crm/v2/aftersales/agreements/${detail.id}`, body, { headers: headers() }); }
+    catch (e) { toast.error(e.response?.data?.detail || 'Could not update the agreement'); }
+    refreshDetail();
+  };
   const generate = async () => { setBusy(true); try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/generate`, {}, { headers: headers() }); refreshDetail(); load(); } catch (e) { alert((e.response?.data?.detail?.reasons || ['Not ready']).join('\n')); } finally { setBusy(false); } };
   const doSign = async () => {
     setBusy(true);
@@ -1700,9 +1750,21 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
           {health.reasons.map((r, i) => <p key={i} className="text-xs ml-6" style={{ color: c.textDim }}>• {r}</p>)}
         </Card>
 
+        <AgreementProgress ag={ag} c={c} isDark={isDark} API={API} headers={headers} />
+
         {/* Controls */}
         <Card c={c} isDark={isDark} className="mb-3">
           <div className="flex flex-wrap items-end gap-3">
+            {ag.status === 'draft' && (<>
+              <label className="text-xs" style={{ color: c.textDim }}>Start date
+                <input data-testid="afs-ag-edit-start" type="date" defaultValue={ag.start_date || ''} key={`sd-${ag.start_date}`}
+                  onBlur={e => e.target.value && e.target.value !== ag.start_date && patch({ start_date: e.target.value })}
+                  className="block mt-1 px-2 py-1.5 text-sm rounded-md" style={inpStyle} /></label>
+              <label className="text-xs" style={{ color: c.textDim }}>Visits/yr
+                <input data-testid="afs-ag-edit-visits" type="number" min="1" max="12" defaultValue={ag.visits_per_year || 2} key={`v-${ag.visits_per_year}`}
+                  onBlur={e => Number(e.target.value) !== ag.visits_per_year && patch({ visits_per_year: Number(e.target.value) })}
+                  className="block mt-1 w-16 px-2 py-1.5 text-sm rounded-md" style={inpStyle} /></label>
+            </>)}
             <label className="text-xs" style={{ color: c.textDim }}>Payment method
               <select data-testid="afs-ag-payment" value={ag.payment_method || 'annual'} onChange={e => patch({ payment_method: e.target.value })} className="block mt-1 px-2 py-1.5 text-sm rounded-md" style={inpStyle}>
                 <option value="annual">Annual</option><option value="monthly">Monthly (Direct Debit)</option><option value="lump_sum">Lump Sum</option></select></label>
@@ -1866,6 +1928,19 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
                       </span>
                     )}
                     <div className="flex-1" />
+                    {q.status === 'agreement' && q.agreement_id && (
+                      <button data-testid={`afs-quote-open-agreement-${q.id}`} onClick={() => openDetail(q.agreement_id)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                        <FileCheck2 size={13} /> Open agreement
+                      </button>
+                    )}
+                    {(['accepted'].includes(q.status) || (!['agreement', 'declined'].includes(q.status) && q.portal_status !== 'declined')) && (
+                      <button data-testid={`afs-quote-accept-${q.id}`} onClick={() => acceptQuote(q)} disabled={busy || (q.unpriced_count || 0) > 0}
+                        title={q.status === 'accepted' ? 'Pre-fill the agreement from this accepted quote' : 'Record that the customer accepted (e.g. by email or phone)'}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md disabled:opacity-40" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                        <CheckCircle2 size={13} /> {q.status === 'accepted' ? 'Prepare agreement' : 'Record acceptance'}
+                      </button>
+                    )}
                     {(q.source === 'custom_tender_upload' || q.contract_type === 'custom') && (
                       <button data-testid={`afs-quote-edit-${q.id}`} onClick={() => editQuoteRow(q)}
                         className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
@@ -1919,7 +1994,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
               <option value="annual">Annual</option><option value="monthly">Monthly</option><option value="lump_sum">Lump Sum</option></select></label>
           <label className="text-xs" style={{ color: c.textDim }}>Visits/yr
             <input type="number" min="1" value={visits} onChange={e => setVisits(e.target.value)} className="block mt-1 w-16 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
-          <button data-testid="afs-ag-prepare" onClick={prepare} disabled={!newQuoteId || busy} className="px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{busy ? '…' : 'Prepare Agreement'}</button>
+          <button data-testid="afs-ag-prepare" onClick={prepare} disabled={!newQuoteId || !startDate || busy} className="px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{busy ? '…' : 'Prepare Agreement'}</button>
         </div>
       </Card>
 
