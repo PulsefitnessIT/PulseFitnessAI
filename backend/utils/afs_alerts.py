@@ -70,7 +70,10 @@ async def _emit(org_id: str, *, dedupe_key: str, activity: dict, notification: d
         "status": "open", "source": "afs_alerts", "category": "aftersales_alert",
         "dedupe_key": dedupe_key, "created_at": now, "updated_at": now, **activity,
     }
-    await db.crm2_activities.insert_one(act)
+    try:
+        await db.crm2_activities.insert_one(act)
+    except Exception:  # unique (org, dedupe_key) — a concurrent sweep won
+        return None
     note = {
         "id": str(uuid.uuid4()), "organization_id": org_id, "type": "aftersales_alert",
         "read": False, "created_at": now, "activity_id": act["id"], **notification,

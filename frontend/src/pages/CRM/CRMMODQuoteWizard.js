@@ -108,7 +108,7 @@ export function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onC
                   {r.is_poa && <span className="ml-1 text-[9px] px-1 rounded" style={{ background: 'var(--color-warning)', color: '#000' }}>POA</span>}
                   {!r.is_poa && (r.price_status === 'verified'
                     ? <span className="ml-1 text-[9px] px-1 rounded" style={{ background: 'var(--color-success-alt)', color: '#fff' }} title={r.valid_to ? `Valid ${r.valid_from || ''} – ${r.valid_to}` : 'Verified'} data-testid={`mod-rate-status-${r.id}`}>VERIFIED</span>
-                    : <span className="ml-1 text-[9px] px-1 rounded" style={{ background: 'var(--color-warning)', color: '#000' }} data-testid={`mod-rate-status-${r.id}`}>PLACEHOLDER</span>)}
+                    : <span className="ml-1 text-[9px] px-1 rounded" style={{ background: 'var(--color-warning)', color: '#000' }} title={r.price_status === 'historical' ? 'Existing price — usable until the authorised price file is uploaded' : 'Not verified'} data-testid={`mod-rate-status-${r.id}`}>{r.price_status === 'historical' ? 'HISTORICAL' : 'PLACEHOLDER'}</span>)}
                 </td>
                 {['type_a_price', 'type_a_price_y2', 'type_a_price_y3', 'type_a_price_y4',
                   'type_b_price', 'type_b_price_y2', 'type_b_price_y3', 'type_b_price_y4'].map(f => (

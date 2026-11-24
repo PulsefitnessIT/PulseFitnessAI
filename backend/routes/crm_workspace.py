@@ -115,23 +115,103 @@ async def renewals_prepare(dry_run: bool = True, user=Depends(require_crm_perm("
                                   dry_run=dry_run)
 
 
+def _pct(v):
+    if v in (None, ""):
+        return None
+    try:
+        p = float(v)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "uplift_percent must be a number")
+    if not -20 <= p <= 25:
+        raise HTTPException(400, "uplift_percent must be between -20 and 25")
+    return p
+
+
 @router.post("/renewals/{renewal_id}/approve-send")
 async def renewal_approve_send(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.review"))):
+    """Standard renewals (0% / approved RPI) can be issued by a coordinator;
+    any other increase needs renewals.approve (checked inside)."""
     from utils.cm_renewals import approve_and_send_renewal
-    pct = (data or {}).get("uplift_percent")
-    if pct not in (None, ""):
-        try:
-            pct = float(pct)
-        except (TypeError, ValueError):
-            raise HTTPException(400, "uplift_percent must be a number")
-        if not -20 <= pct <= 25:
-            raise HTTPException(400, "uplift_percent must be between -20 and 25")
-    else:
-        pct = None
-    res = await approve_and_send_renewal(renewal_id, user, pct)
+    res = await approve_and_send_renewal(renewal_id, user, _pct((data or {}).get("uplift_percent")))
     if not res.get("ok"):
-        raise HTTPException(409, res.get("error") or "Could not send renewal")
+        raise HTTPException(403 if res.get("code") == "approval_required" else 409, res.get("error") or "Could not send renewal")
     return res
+
+
+@router.post("/renewals/{renewal_id}/request-approval")
+async def renewal_request_approval(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.review"))):
+    from utils.cm_renewals import request_price_approval
+    pct = _pct((data or {}).get("uplift_percent"))
+    if pct is None:
+        raise HTTPException(400, "Enter the proposed increase (%)")
+    res = await request_price_approval(renewal_id, user, pct, (data or {}).get("reason") or "")
+    if not res.get("ok"):
+        raise HTTPException(409, res.get("error"))
+    return res
+
+
+@router.get("/renewals")
+async def renewals_list(user=Depends(require_crm_perm("renewals.review"))):
+    from utils.cm_renewals import list_renewals
+    return {"renewals": await list_renewals(user.get("organization_id"))}
+
+
+@router.post("/renewals/{renewal_id}/resend")
+async def renewal_resend(renewal_id: str, user=Depends(require_crm_perm("renewals.review"))):
+    from utils.cm_renewals import resend_renewal
+    res = await resend_renewal(renewal_id, user)
+    if not res.get("ok"):
+        raise HTTPException(409, res.get("error"))
+    return res
+
+
+@router.post("/renewals/{renewal_id}/declined")
+async def renewal_declined(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.review"))):
+    from utils.cm_renewals import record_outcome
+    res = await record_outcome(renewal_id, user, "declined", (data or {}).get("note") or "")
+    if not res.get("ok"):
+        raise HTTPException(409, res.get("error"))
+    return res
+
+
+@router.put("/customers/{company_id}/coordinator")
+async def set_customer_coordinator(company_id: str, data: dict, user=Depends(require_crm_perm("contracts.manage"))):
+    """Assign the customer's Contract Coordinator (receives their tasks)."""
+    org_id = user.get("organization_id")
+    co = await db.crm2_companies.find_one({"id": company_id, "organization_id": org_id}, {"_id": 0, "id": 1})
+    if not co:
+        raise HTTPException(404, "Customer not found")
+    uid = (data or {}).get("user_id") or None
+    name = None
+    if uid:
+        u = await db.users.find_one({"id": uid, "organization_id": org_id}, {"_id": 0, "full_name": 1, "email": 1})
+        if not u:
+            raise HTTPException(404, "Coordinator not found")
+        name = u.get("full_name") or u.get("email")
+    await db.crm2_companies.update_one({"id": company_id}, {"$set": {"coordinator_id": uid, "coordinator_name": name}})
+    if uid:  # hand over the customer's open shared-queue items
+        await db.crm2_activities.update_many(
+            {"organization_id": org_id, "company_id": company_id, "status": "open", "owner_id": "system",
+             "category": "contract_admin", "type": {"$ne": "renewal_price_approval"}},
+            {"$set": {"owner_id": uid, "owner_name": name}})
+    return {"company_id": company_id, "coordinator_id": uid, "coordinator_name": name}
+
+
+@router.get("/coordinators")
+async def list_coordinators(user=Depends(require_crm_perm("contracts.read"))):
+    rows = await db.users.find({"organization_id": user.get("organization_id"),
+                                "crm_workspace_role": {"$in": ["contract_coordinator", "aftersales_manager"]}},
+                               {"_id": 0, "id": 1, "full_name": 1, "email": 1}).to_list(200)
+    return {"coordinators": rows}
+
+
+@router.post("/sales-handover/{sales_quote_id}")
+async def raise_handover_now(sales_quote_id: str, user=Depends(require_crm_perm("contracts.read"))):
+    from utils.cm_handover import raise_sales_handover
+    q = await db.crm_quotes.find_one({"id": sales_quote_id, "organization_id": user.get("organization_id")}, {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Sales quote not found")
+    return await raise_sales_handover(user.get("organization_id"), q)
 
 
 async def _daily_checks_all(run_id: str) -> None:

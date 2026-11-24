@@ -92,6 +92,8 @@ async def _ensure_rate_card() -> None:
 
 async def _rate_card_list() -> list[dict]:
     await _ensure_rate_card()
+    meta = await db.mod_rate_card_meta.find_one({"id": "meta"}, {"_id": 0})
+    _IMPORT_DONE["value"] = bool(meta and meta.get("last_import_at"))
     cur = db.mod_sor_rate_card.find({}, {"_id": 0}).sort("sort_order", 1)
     return await cur.to_list(length=500)
 
@@ -162,11 +164,21 @@ async def _snapshot_rate(entry: dict, user: dict, reason: str) -> None:
         "by": user.get("email"), "at": _now()})
 
 
+_IMPORT_DONE: dict = {"value": None}
+
+
 def rate_is_usable(rc: dict | None, today: str | None = None) -> tuple[bool, str]:
-    """Verified AND inside its validity window → may be sent to a customer."""
+    """Verified AND inside its validity window → may be sent to a customer.
+    "historical" (existing DB prices never confirmed) stays usable only until
+    the first authorised price file is applied; after that it must be verified."""
     if not rc:
         return False, "not on the rate card"
-    if (rc.get("price_status") or "placeholder") != "verified":
+    st = rc.get("price_status") or "placeholder"
+    if st == "historical":
+        if _IMPORT_DONE["value"]:
+            return False, "historical price not in the authorised price file"
+        return True, "historical (awaiting authorised price file)"
+    if st != "verified":
         return False, "placeholder price (not verified)"
     today = today or datetime.now(timezone.utc).date().isoformat()
     if rc.get("valid_to") and str(rc["valid_to"])[:10] < today:
@@ -264,6 +276,10 @@ async def import_rate_card(file: UploadFile = File(...), valid_from: str = Form(
             **m["new"], "price_status": "verified", "valid_from": valid_from[:10], "valid_to": valid_to[:10],
             "price_source": file.filename, "verified_by": user.get("email"), "verified_at": _now(),
             "updated_at": _now(), "updated_by": user.get("full_name") or user.get("id")}})
+    await db.mod_rate_card_meta.update_one({"id": "meta"}, {"$set": {
+        "id": "meta", "last_import_at": _now(), "last_import_file": file.filename,
+        "valid_from": valid_from[:10], "valid_to": valid_to[:10], "by": user.get("email")}}, upsert=True)
+    _IMPORT_DONE["value"] = True
     await log_audit(user, "mod_rate_card", "all", "imported",
                     {"file": file.filename, "matched": len(matched), "unmatched": len(unmatched)})
     result["items"] = await _rate_card_list()
@@ -661,7 +677,7 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quo
                 "service_type": line_ct,
                 "contracted": True,
                 "rate_card_id": rc["id"],
-                "rate_status": "verified" if rate_is_usable(rc)[0] else rate_is_usable(rc)[1],
+                "rate_status": "verified" if (rc.get("price_status") == "verified" and rate_is_usable(rc)[0]) else rate_is_usable(rc)[1],
             })
         else:
             # POA / Type C / custom-price line — price supplied by the user.
@@ -692,7 +708,7 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quo
                 "quantity": call_outs, "unit_price": co.get("type_b_price"),
                 "discount": 0, "service_type": "B", "contracted": True,
                 "rate_card_id": co["id"],
-                "rate_status": "verified" if rate_is_usable(co)[0] else rate_is_usable(co)[1],
+                "rate_status": "verified" if (co.get("price_status") == "verified" and rate_is_usable(co)[0]) else rate_is_usable(co)[1],
             })
 
     subtotal = round(sum(

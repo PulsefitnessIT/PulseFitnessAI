@@ -59,7 +59,13 @@ function Card({ children, c, isDark, className = '', testId }) {
 }
 
 // ───────────────────────────────────────────────────────── Dashboard
-function DashboardTab({ API, headers, c, isDark }) {
+function DashboardTab({ API, headers, c, isDark, goTo }) {
+  const crmUser = useCRM().user || {};
+  const perms = crmUser.crm_permissions || [];
+  const [coordinators, setCoordinators] = useState([]);
+  useEffect(() => {
+    axios.get(`${API}/crm/workspace/coordinators`, { headers: headers() }).then(r => setCoordinators(r.data.coordinators || [])).catch(() => setCoordinators([]));
+  }, [API, headers]);
   const [cards, setCards] = useState(null);
   const [priorities, setPriorities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,8 +107,38 @@ function DashboardTab({ API, headers, c, isDark }) {
   };
   const [sendingId, setSendingId] = useState('');
   const [pctById, setPctById] = useState({});
+  const requestApproval = async (a, pct) => {
+    try {
+      await axios.post(`${API}/crm/workspace/renewals/${a.renewal_contract_id}/request-approval`, { uplift_percent: Number(pct) }, { headers: headers() });
+      toast.success('Submitted for manager approval'); loadAlerts();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not submit'); }
+  };
+  const copyLink = (link) => { navigator.clipboard?.writeText(link); toast.success('Accept link copied'); };
+  const resendRenewal = async (a) => {
+    setSendingId(a.id);
+    try {
+      const r = await axios.post(`${API}/crm/workspace/renewals/${a.renewal_contract_id}/resend`, {}, { headers: headers() });
+      if (r.data.email_delivered) toast.success(`Renewal delivered to ${r.data.to}`); else toast.warning('Email still not delivered — copy the link and send it yourself');
+      loadAlerts();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not resend'); }
+    setSendingId('');
+  };
+  const assignCoordinator = async (a, uid) => {
+    if (!uid || !a.company_id) return;
+    try {
+      const r = await axios.put(`${API}/crm/workspace/customers/${a.company_id}/coordinator`, { user_id: uid }, { headers: headers() });
+      toast.success(`${r.data.coordinator_name} now coordinates this customer`); loadAlerts();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not assign'); }
+  };
+  const openBuildQuote = (a) => {
+    try {
+      sessionStorage.setItem('cm_build_prefill', JSON.stringify({ company_id: a.company_id, site_ids: a.site_ids || [], asset_ids: a.equipment_ids || [],
+        source_sales_quote_id: a.source_sales_quote_id, sales_quote_number: a.sales_quote_number, company_name: a.company_name, equipment_count: a.equipment_count }));
+    } catch { /* storage full */ }
+    goTo && goTo('autoquote');
+  };
   const approveRenewal = async (a) => {
-    const pct = String(pctById[a.id] ?? '');
+    const pct = String(pctById[a.id] ?? (a.requested_uplift_percent ?? ''));
     setSendingId(a.id);
     try {
       const r = await axios.post(`${API}/crm/workspace/renewals/${a.renewal_contract_id}/approve-send`,
@@ -113,7 +149,11 @@ function DashboardTab({ API, headers, c, isDark }) {
         action: { label: 'Copy link', onClick: () => navigator.clipboard?.writeText(r.data.accept_link) },
       });
       loadAlerts();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Could not send renewal'); }
+    } catch (e) {
+      if (e.response?.status === 403 && pct.trim() !== '') {
+        toast.warning(e.response.data.detail, { duration: 12000, action: { label: 'Submit for approval', onClick: () => requestApproval(a, pct) } });
+      } else toast.error(e.response?.data?.detail || 'Could not send renewal');
+    }
     setSendingId('');
   };
   const dismissAlert = async (id) => {
@@ -207,7 +247,8 @@ function DashboardTab({ API, headers, c, isDark }) {
             (alerts.alerts || []).filter(a => a.status === 'open').map((a) => {
               const isWarranty = a.type === 'warranty_alert';
               const kind = { warranty_alert: 'WARRANTY', rpi_review_due: 'RPI REVIEW', contract_missing_info: 'MISSING INFO',
-                renewal_approval: 'RENEWAL APPROVAL', renewal_blocked: 'RENEWAL BLOCKED' }[a.type] || 'ACTION';
+                renewal_approval: 'RENEWAL APPROVAL', renewal_blocked: 'RENEWAL BLOCKED', renewal_price_approval: 'PRICE APPROVAL',
+                renewal_undelivered: 'NOT DELIVERED', sales_handover: 'SALE HANDOVER', activation_conflict: 'ACTIVATION REVIEW' }[a.type] || 'ACTION';
               const col = !a.threshold_days ? (a.type === 'renewal_approval' ? 'var(--color-info-ios)' : 'var(--color-accent-amber)')
                 : a.threshold_days <= 90 ? 'var(--color-danger)' : a.threshold_days <= 120 ? 'var(--color-accent-amber)' : 'var(--color-info-ios)';
               return (
@@ -222,6 +263,31 @@ function DashboardTab({ API, headers, c, isDark }) {
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: c.textDim }}>{a.body}</p>
                   </div>
+                  {a.owner_id === 'system' && a.company_id && coordinators.length > 0 && perms.includes('contracts.manage') && (
+                    <select defaultValue="" onChange={e => assignCoordinator(a, e.target.value)} data-testid={`afs-alert-assign-${a.id}`} title="Assign this customer's coordinator"
+                      className="shrink-0 text-xs px-1.5 py-1 rounded-md border max-w-[130px]" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }}>
+                      <option value="">Assign…</option>
+                      {coordinators.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
+                    </select>
+                  )}
+                  {a.type === 'sales_handover' && (
+                    <button data-testid={`afs-alert-build-${a.id}`} onClick={() => openBuildQuote(a)}
+                      className="shrink-0 text-xs px-2 py-1 rounded-md inline-flex items-center gap-1" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+                      <Zap size={12} /> Build quote
+                    </button>
+                  )}
+                  {a.type === 'renewal_undelivered' && a.accept_link && (
+                    <>
+                      <button data-testid={`afs-alert-copy-${a.id}`} onClick={() => copyLink(a.accept_link)} className="shrink-0 text-xs px-2 py-1 rounded-md border" style={{ borderColor: c.border, color: c.text }}>Copy link</button>
+                      <button data-testid={`afs-alert-resend-${a.id}`} onClick={() => resendRenewal(a)} disabled={sendingId === a.id} className="shrink-0 text-xs px-2 py-1 rounded-md border disabled:opacity-50" style={{ borderColor: c.border, color: c.text }}>Resend</button>
+                    </>
+                  )}
+                  {a.type === 'renewal_price_approval' && a.renewal_contract_id && perms.includes('renewals.approve') && (
+                    <button data-testid={`afs-alert-approve-${a.id}`} onClick={() => approveRenewal(a)} disabled={sendingId === a.id}
+                      className="shrink-0 text-xs px-2 py-1 rounded-md inline-flex items-center gap-1 disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+                      <Mail size={12} /> {sendingId === a.id ? 'Sending…' : `Approve ${a.requested_uplift_percent}% & send`}
+                    </button>
+                  )}
                   {a.type === 'renewal_approval' && a.renewal_contract_id && (
                     <input type="number" step="0.1" placeholder="% rise" value={pctById[a.id] ?? ''} data-testid={`afs-alert-pct-${a.id}`}
                       onChange={e => setPctById(m => ({ ...m, [a.id]: e.target.value }))} title="Approved price increase (%) — leave blank to keep the prepared figure"
@@ -815,6 +881,19 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
       { headers: headers() }).then(r => setResult(r.data)).finally(() => setBusy(false));
   }, [API, headers, contractType, level, term, discount]);
 
+  const [prefill, setPrefill] = useState(() => { try { return JSON.parse(sessionStorage.getItem('cm_build_prefill') || 'null'); } catch { return null; } });
+  useEffect(() => {
+    if (!prefill?.company_id) return;
+    setCompanyId(prefill.company_id);
+    axios.get(`${API}/crm/v2/aftersales/estate/${prefill.company_id}`, { headers: headers() }).then(r => {
+      setEstate(r.data);
+      const want = new Set(prefill.site_ids || []);
+      const sel = {}; (r.data.sites || []).forEach(s => { sel[s.id] = want.size ? want.has(s.id) : true; });
+      setSelSites(sel);
+    }).catch(() => setEstate({ sites: [], totals: {} }));
+  }, [prefill]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const clearPrefill = () => { try { sessionStorage.removeItem('cm_build_prefill'); } catch { /* ignore */ } setPrefill(null); };
+
   const loadEstate = useCallback((cid) => {
     setEstate(null); setResult(null);
     if (!cid) return;
@@ -829,11 +908,16 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
     if (!companyId) return;
     setBusy(true);
     const site_ids = Object.keys(selSites).filter(k => selSites[k] && k !== '__unassigned__');
+    const fromSale = prefill && prefill.company_id === companyId ? prefill : null;
     axios.post(`${API}/crm/v2/aftersales/build-quote-from-estate`, {
       company_id: companyId, site_ids, contract_type: contractType, pricing_level: level,
       term_years: Number(term), quote_discount_pct: Number(discount), save: !!save,
-    }, { headers: headers() }).then(r => setResult(r.data)).finally(() => setBusy(false));
-  }, [API, headers, companyId, selSites, contractType, level, term, discount]);
+      ...(fromSale ? { asset_ids: fromSale.asset_ids, source_sales_quote_id: fromSale.source_sales_quote_id, source: 'sales_handover' } : {}),
+    }, { headers: headers() }).then(r => {
+      setResult(r.data);
+      if (save && fromSale) { if (r.data.existing) toast.info(`Existing maintenance quote ${r.data.quote_number} reused`); clearPrefill(); }
+    }).finally(() => setBusy(false));
+  }, [API, headers, companyId, selSites, contractType, level, term, discount, prefill]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const resolveRrp = async (ex) => {
     const val = Number(rrpEdit[ex.config_id]);
@@ -856,6 +940,14 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
 
   return (
     <div data-testid="afs-autoquote">
+      {prefill?.company_id && (
+        <div className="mb-4 rounded-xl p-3 flex items-center gap-3 flex-wrap" style={{ background: isDark ? '#1f2224' : 'var(--color-neutral-100)', border: `1px solid ${c.border}` }} data-testid="afs-aq-prefill">
+          <span className="text-xs" style={{ color: c.text }}>
+            From equipment sale <strong>{prefill.sales_quote_number || ''}</strong> — {prefill.company_name}: {prefill.equipment_count || (prefill.asset_ids || []).length} confirmed machine(s) pre-selected.
+          </span>
+          <button onClick={clearPrefill} className="text-xs underline ml-auto" style={{ color: c.textDim }} data-testid="afs-aq-prefill-clear">Clear</button>
+        </div>
+      )}
       {warrantyOpps.length > 0 && (
         <div className="mb-4" data-testid="afs-warranty-opps">
           <div className="flex items-center gap-2 mb-2">
@@ -1542,7 +1634,20 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
     try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/sign`, sign, { headers: headers() }); setShowSign(false); refreshDetail(); load(); }
     catch (e) { alert(e.response?.data?.detail || 'Sign failed'); } finally { setBusy(false); }
   };
-  const activate = async () => { setBusy(true); try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/activate`, {}, { headers: headers() }); refreshDetail(); load(); } finally { setBusy(false); } };
+  const [actIssue, setActIssue] = useState(null);
+  const [overrideNote, setOverrideNote] = useState('');
+  const canOverride = (useCRM().user?.crm_permissions || []).includes('exceptions.approve');
+  const activate = async (note) => {
+    setBusy(true);
+    try {
+      await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/activate`, note ? { conflict_review_note: note } : {}, { headers: headers() });
+      setActIssue(null); refreshDetail(); load();
+    } catch (e) {
+      const d = e.response?.data?.detail;
+      if (d && typeof d === 'object') setActIssue(d); else toast.error(d || 'Activation failed');
+      refreshDetail();
+    } finally { setBusy(false); }
+  };
 
   const stepIcon = (st) => st === 'ok' ? <CheckCircle2 size={13} style={{ color: 'var(--color-success-alt)' }} />
     : st === 'warning' ? <AlertTriangle size={13} style={{ color: 'var(--color-accent-amber)' }} />
@@ -1651,7 +1756,21 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
         <div className="flex flex-wrap gap-2">
           {ag.status === 'draft' && <button data-testid="afs-ag-generate" onClick={generate} disabled={busy || !health.ready} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-info-ios)', color: '#fff' }}><FileCheck2 size={16} /> Generate Agreement</button>}
           {(ag.status === 'ready' || ag.status === 'sent') && <button data-testid="afs-ag-open-sign" onClick={() => setShowSign(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-blue)', color: '#fff' }}><PenLine size={16} /> Review & Sign</button>}
-          {ag.status === 'signed' && <button data-testid="afs-ag-activate" onClick={activate} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
+          {actIssue && (
+            <div className="w-full rounded-lg p-3 text-xs" style={{ border: '1px solid var(--color-accent-amber)', color: c.text }} data-testid="afs-ag-activation-issue">
+              <p className="font-semibold mb-1">{actIssue.message}</p>
+              {(actIssue.conflicts || []).map((x, i) => <p key={i} style={{ color: c.textDim }}>• {x.detail}</p>)}
+              {actIssue.code === 'activation_conflict' && canOverride && (
+                <div className="flex gap-2 mt-2">
+                  <input value={overrideNote} onChange={e => setOverrideNote(e.target.value)} placeholder="Review note (why activation is correct)" data-testid="afs-ag-override-note"
+                    className="flex-1 px-2 py-1 rounded border text-xs" style={{ borderColor: c.border, background: 'transparent', color: c.text }} />
+                  <button onClick={() => activate(overrideNote)} disabled={!overrideNote.trim() || busy} data-testid="afs-ag-override-activate"
+                    className="px-3 py-1 rounded font-bold disabled:opacity-40" style={{ background: 'var(--color-success-alt)', color: '#fff' }}>Approve &amp; activate</button>
+                </div>
+              )}
+            </div>
+          )}
+          {['signed', 'activation_attention'].includes(ag.status) && <button data-testid="afs-ag-activate" onClick={() => activate()} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
         </div>
 
         {/* Timeline */}

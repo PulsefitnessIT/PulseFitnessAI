@@ -175,6 +175,13 @@ async def enqueue_finance_sync(org_id: str, contract_id: str, event: str, actor:
     company = await db.crm2_companies.find_one({"id": contract.get("company_id"), **of}, {"_id": 0}) or {}
     payload = build_sales_order_payload(contract, bill.get("invoices", []), company)
 
+    # Never post the same Sales Order twice: once Sage holds a verified
+    # reference, retries / re-activations return that reference unchanged.
+    prior = await db.crm2_afs_finance_sync.find_one({"contract_id": contract_id, **of}, {"_id": 0})
+    if prior and prior.get("status") == "synced" and prior.get("external_ref"):
+        return {"ok": True, "status": "synced", "outbox_status": "synced", "external_ref": prior["external_ref"],
+                "detail": "Already posted — existing Sage reference kept", "duplicate_prevented": True}
+
     push = await push_to_sicon(payload)
     status = push["status"]  # synced | awaiting_credentials | writes_disabled | unconfirmed | failed
     outbox_status = "synced" if status == "synced" else ("failed" if status == "failed" else "queued")

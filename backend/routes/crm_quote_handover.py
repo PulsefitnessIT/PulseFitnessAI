@@ -277,9 +277,13 @@ async def register_with_customer(quote_id: str, user=Depends(get_crm_user)):
         created.append({"id": new_id, "name": copy["name"], "serial_number": copy["serial_number"]})
 
     await _audit(user, quote_id, "customer_handover", {"count": len(created), "tenant_org_id": tenant_org_id})
+    # Confirmed equipment → one maintenance opportunity for Contract Management.
+    from utils.cm_handover import raise_sales_handover
+    cm = await raise_sales_handover(user.get("organization_id"), await _get_quote(quote_id, user))
     return {
         "handed_over": created,
         "customer_portal": await _customer_portal(quote, user),
+        "maintenance_opportunity": cm,
     }
 
 

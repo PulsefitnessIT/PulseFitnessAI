@@ -32,7 +32,11 @@ def setup():
     subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
                    env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
     rate_backup = list(mdb.mod_sor_rate_card.find({}))
+    meta_backup = mdb.mod_rate_card_meta.find_one({"id": "meta"})
     yield
+    mdb.mod_rate_card_meta.delete_many({"id": "meta"})
+    if meta_backup:
+        mdb.mod_rate_card_meta.insert_one(meta_backup)
     mdb.mod_sor_rate_card.delete_many({})
     if rate_backup:
         mdb.mod_sor_rate_card.insert_many(rate_backup)

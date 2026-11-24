@@ -51,7 +51,7 @@ ROLE_PERMISSIONS = {
     },
     "sales_manager": {
         "workspace.crm", "contracts.read", "quotes.commercial", "quotes.mod",
-        "service.read", "pricing.commercial",
+        "service.read", "pricing.commercial", "renewals.review", "renewals.approve",
     },
     "finance": {
         "workspace.contract_management", "contracts.read", "service.read",
@@ -235,6 +235,13 @@ async def run_integrity_boot() -> dict:
         status = "verified" if (rc.get("updated_by") or not same) else "placeholder"
         await db.mod_sor_rate_card.update_one({"id": rc["id"]}, {"$set": {"price_status": status}})
         classified += 1
+    # Prices previously inferred as "verified" only because they differ from the
+    # built-in examples are NOT commercially confirmed → "historical".
+    hist = await db.mod_sor_rate_card.update_many(
+        {"price_status": "verified", "verified_by": {"$in": [None, ""]}, "price_source": {"$in": [None, ""]}},
+        {"$set": {"price_status": "historical"}})
     _ = _re
+    from utils.cm_actions import ensure_indexes
+    await ensure_indexes()
     return {"fabricated_sicon_refs_removed": fixed_sicon, "fabricated_sage_refs_removed": fixed_sage,
-            "mod_rates_classified": classified}
+            "mod_rates_classified": classified, "mod_rates_marked_historical": hist.modified_count}

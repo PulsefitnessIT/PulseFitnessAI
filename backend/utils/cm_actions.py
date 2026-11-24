@@ -20,12 +20,21 @@ def _now() -> str:
 
 
 async def _assignee(org_id: str, contract: dict | None) -> dict:
-    """Contract coordinator → contract owner → unassigned pool."""
+    """Customer's assigned coordinator → contract coordinator → shared queue."""
     c = contract or {}
-    for uid, name in ((c.get("coordinator_id"), c.get("coordinator_name")), (c.get("owner_id"), c.get("owner_name"))):
-        if uid and uid != "system":
-            return {"owner_id": uid, "owner_name": name or ""}
-    return {"owner_id": "system", "owner_name": "Unassigned"}
+    if c.get("company_id"):
+        co = await db.crm2_companies.find_one({"id": c["company_id"]}, {"_id": 0, "coordinator_id": 1, "coordinator_name": 1})
+        if co and co.get("coordinator_id"):
+            return {"owner_id": co["coordinator_id"], "owner_name": co.get("coordinator_name") or ""}
+    if c.get("coordinator_id"):
+        return {"owner_id": c["coordinator_id"], "owner_name": c.get("coordinator_name") or ""}
+    return {"owner_id": "system", "owner_name": "Shared coordinator queue"}
+
+
+async def ensure_indexes() -> None:
+    await db.crm2_activities.create_index(
+        [("organization_id", 1), ("dedupe_key", 1)], unique=True, name="uniq_org_dedupe_key",
+        partialFilterExpression={"dedupe_key": {"$type": "string"}})
 
 
 async def raise_action(org_id: str, dedupe_key: str, *, type_: str, subject: str, body: str,
@@ -49,7 +58,12 @@ async def raise_action(org_id: str, dedupe_key: str, *, type_: str, subject: str
         **links, **(await _assignee(org_id, contract)),
         "created_at": now, "updated_at": now, **(extra or {}),
     }
-    await db.crm2_activities.insert_one(dict(act))
+    # Atomic: the unique (organization_id, dedupe_key) index means a
+    # concurrent sweep that loses the race simply refreshes the winner's row.
+    res = await db.crm2_activities.update_one(
+        {"organization_id": org_id, "dedupe_key": dedupe_key}, {"$setOnInsert": act}, upsert=True)
+    if res.upserted_id is None:
+        return (await db.crm2_activities.find_one({"organization_id": org_id, "dedupe_key": dedupe_key}, {"_id": 0, "id": 1}))["id"]
     await db.crm2_notifications.insert_one({
         "id": str(uuid.uuid4()), "organization_id": org_id, "type": "aftersales_alert",
         "read": False, "created_at": now, "activity_id": act["id"], "title": subject, "message": body,
@@ -133,6 +147,8 @@ async def run_daily_checks(org_id: str, actor: str = "Daily checks") -> dict:
     out = {"organization_id": org_id, "at": _now()}
     out["alerts"] = await run_afs_alerts_once(org_id, send_digest=True)
     out["contract_admin"] = await scan_contract_admin(org_id)
+    from utils.cm_handover import scan_sales_handovers
+    out["sales_handover"] = await scan_sales_handovers(org_id)
     ren = await prepare_renewals(org_id, actor=actor, dry_run=False)
     out["renewals"] = ren["totals"]
     return out

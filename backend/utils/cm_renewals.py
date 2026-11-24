@@ -149,73 +149,196 @@ async def _create_draft(org_id: str, c: dict, item: dict, actor: str) -> str:
     return new_id
 
 
+COMMS_LABELS = {
+    "pending_approval": "Prepared — awaiting approval",
+    "awaiting_price_approval": "Price increase awaiting manager approval",
+    "approved_not_delivered": "Approved — email NOT delivered",
+    "delivered": "Delivered — awaiting customer response",
+    "accepted": "Accepted", "declined": "Declined", "expired": "Expired",
+}
+
+
+def comms_status(r: dict, prev_end: str | None = None) -> str:
+    st = r.get("status")
+    if st == "renewal_pending_approval":
+        return "awaiting_price_approval" if r.get("renewal_price_request") else "pending_approval"
+    if st in ("active", "signed"):
+        return "accepted"
+    if st in ("declined", "rejected"):
+        return "declined"
+    today = datetime.now(timezone.utc).date().isoformat()
+    if st == "sent" and (prev_end or "9999") < today:
+        return "expired"
+    return "delivered" if r.get("renewal_email_delivered") else "approved_not_delivered"
+
+
+async def standard_uplift(org_id: str, renewal: dict) -> float:
+    prev = {"id": renewal.get("previous_contract_id")}
+    appr = await _approved_uplift(org_id, prev) if prev["id"] else None
+    return appr[0] if appr else 0.0
+
+
+async def _send_renewal_email(org_id: str, r: dict) -> tuple[bool, str, str]:
+    """Returns (delivered, accept_link, to). Delivery is only True when the
+    email provider accepted the message."""
+    of = {"organization_id": org_id}
+    to_email = await _customer_email(org_id, r)
+    if not to_email:
+        raise ValueError("No customer contact email on this contract.")
+    from routes.crm_contract_send import _build_catalog, _ensure_accept_token
+    from utils.crm_contract_pdf import build_contract_pdf
+    from utils.brand_urls import app_url_for_org
+    token = await _ensure_accept_token(r["id"], of)
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
+    pdf = b""
+    try:
+        from utils.document_branding import resolve_company_if_configured
+        company = await resolve_company_if_configured(db, {"id": org_id, "name": org.get("name")})
+        pdf = build_contract_pdf(r, org, _build_catalog(), company=company)
+    except Exception:
+        pdf = b""
+    link = f"{app_url_for_org(org)}/contracts/accept/{token}"
+    try:
+        from utils.email import send_email
+        delivered = bool(await send_email(
+            to=to_email, subject=f"Your maintenance renewal is ready — {r['contract_number']}",
+            html=(f"<p>Hello,</p><p>Your maintenance agreement is due for renewal. The new term runs "
+                  f"{r.get('start_date')} to {r.get('end_date')} at <strong>£{float(r['annual_value']):,.2f} per year</strong>.</p>"
+                  f"<p>Review and accept online: <a href=\"{link}\">{link}</a></p>"
+                  f"<p>Kind regards,<br/>{org.get('name') or 'Pulse Fitness'}</p>"),
+            attachments=[{"filename": f"renewal_{r['contract_number']}.pdf",
+                          "content": base64.b64encode(pdf).decode("ascii")}] if pdf else None,
+            organization_id=org_id, kind="crm_contract_renewal"))
+    except Exception:
+        delivered = False
+    return delivered, link, to_email
+
+
+async def request_price_approval(renewal_id: str, user: dict, uplift_percent: float, reason: str) -> dict:
+    org_id = user.get("organization_id")
+    r = await db.crm2_contracts.find_one({"id": renewal_id, "organization_id": org_id, "status": "renewal_pending_approval"}, {"_id": 0})
+    if not r:
+        return {"ok": False, "error": "This renewal is not awaiting approval."}
+    req = {"uplift_percent": round(float(uplift_percent), 2), "reason": reason or "", "by": user.get("email"), "at": _now()}
+    await db.crm2_contracts.update_one({"id": renewal_id}, {
+        "$set": {"renewal_price_request": req, "updated_at": _now()},
+        "$push": {"approval_evidence": {"action": "price_increase_requested", **req,
+                                        "role": user.get("crm_workspace_role")}}})
+    await resolve_action(org_id, f"cm:renewal-approval:{renewal_id}", "Submitted for manager price approval.")
+    await raise_action(
+        org_id, f"cm:renewal-price:{renewal_id}:{req['uplift_percent']}", type_="renewal_price_approval",
+        subject=f"Approve renewal increase: {r.get('contract_number')}",
+        body=f"{r.get('company_name') or 'Customer'} — {req['uplift_percent']}% requested by {user.get('email')}. {reason or ''}".strip(),
+        contract={"id": r.get("previous_contract_id"), "company_id": None, "contract_number": r.get("contract_number")},
+        extra={"renewal_contract_id": renewal_id, "requested_uplift_percent": req["uplift_percent"],
+               "company_id": r.get("company_id"), "owner_id": "system", "owner_name": "Managers"})
+    return {"ok": True, "request": req}
+
+
 async def approve_and_send_renewal(renewal_id: str, user: dict, uplift_percent=None) -> dict:
-    """Coordinator approval: optionally set the increase, then email the
-    customer the accept link. Only valid once per draft."""
+    """Approve + issue. Coordinators may issue STANDARD renewals (0% or the
+    approved RPI figure); any other increase needs ``renewals.approve``.
+    Every decision is recorded as approval evidence."""
     org_id = user.get("organization_id")
     of = {"organization_id": org_id}
+    perms = user.get("crm_permissions") or []
+    draft = await db.crm2_contracts.find_one({"id": renewal_id, **of, "status": "renewal_pending_approval"}, {"_id": 0})
+    if not draft:
+        return {"ok": False, "error": "This renewal is not awaiting approval (already sent or not found)."}
+    std = await standard_uplift(org_id, draft)
+    pct = round(float(uplift_percent), 2) if uplift_percent is not None else round(float(draft.get("renewal_uplift_percent") or 0), 2)
+    standard = abs(pct - std) < 0.001
+    if not standard and "renewals.approve" not in perms:
+        return {"ok": False, "code": "approval_required",
+                "error": f"A {pct}% increase differs from the standard {std}% — submit it for manager approval."}
     r = await db.crm2_contracts.find_one_and_update(
         {"id": renewal_id, **of, "status": "renewal_pending_approval"},
         {"$set": {"status": "renewal_sending", "updated_at": _now()}}, projection={"_id": 0})
     if not r:
-        return {"ok": False, "error": "This renewal is not awaiting approval (already sent or not found)."}
+        return {"ok": False, "error": "This renewal is already being sent."}
     prev = await db.crm2_contracts.find_one({"id": r.get("previous_contract_id"), **of}, {"_id": 0}) or {}
     try:
-        if uplift_percent is not None:
-            pct = round(float(uplift_percent), 2)
-            base = float(prev.get("annual_value") or r.get("annual_value") or 0)
-            new_val = round(base * (1 + pct / 100), 2)
-            r.update({"annual_value": new_val, "total_value": new_val, "renewal_uplift_percent": pct,
-                      "renewal_uplift_status": "approved", "renewal_uplift_basis": f"Approved by {user.get('email')}"})
-        elif r.get("renewal_uplift_status") != "approved":
-            r.update({"renewal_uplift_status": "approved", "renewal_uplift_basis": f"Approved by {user.get('email')} at {r.get('renewal_uplift_percent', 0)}%"})
-        to_email = await _customer_email(org_id, r)
-        if not to_email:
-            raise ValueError("No customer contact email on this contract.")
-        from routes.crm_contract_send import _build_catalog, _ensure_accept_token
-        from utils.crm_contract_pdf import build_contract_pdf
-        token = await _ensure_accept_token(renewal_id, of)
-        org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
-        pdf = b""
-        try:
-            from utils.document_branding import resolve_company_if_configured
-            company = await resolve_company_if_configured(db, {"id": org_id, "name": org.get("name")})
-            pdf = build_contract_pdf(r, org, _build_catalog(), company=company)
-        except Exception:
-            pdf = b""
-        from utils.brand_urls import app_url_for_org
-        link = f"{app_url_for_org(org)}/contracts/accept/{token}"
-        emailed = False
-        try:
-            from utils.email import send_email
-            emailed = bool(await send_email(
-                to=to_email, subject=f"Your maintenance renewal is ready — {r['contract_number']}",
-                html=(f"<p>Hello,</p><p>Your maintenance agreement is due for renewal. The new term runs "
-                      f"{r.get('start_date')} to {r.get('end_date')} at <strong>£{float(r['annual_value']):,.2f} per year</strong>.</p>"
-                      f"<p>Review and accept online: <a href=\"{link}\">{link}</a></p>"
-                      f"<p>Kind regards,<br/>{org.get('name') or 'Pulse Fitness'}</p>"),
-                attachments=[{"filename": f"renewal_{r['contract_number']}.pdf",
-                              "content": base64.b64encode(pdf).decode("ascii")}] if pdf else None,
-                organization_id=org_id, kind="crm_contract_renewal"))
-        except Exception:
-            emailed = False
-        await db.crm2_contracts.update_one({"id": renewal_id}, {"$set": {
-            "status": "sent", "annual_value": r["annual_value"], "total_value": r.get("total_value", r["annual_value"]),
-            "renewal_uplift_percent": r.get("renewal_uplift_percent"), "renewal_uplift_status": "approved",
-            "renewal_uplift_basis": r.get("renewal_uplift_basis"), "renewal_approved_by": user.get("email"),
-            "renewal_approved_at": _now(), "renewal_sent_to": to_email, "renewal_email_delivered": emailed,
-            "updated_at": _now()}})
+        base = float(prev.get("annual_value") or r.get("annual_value") or 0)
+        r["annual_value"] = r["total_value"] = round(base * (1 + pct / 100), 2)
+        delivered, link, to_email = await _send_renewal_email(org_id, r)
+        evidence = {"action": "approved_and_issued", "by": user.get("email"), "role": user.get("crm_workspace_role"),
+                    "uplift_percent": pct, "standard_percent": std,
+                    "basis": "standard (approved RPI / no increase)" if standard else "manager-approved increase",
+                    "price_request": r.get("renewal_price_request"), "at": _now()}
+        status = "delivered" if delivered else "approved_not_delivered"
+        await db.crm2_contracts.update_one({"id": renewal_id}, {
+            "$set": {"status": "sent", "annual_value": r["annual_value"], "total_value": r["total_value"],
+                     "renewal_uplift_percent": pct, "renewal_uplift_status": "approved",
+                     "renewal_uplift_basis": evidence["basis"], "renewal_approved_by": user.get("email"),
+                     "renewal_approved_at": _now(), "renewal_sent_to": to_email, "renewal_email_delivered": delivered,
+                     "renewal_accept_link": link, "renewal_comms_status": status, "updated_at": _now()},
+            "$push": {"approval_evidence": evidence}})
         await db.crm2_contracts.update_one({"id": prev.get("id")}, {"$set": {"auto_renewal_sent_at": _now(), "updated_at": _now()}})
-        await resolve_action(org_id, f"cm:renewal-approval:{renewal_id}", f"Approved and sent by {user.get('email')}.")
+        await resolve_action(org_id, f"cm:renewal-approval:{renewal_id}", f"Approved and issued by {user.get('email')}.")
+        async for a in db.crm2_activities.find({**of, "type": "renewal_price_approval", "renewal_contract_id": renewal_id, "status": "open"}, {"_id": 0, "dedupe_key": 1}):
+            await resolve_action(org_id, a["dedupe_key"], f"Approved by {user.get('email')}.")
+        if not delivered:
+            await raise_action(org_id, f"cm:renewal-undelivered:{renewal_id}", type_="renewal_undelivered",
+                               subject=f"Renewal email not delivered: {r['contract_number']}",
+                               body=f"Share the accept link with {to_email} or resend: {link}",
+                               contract={"id": prev.get("id"), "company_id": r.get("company_id"), "contract_number": r["contract_number"]},
+                               extra={"renewal_contract_id": renewal_id, "accept_link": link})
         await db.crm2_activities.insert_one({
             "id": str(uuid.uuid4()), "organization_id": org_id, "type": "contract_renewal",
             "contract_id": prev.get("id"), "company_id": r.get("company_id"),
-            "subject": f"Renewal sent: {r['contract_number']}",
-            "body": f"Approved by {user.get('email')} and sent to {to_email}" + ("" if emailed else " (email not delivered — share the link manually)"),
+            "subject": f"Renewal issued: {r['contract_number']}",
+            "body": f"Approved by {user.get('email')} at {pct}% — {COMMS_LABELS[status]} ({to_email})",
             "owner_id": user.get("id"), "owner_name": user.get("full_name", ""), "created_at": _now()})
-        return {"ok": True, "renewal_contract_id": renewal_id, "to": to_email, "email_delivered": emailed,
-                "accept_link": link, "annual_value": r["annual_value"]}
+        return {"ok": True, "renewal_contract_id": renewal_id, "to": to_email, "email_delivered": delivered,
+                "comms_status": status, "accept_link": link, "annual_value": r["annual_value"]}
     except Exception as e:
         await db.crm2_contracts.update_one({"id": renewal_id, "status": "renewal_sending"},
                                            {"$set": {"status": "renewal_pending_approval"}})
         return {"ok": False, "error": str(e)}
+
+
+async def resend_renewal(renewal_id: str, user: dict) -> dict:
+    org_id = user.get("organization_id")
+    r = await db.crm2_contracts.find_one({"id": renewal_id, "organization_id": org_id, "status": "sent"}, {"_id": 0})
+    if not r:
+        return {"ok": False, "error": "Only an issued renewal awaiting the customer can be resent."}
+    try:
+        delivered, link, to_email = await _send_renewal_email(org_id, r)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    await db.crm2_contracts.update_one({"id": renewal_id}, {"$set": {
+        "renewal_email_delivered": delivered or r.get("renewal_email_delivered", False), "renewal_accept_link": link,
+        "renewal_comms_status": "delivered" if (delivered or r.get("renewal_email_delivered")) else "approved_not_delivered",
+        "updated_at": _now()}, "$push": {"approval_evidence": {"action": "resent", "by": user.get("email"),
+                                                               "delivered": delivered, "at": _now()}}})
+    if delivered:
+        await resolve_action(org_id, f"cm:renewal-undelivered:{renewal_id}", "Email delivered on resend.")
+    return {"ok": True, "email_delivered": delivered, "accept_link": link, "to": to_email}
+
+
+async def record_outcome(renewal_id: str, user: dict, outcome: str, note: str = "") -> dict:
+    org_id = user.get("organization_id")
+    r = await db.crm2_contracts.find_one_and_update(
+        {"id": renewal_id, "organization_id": org_id, "status": "sent"},
+        {"$set": {"status": "declined", "renewal_comms_status": "declined", "updated_at": _now()},
+         "$push": {"approval_evidence": {"action": "customer_declined", "by": user.get("email"), "note": note, "at": _now()}}},
+        projection={"_id": 0, "id": 1})
+    if not r:
+        return {"ok": False, "error": "Only an issued renewal can be marked declined."}
+    await resolve_action(org_id, f"cm:renewal-undelivered:{renewal_id}", "Customer declined.")
+    return {"ok": True}
+
+
+async def list_renewals(org_id: str) -> list:
+    out = []
+    async for r in db.crm2_contracts.find(
+            {"organization_id": org_id, "previous_contract_id": {"$nin": [None, ""]},
+             "status": {"$in": ["renewal_pending_approval", "renewal_sending", "sent", "active", "signed", "declined", "rejected"]}},
+            {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1, "status": 1, "start_date": 1, "end_date": 1,
+             "annual_value": 1, "renewal_uplift_percent": 1, "renewal_price_request": 1, "renewal_email_delivered": 1,
+             "renewal_accept_link": 1, "renewal_sent_to": 1, "renewal_approved_by": 1, "approval_evidence": 1,
+             "previous_contract_id": 1}).sort("updated_at", -1).limit(300):
+        prev = await db.crm2_contracts.find_one({"id": r["previous_contract_id"]}, {"_id": 0, "end_date": 1}) or {}
+        cs = comms_status(r, prev.get("end_date"))
+        out.append({**r, "comms_status": cs, "comms_label": COMMS_LABELS[cs]})
+    return out

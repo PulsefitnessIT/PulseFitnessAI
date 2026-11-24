@@ -68,7 +68,7 @@ GATES = [
     ("PUT", "/crm/v2/aftersales/settings", {"admin"}),
     ("POST", "/crm/v2/aftersales/build-custom-quote", {"coord", "asm", "admin"}),
     ("POST", "/crm/v2/aftersales/finance/sync/none/mark-synced", {"fin", "admin"}),
-    ("POST", "/crm/v2/aftersales/rpi/reviews/none/approve", {"asm", "admin"}),
+    ("POST", "/crm/v2/aftersales/rpi/reviews/none/approve", {"sales", "asm", "admin"}),
     ("POST", "/crm/mod-quote/ai-match", {"sales", "asm", "admin"}),
     ("PUT", "/crm/mod-quote/rate-card/none", {"admin"}),
     ("GET", "/crm/workspace/roles", {"admin"}),

@@ -3,6 +3,7 @@ import CRMCompanies from '@/pages/CRM/CRMCompanies';
 import { useCRM } from '@/pages/CRM/CRMApp';
 import { CM_SECTION_SUBTABS, sectionForSubTab } from './cmNav';
 import WorkspaceSettings from './WorkspaceSettings';
+import RenewalsInProgress from './RenewalsInProgress';
 
 /** Renders one Contract Management section using the existing components. */
 export default function ContractManagementSection({ section, subTab, onNavigate }) {
@@ -13,6 +14,7 @@ export default function ContractManagementSection({ section, subTab, onNavigate 
   const initial = subTab && sections.includes(subTab) ? subTab : sections[0];
   return (
     <div data-testid={`cm-section-${section}`}>
+      {section === 'renewals' && <RenewalsInProgress />}
       <AftersalesApp
         key={`${section}:${initial}`}
         sections={sections}
