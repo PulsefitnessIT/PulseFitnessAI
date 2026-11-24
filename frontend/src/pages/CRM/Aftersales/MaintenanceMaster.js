@@ -15,7 +15,7 @@ const CHUNK = 2 * 1024 * 1024;
 const CLS = [
   ['', 'All rows'], ['new_contract', 'New contract'], ['matched_unchanged', 'Matched — unchanged'],
   ['matched_differences', 'Matched — differences'], ['duplicate_overlap', 'Duplicate / overlap'],
-  ['missing_information', 'Missing information'], ['requires_review', 'Requires review'], ['held_mod', 'MOD (held)'],
+  ['missing_information', 'Missing information'], ['requires_review', 'Requires review'], ['held_mod', 'MOD (held)'], ['skipped', 'Not imported (decided)'],
 ];
 const SYNC = {
   not_reconciled: 'Local only', awaiting_customer_mapping: 'Local only — Sage account needed',
@@ -73,6 +73,7 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged, startUn
       .then(r => setRows(r.data)).catch(() => setRows({ rows: [], count: 0 })).finally(() => setRowsLoading(false)), 250);
     return () => clearTimeout(t);
   }, [API, headers, upload.id, upload.state, cls, unresolved, issue, coord, q, reload]);
+  useEffect(() => { setOpenRow(null); }, [cls, unresolved, issue, coord, q]);
   const commit = async () => {
     const n = s.counts || {};
     const msg = `Commit this workbook into Contract Management?\n\nNew contracts: ${n.new_contract || 0}\nMatched (linked, CRM kept): ${(n.matched_unchanged || 0) + (n.matched_differences || 0)}\nMissing information (held in the review queue): ${n.missing_information || 0}\nRequires review (held until decided): ${n.requires_review || 0}\nDuplicates / overlaps (held): ${n.duplicate_overlap || 0}\n\n${createCustomers ? 'Unmatched customers WILL be created.' : 'Rows with unmatched customers will be held.'}\nNo visits, invoices, emails or Sicon writes are created.`;
@@ -125,7 +126,7 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged, startUn
           <input type="checkbox" checked={unresolved} onChange={e => setUnresolved(e.target.checked)} data-testid="mm-filter-unresolved" /> Unresolved only
         </label>
         <select value={issue} onChange={e => setIssue(e.target.value)} data-testid="mm-filter-issue" className="px-2 py-1 rounded-lg border" style={{ background: 'transparent', borderColor: c.border, color: c.text }}>
-          <option value="">Any issue</option><option value="contract number">Contract number missing</option>
+          <option value="">Any issue</option><option value="contract number missing">Contract number missing</option>
           <option value="date">Start / expiry date missing</option><option value="amount">Contract amount missing</option>
           <option value="more than one">Duplicate contract number</option><option value="overlap">Overlaps a CRM contract</option>
           <option value="name matches">Customer name only</option><option value="Sicon">Sicon ID conflict</option>
@@ -142,7 +143,7 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged, startUn
             <tr className="border-t cursor-pointer" style={{ borderColor: c.border, color: c.text }} data-testid={`mm-row-${r.id}`}
                 onClick={() => setOpenRow(o => (o === r.id ? null : r.id))}>
               <td className="px-2 py-1">{r.sheet} · {r.row}</td><td className="px-2">{r.mapped.customer_name}</td>
-              <td className="px-2">{r.mapped.contract_number || '—'}</td><td className="px-2">{r.mapped.start_date || '?'} → {r.mapped.end_date || '?'}</td>
+              <td className="px-2">{(r.effective || r.mapped).contract_number || '—'}</td><td className="px-2">{(r.effective || r.mapped).start_date || '?'} → {(r.effective || r.mapped).end_date || '?'}</td>
               <td className="px-2">{r.status}</td><td className="px-2">{(CLS.find(x => x[0] === r.cls) || [])[1] || r.cls}{r.state === 'committed' ? ' ✓' : ''}</td>
               <td className="px-2" style={{ color: c.textDim }}>{[...(r.problems || []), r.hold_reason, r.conflicts?.length ? `app kept: ${r.conflicts.join(', ')}` : ''].filter(Boolean).join('; ')}</td>
               <td className="px-2 whitespace-nowrap">
@@ -214,8 +215,9 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
   };
   const queue = async () => {
     try {
-      const r = await axios.post(`${API}/crm/v2/aftersales/maintenance-master/contracts/${id}/sicon-queue`, {}, { headers: headers() });
-      toast.success(`Queued for Sicon (${r.data.state.replaceAll('_', ' ')}) — nothing sent`);
+      await axios.post(`${API}/crm/v2/aftersales/maintenance-master/contracts/${id}/sicon-queue`, {}, { headers: headers() });
+      toast.success('Held for Sicon — nothing has been sent (Sicon writes are switched off)');
+      load(true); onSaved();
     } catch (e) { toast.error(e.response?.data?.detail || 'Queue failed'); }
   };
   const inp = { background: 'transparent', borderColor: c.border, color: c.text };
@@ -360,7 +362,7 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
           <Btn c={c} testId="mm-refresh" onClick={() => setTick(t => t + 1)}><RotateCw size={13} /></Btn>
         </div>
       </div>
-      <div className="mt-3"><CoordinatorDailyView API={API} headers={headers} c={c}
+      <div className="mt-3"><CoordinatorDailyView API={API} headers={headers} c={c} refreshKey={tick}
         onOpenContract={n => { setSearch({ q: n, t: Date.now() }); setTimeout(() => document.querySelector('[data-testid=mm-contracts]')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
         onOpenExceptions={() => { setFocusExceptions(x => x + 1); setTimeout(() => document.querySelector('[data-testid=mm-res-filters]')?.scrollIntoView({ behavior: 'smooth' }), 100); }} /></div>
       {list.uploads.length > 1 && (

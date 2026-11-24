@@ -10,14 +10,14 @@ const CARDS = [
   ['import_exceptions', 'Unresolved import exceptions'], ['unverified_billing', 'Billing to verify'], ['sicon_pending', 'Awaiting Sicon reconciliation'],
 ];
 
-export function CoordinatorDailyView({ API, headers, c, onOpenContract, onOpenExceptions }) {
+export function CoordinatorDailyView({ API, headers, c, onOpenContract, onOpenExceptions, refreshKey }) {
   const [who, setWho] = useState('');
   const [data, setData] = useState(null);
   const [open, setOpen] = useState('');
   useEffect(() => {
     axios.get(`${API}/crm/v2/aftersales/maintenance-master/daily`, { headers: headers(), params: { coordinator: who } })
       .then(r => setData(r.data)).catch(() => setData({ cards: {}, coordinators: [], error: true }));
-  }, [API, headers, who]);
+  }, [API, headers, who, refreshKey]);
   if (!data) return <Loader2 size={14} className="animate-spin" />;
   const card = open ? data.cards[open] : null;
   return (
@@ -46,7 +46,7 @@ export function CoordinatorDailyView({ API, headers, c, onOpenContract, onOpenEx
       {card && (
         <div className="mt-2 rounded-xl border text-xs" style={{ borderColor: c.border }} data-testid={`cm-daily-list-${open}`}>
           {(card.items || []).length === 0 ? <div className="p-3" style={{ color: c.textDim }}>Nothing here.</div> : card.items.map((it, i) => (
-            <button key={it.id || i} onClick={() => it.contract_number && onOpenContract(it.contract_number)}
+            <button key={`${it.id || ''}-${i}`} data-testid={`cm-daily-item-${open}-${i}`} onClick={() => it.contract_number && onOpenContract(it.contract_number)}
                     className="w-full text-left px-3 py-1.5 border-t first:border-t-0 flex justify-between gap-2" style={{ borderColor: c.border, color: c.text }}>
               <span><b>{it.contract_number || it.contract_id?.slice(0, 8)}</b> {it.customer || ''}</span>
               <span style={{ color: c.textDim }}>{it.detail || it.end_date || it.due || ''}{it.bucket ? ` · ${it.bucket}` : ''}</span>
@@ -96,6 +96,7 @@ export function InvoiceRunPreview({ API, headers, c }) {
           <span style={{ color: t.needs_information ? 'var(--color-warning-alt)' : c.textDim }}>Needs information: <b>{t.needs_information}</b></span>
           <span style={{ color: c.textDim }}>Already invoiced: {t.already_invoiced}</span>
           <span style={{ color: t.duplicates ? 'var(--color-danger-alt)' : c.textDim }}>Duplicates excluded: {t.duplicates}</span>
+          {t.excluded_not_live > 0 && <span style={{ color: c.textDim }} data-testid="cm-invoice-not-live">Not proposed (contract missing / not live): {t.excluded_not_live}</span>}
         </div>
         <div className="rounded-xl border overflow-x-auto max-h-[28rem]" style={{ borderColor: c.border }}>
           <table className="w-full text-xs" data-testid="cm-invoice-table">

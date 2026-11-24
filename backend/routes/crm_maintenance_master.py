@@ -36,7 +36,7 @@ def _spawn(coro):
 
 
 UNRESOLVED = ("duplicate_overlap", "missing_information", "requires_review")
-CLASSES = ("matched_unchanged", "matched_differences", "new_contract", "duplicate_overlap",
+CLASSES = ("skipped", "matched_unchanged", "matched_differences", "new_contract", "duplicate_overlap",
            "missing_information", "requires_review")
 
 
@@ -227,6 +227,8 @@ async def classify_upload(org: str, uid: str) -> dict:
         dup = (live_numbers.get(m.get("contract_number"), 0) > 1 and st in ("active", "future")
                and (r.get("decision") or {}).get("action") not in ("skip", "accept_duplicate"))
         cls, problems = mm.classify(m, cust, ex, dup, today)
+        if (r.get("decision") or {}).get("action") == "skip":
+            cls, problems = "skipped", [f"not imported — {(r.get('decision') or {}).get('note') or 'coordinator decision'}"]
         diff, conflicts, updates = {}, [], []
         if ex and not ex.get("_overlap"):
             diff = mm.diff_fields(ex, m)
@@ -292,7 +294,7 @@ async def upload_rows(uid: str, cls: str = "", q: str = "", page: int = 1, issue
         f["$or"] = [{"mapped.customer_name": rx}, {"mapped.contract_number": rx}, {"mapped.site_account": rx}]
     n = await db.crm2_mm_rows.count_documents(f)
     rows = await db.crm2_mm_rows.find(f, {"_id": 0, "raw": 0}).sort([("sheet", 1), ("row", 1)]).skip((max(page, 1) - 1) * 50).limit(50).to_list(50)
-    return {"rows": rows, "count": n, "page": page}
+    return {"rows": [{**r, "effective": effective(r)} for r in rows], "count": n, "page": page}
 
 
 class DecisionIn(BaseModel):
@@ -950,13 +952,18 @@ async def daily_view(coordinator: str = "", user=Depends(require_crm_perm("contr
                                      "sicon_sync.state": {"$nin": ["ready_for_sync", "synced_verified"]}}),
     }
     svc = {"due": 0, "overdue": 0, "review": 0, "items": []}
-    async for sc in db.crm2_afs_service_schedules.find(base if not coordinator else {"organization_id": org}, {"_id": 0, "contract_id": 1, "visits": 1}):
+    live = {c["id"]: c async for c in db.crm2_contracts.find({**base, "status": "active"},
+                                                             {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1})}
+    async for sc in db.crm2_afs_service_schedules.find({"organization_id": org, "contract_id": {"$in": list(live)}},
+                                                       {"_id": 0, "contract_id": 1, "visits": 1}):
+        ct = live[sc["contract_id"]]
         for v in sc.get("visits") or []:
             b = obligation_bucket(v, t)
             if b in ("due", "overdue", "review"):
                 svc[b] += 1
                 if len(svc["items"]) < 8:
-                    svc["items"].append({"contract_id": sc["contract_id"], "due": v.get("planned_date"), "bucket": b})
+                    svc["items"].append({"id": ct["id"], "contract_number": ct.get("contract_number"), "customer": ct.get("company_name"),
+                                         "detail": f"PPM due {v.get('planned_date')} · {b}"})
     cards["service_attention"] = {"count": svc["due"] + svc["overdue"] + svc["review"], **svc}
     latest = await db.crm2_mm_uploads.find_one({"organization_id": org, "state": {"$nin": ["failed", "uploading"]}},
                                                {"_id": 0, "id": 1, "filename": 1}, sort=[("created_at", -1)])
@@ -973,6 +980,7 @@ async def daily_view(coordinator: str = "", user=Depends(require_crm_perm("contr
 
 # ───────────────────────────── monthly invoice-run preview (no posting)
 
+LIVE = ("active", "pending_start", "renewal_pending_approval", "renewal_draft")
 _FREQ = {"annually": 12, "annual": 12, "yearly": 12, "monthly": 1, "quarterly": 3, "bi-annually": 6, "biannual": 6,
          "six monthly": 6, "half yearly": 6, "semiannual": 6}
 
@@ -1000,8 +1008,12 @@ async def invoice_run(period: str, user=Depends(require_crm_perm("contracts.read
         seen[key] = True
         rows.append(row)
     contracts = {c["id"]: c async for c in db.crm2_contracts.find({"organization_id": org}, {"_id": 0, "mm_source": 0, "mm_baseline": 0})}
+    orphans = 0
     async for b in db.crm2_afs_billing.find({"organization_id": org}, {"_id": 0}):
-        c = contracts.get(b.get("contract_id")) or {}
+        c = contracts.get(b.get("contract_id"))
+        if not c or c.get("status") not in LIVE:
+            orphans += sum(1 for inv in b.get("invoices") or [] if str(inv.get("due_date") or "").startswith(period))
+            continue  # never propose billing for a missing, cancelled or expired contract
         for inv in b.get("invoices") or []:
             if not str(inv.get("due_date") or "").startswith(period):
                 continue
@@ -1063,7 +1075,8 @@ async def invoice_run(period: str, user=Depends(require_crm_perm("contracts.read
                        "gross": round(net * (1 + vat), 2) if vat is not None else None,
                        "needs_information": sum(1 for r in rows if r["status"] == "needs_information"),
                        "already_invoiced": sum(1 for r in rows if r["status"] == "already_invoiced"),
-                       "duplicates": sum(1 for r in rows if r["duplicate"])},
+                       "duplicates": sum(1 for r in rows if r["duplicate"]),
+                       "excluded_not_live": orphans},
             "preview_only": True, "posting_enabled": False}
 
 

@@ -290,6 +290,10 @@ def test_resolution_daily_invoice_and_backup():
 
     # Scenario I — invoice-run preview (annual, monthly unconfirmed → confirmed, duplicates, already invoiced).
     beta = mdb.crm2_contracts.find_one({"contract_number": "MMT-1002"})
+    mdb.crm2_contracts.insert_one({"id": "mmt_bill", "organization_id": OP, "status": "active", "contract_number": "MMT-BILL",
+                                   "company_name": "MMT Bill Ltd"})
+    mdb.crm2_afs_billing.insert_one({"organization_id": OP, "contract_id": "mmt_gone", "frequency": "annual",
+                                     "invoices": [{"due_date": "2026-12-07", "amount": 999.0, "status": "scheduled"}]})
     mdb.crm2_afs_billing.insert_one({"organization_id": OP, "contract_id": "mmt_bill", "frequency": "annual", "invoices": [
         {"due_date": "2026-12-05", "amount": 100.0, "status": "scheduled"},
         {"due_date": "2026-12-05", "amount": 100.0, "status": "scheduled"},
@@ -304,6 +308,7 @@ def test_resolution_daily_invoice_and_backup():
         mine = [x for x in run["rows"] if x["contract_id"] == "mmt_bill"]
         assert sum(x["duplicate"] for x in mine) == 1 and sum(x["status"] == "already_invoiced" for x in mine) == 1
         assert run["preview_only"] and not run["posting_enabled"]
+        assert not [x for x in run["rows"] if x["contract_id"] == "mmt_gone"] and run["totals"]["excluded_not_live"] >= 1
         assert run["totals"]["net"] == round(sum(x["amount"] for x in run["rows"] if x["status"] == "proposed" and not x["duplicate"]), 2)
         rev = mdb.crm2_contracts.find_one({"id": beta["id"]})["revision"]
         requests.patch(f"{MM}/contracts/{beta['id']}", headers=coord,
@@ -315,7 +320,7 @@ def test_resolution_daily_invoice_and_backup():
         assert requests.get(f"{MM}/invoice-run", headers=coord, params={"period": "12-2026"}).status_code == 400
         assert not mdb.crm2_afs_finance_sync.find_one({"contract_id": {"$in": [alpha["id"], beta["id"]]}})
     finally:
-        mdb.crm2_afs_billing.delete_many({"contract_id": "mmt_bill"})
+        mdb.crm2_afs_billing.delete_many({"contract_id": {"$in": ["mmt_bill", "mmt_gone"]}})
 
     # Scenario J — backup → restore into a scratch DB → verify contract, history, relationships.
     import json as _json

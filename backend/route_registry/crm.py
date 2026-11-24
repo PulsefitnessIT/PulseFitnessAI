@@ -62,9 +62,10 @@ def register_crm(api_router: APIRouter) -> None:
         crm_quote_invoicing_router,
         crm_quote_fulfilment_router,
         crm_quote_handover_router,
+        crm_contract_workspace_router,  # literal /contracts/workspace must precede /contracts/{contract_id}
         crm_contracts_router, crm_contract_templates_router,
         crm_contract_send_router, crm_contract_lifecycle_router,
-        crm_contract_workspace_router, crm_contract_engineer_router,
+        crm_contract_engineer_router,
         crm_lead_conversion_router,
         crm_aftersales_router,
         crm_afs_onboarding_router, crm_service_planner_router, crm_maintenance_master_router,
