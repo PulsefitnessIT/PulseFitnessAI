@@ -8,6 +8,7 @@ import {
   Settings2, ExternalLink, Zap, Sparkles
 } from 'lucide-react';
 import axios from 'axios';
+import { notify } from '@/components/notifications';
 import Button from '@/components/shared/Button';
 import RowActions from '@/components/shared/RowActions';
 import ListPanel from '@/components/shared/ListPanel';
@@ -547,23 +548,34 @@ function SLATab({ contract, contractId, API, headers, isDark, c, reload }) {
 function ServiceTab({ contract, contractId, API, headers, isDark, c, reload }) {
   const [syncing, setSyncing] = useState('');
 
-  const syncSicon = async () => {
-    setSyncing('sicon');
+  const push = async (kind) => {
+    setSyncing(kind);
     try {
-      await axios.post(`${API}/crm/v2/contracts/${contractId}/sync-sicon`, {}, { headers: headers() });
+      const r = await axios.post(`${API}/crm/v2/contracts/${contractId}/sync-${kind}`, {}, { headers: headers() });
+      if (r.data.success) notify.success(`${kind === 'sage' ? 'Sage' : 'Sicon'} confirmed: ${r.data.sage_reference || r.data.sicon_contract_id}`);
+      else notify.info(r.data.detail || 'Request recorded — awaiting confirmation');
       reload();
-    } catch (e) { alert(e.response?.data?.detail || 'Sync failed'); }
+    } catch (e) { notify.error(e.response?.data?.detail || 'Request failed'); }
     setSyncing('');
   };
-
-  const syncSage = async () => {
-    setSyncing('sage');
-    try {
-      await axios.post(`${API}/crm/v2/contracts/${contractId}/sync-sage`, {}, { headers: headers() });
-      reload();
-    } catch (e) { alert(e.response?.data?.detail || 'Sync failed'); }
-    setSyncing('');
-  };
+  const syncSicon = () => push('sicon');
+  const syncSage = () => push('sage');
+  const STATUS_LABEL = { pending: 'Pending', queued: 'Queued for finance', not_configured: 'Not configured', failed: 'Failed', unconfirmed: 'Awaiting confirmation' };
+  const syncState = (ref, status, detail, testId) => (ref && (status === 'synced' || !status)) ? (
+    <div className="flex items-center gap-2 mb-2" data-testid={testId}>
+      <CheckCircle size={13} style={{ color: 'var(--color-success-alt)' }} />
+      <span className="text-xs font-medium" style={{ color: 'var(--color-success-alt)' }}>Synced</span>
+      <span className="text-[11px] font-mono px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.text }}>{ref}</span>
+    </div>
+  ) : (
+    <div className="mb-2" data-testid={testId}>
+      <div className="flex items-center gap-2">
+        <AlertTriangle size={13} style={{ color: status === 'failed' ? 'var(--color-danger)' : 'var(--color-accent-amber)' }} />
+        <span className="text-xs" style={{ color: status === 'failed' ? 'var(--color-danger)' : 'var(--color-accent-amber)' }}>{STATUS_LABEL[status] || 'Not synced'}</span>
+      </div>
+      {detail && <p className="text-[10px] mt-1" style={{ color: c.textDim }}>{detail}</p>}
+    </div>
+  );
 
   return (
     <div data-testid="service-tab">
@@ -582,24 +594,13 @@ function ServiceTab({ contract, contractId, API, headers, isDark, c, reload }) {
               <p className="text-[10px]" style={{ color: c.textDim }}>Service coverage & SLA execution</p>
             </div>
           </div>
-          {contract.sicon_contract_id ? (
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle size={13} style={{ color: 'var(--color-success-alt)' }} />
-              <span className="text-xs font-medium" style={{ color: 'var(--color-success-alt)' }}>Synced</span>
-              <span className="text-[11px] font-mono px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.text }}>{contract.sicon_contract_id}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle size={13} style={{ color: 'var(--color-accent-amber)' }} />
-              <span className="text-xs" style={{ color: 'var(--color-accent-amber)' }}>Not synced</span>
-            </div>
-          )}
+          {syncState(contract.sicon_contract_id, contract.sicon_sync_status, contract.sicon_sync_detail, 'sicon-sync-state')}
           <button onClick={syncSicon} disabled={syncing === 'sicon'}
             className="w-full mt-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border transition-colors"
             style={{ borderColor: 'var(--color-accent-violet)40', color: 'var(--color-accent-violet)', background: syncing === 'sicon' ? 'var(--color-accent-violet)10' : 'transparent' }}
             data-testid="sync-sicon-btn">
             {syncing === 'sicon' ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />}
-            {contract.sicon_contract_id ? 'Re-sync to Sicon' : 'Push to Sicon'}
+            {contract.sicon_contract_id ? 'Re-sync to Sicon' : 'Request Sicon push'}
           </button>
         </div>
 
@@ -614,18 +615,7 @@ function ServiceTab({ contract, contractId, API, headers, isDark, c, reload }) {
               <p className="text-[10px]" style={{ color: c.textDim }}>Financial postings & invoicing</p>
             </div>
           </div>
-          {contract.sage_reference ? (
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle size={13} style={{ color: 'var(--color-success-alt)' }} />
-              <span className="text-xs font-medium" style={{ color: 'var(--color-success-alt)' }}>Synced</span>
-              <span className="text-[11px] font-mono px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.text }}>{contract.sage_reference}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle size={13} style={{ color: 'var(--color-accent-amber)' }} />
-              <span className="text-xs" style={{ color: 'var(--color-accent-amber)' }}>Not synced</span>
-            </div>
-          )}
+          {syncState(contract.sage_reference, contract.sage_sync_status, contract.sage_sync_detail, 'sage-sync-state')}
           <button onClick={syncSage} disabled={syncing === 'sage'}
             className="w-full mt-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border transition-colors"
             style={{ borderColor: 'var(--color-info-ios)40', color: 'var(--color-info-ios)', background: syncing === 'sage' ? 'var(--color-info-ios)10' : 'transparent' }}

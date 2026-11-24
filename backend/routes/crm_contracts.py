@@ -764,57 +764,62 @@ async def update_contract_sla(contract_id: str, data: dict, user=Depends(get_crm
     return {"success": True, "sla": sla}
 
 
-# ── SERVICE INTEGRATION (Sicon mock) ─────────────────────────────
+# ── SERVICE INTEGRATION (honest Sicon / Sage status) ─────────────
+#
+# No reference is ever fabricated. Sicon service-contract write-back is not
+# available in the read-only phase, so a push request is recorded as
+# Pending / Not Configured. Sage goes through the finance-sync outbox, which
+# only reports "synced" when Sage returns a real Sales Order reference.
 
-@router.post("/contracts/{contract_id}/sync-sicon")
-async def sync_to_sicon(contract_id: str, user=Depends(get_crm_user)):
-    """Push contract to Sicon Service Contracts (mocked)."""
-    c = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)})
-    if not c:
-        raise HTTPException(404, "Contract not found")
-    sicon_id = f"SICON-{contract_id[:8].upper()}"
-    await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {
-        "sicon_contract_id": sicon_id,
-        "sicon_sync_status": "synced",
-        "sicon_synced_at": _now(),
-        "updated_at": _now(),
-    }})
+async def _integration_activity(user, c, contract_id, subject, body):
     await db.crm2_activities.insert_one({
         "id": _id(), "organization_id": user.get("organization_id"),
-        "type": "system", "subject": f"Sicon sync: {c.get('contract_number')}",
-        "body": f"Contract pushed to Sicon as {sicon_id}",
+        "type": "system", "subject": subject, "body": body,
         "company_id": c.get("company_id", ""), "contract_id": contract_id,
         "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
         "created_at": _now(),
     })
-    try:
-        from routes.integration_hub import publish_event
-        await publish_event(
-            event_type="contract_activated", source_system="crm", target_system="sicon",
-            entity_type="contract", entity_id=contract_id,
-            payload={"contract_id": contract_id, "sicon_contract_id": sicon_id},
-            organization_id=user.get("organization_id", ""),
-            triggered_by=user.get("full_name", ""),
-        )
-    except Exception:
-        pass
-    return {"success": True, "sicon_contract_id": sicon_id}
+
+
+@router.post("/contracts/{contract_id}/sync-sicon")
+async def sync_to_sicon(contract_id: str, user=Depends(get_crm_user)):
+    """Request a Sicon service-contract push. Read-only phase: recorded as
+    Pending (writes off) or Not Configured — never a fake Sicon ID."""
+    from utils.sicon_common import env_allow_writes
+    c = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)})
+    if not c:
+        raise HTTPException(404, "Contract not found")
+    if env_allow_writes():
+        status, detail = "not_configured", "Sicon service-contract write-back is not configured yet."
+    else:
+        status, detail = "pending", "Sicon write-back is switched off (read-only phase). Request recorded."
+    await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {
+        "sicon_sync_status": status, "sicon_sync_detail": detail,
+        "sicon_sync_requested_at": _now(), "updated_at": _now()}})
+    await _integration_activity(user, c, contract_id, f"Sicon push requested: {c.get('contract_number')}", detail)
+    return {"success": False, "status": status, "detail": detail,
+            "sicon_contract_id": c.get("sicon_contract_id")}
 
 
 @router.post("/contracts/{contract_id}/sync-sage")
 async def sync_to_sage(contract_id: str, user=Depends(get_crm_user)):
-    """Push contract to Sage 200 (mocked)."""
+    """Queue the contract's Sales Order through the finance-sync outbox and
+    report the real outcome (synced only with a genuine Sage reference)."""
+    from utils.finance_sync import enqueue_finance_sync
     c = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)})
     if not c:
         raise HTTPException(404, "Contract not found")
-    sage_ref = f"SAGE-{contract_id[:8].upper()}"
-    await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {
-        "sage_reference": sage_ref,
-        "sage_sync_status": "synced",
-        "sage_synced_at": _now(),
-        "updated_at": _now(),
-    }})
-    return {"success": True, "sage_reference": sage_ref}
+    res = await enqueue_finance_sync(user.get("organization_id"), contract_id, "manual_sage_push",
+                                     user.get("full_name") or user.get("email"))
+    update = {"sage_sync_detail": res.get("detail"), "updated_at": _now()}
+    if res.get("status") == "synced" and res.get("external_ref"):
+        update.update({"sage_reference": res["external_ref"], "sage_synced_at": _now()})
+    await db.crm2_contracts.update_one({"id": contract_id}, {"$set": update})
+    await _integration_activity(user, c, contract_id, f"Sage push: {c.get('contract_number')}",
+                                f"{res.get('status')}: {res.get('detail') or res.get('external_ref') or ''}")
+    return {"success": res.get("status") == "synced", "status": res.get("outbox_status"),
+            "provider_status": res.get("status"), "detail": res.get("detail"),
+            "sage_reference": update.get("sage_reference") or c.get("sage_reference")}
 
 
 

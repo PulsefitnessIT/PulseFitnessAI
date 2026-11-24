@@ -9,6 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { notify } from '@/components/notifications';
 import {
   BarChart3, RefreshCw, AlertTriangle,
   Shield, Calendar, TrendingUp, Zap,
@@ -108,21 +109,19 @@ export function ContractsRenewalsDashboard({ API, headers, c, isDark, onOpen }) 
     setRunning(true);
     try {
       const res = await axios.post(`${API}/crm/v2/contracts/renewals/run-reminders`, {}, { headers: headers() });
-      alert(`${res.data.reminders_created} reminder(s) created.`);
-    } catch (e) { alert(e?.response?.data?.detail || 'Failed'); }
+      notify.success(`${res.data.reminders_created} reminder(s) created.`);
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); }
     setRunning(false);
   };
 
   const autoSend = async () => {
-    if (!window.confirm('Auto-send renewal drafts to every customer whose contract has auto_renew enabled and is within the 30-day window? Customers still need to click Accept & sign — nothing activates automatically.')) return;
     setAuto(true);
     try {
       const res = await axios.post(`${API}/crm/v2/contracts/renewals/auto-send`, {}, { headers: headers() });
-      const d = res.data.totals?.dispatched || 0;
-      const s = res.data.totals?.skipped || 0;
-      alert(`Auto-renewals dispatched: ${d}. Skipped: ${s}.`);
+      const t = res.data.totals || {};
+      notify.success(`${t.prepared || 0} renewal(s) prepared for approval in the Action Centre. ${t.blocked || 0} need information, ${t.skipped || 0} already in progress.`);
       reload();
-    } catch (e) { alert(e?.response?.data?.detail || 'Failed'); }
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Failed'); }
     setAuto(false);
   };
 
@@ -144,7 +143,7 @@ export function ContractsRenewalsDashboard({ API, headers, c, isDark, onOpen }) 
           </button>
           <button onClick={autoSend} disabled={auto} data-testid="auto-renewal-autopilot-btn"
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-600 text-white">
-            {auto ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />} Auto-renewal autopilot
+            {auto ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />} Prepare renewals for approval
           </button>
         </div>
       </div>

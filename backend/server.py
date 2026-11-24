@@ -448,6 +448,8 @@ async def _full_boot() -> None:
     try:
         from utils.crm_workspace import run_workspace_boot
         logger.info(f"[crm_workspace] boot: {await run_workspace_boot()}")
+        from utils.crm_workspace import run_integrity_boot
+        logger.info(f"[cm_integrity] boot: {await run_integrity_boot()}")
     except Exception as e:
         logger.error(f"CRM workspace boot failed: {e}")
 

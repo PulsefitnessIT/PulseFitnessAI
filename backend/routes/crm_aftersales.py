@@ -2906,6 +2906,8 @@ async def finance_sync_mark_synced(contract_id: str, body: FinanceMarkSyncedIn,
     doc = await db.crm2_afs_finance_sync.find_one({"contract_id": contract_id, **of}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "No finance-sync record for this contract yet")
+    if not ((body.external_ref or "").strip() or doc.get("external_ref")):
+        raise HTTPException(400, "Enter the Sage Sales Order / invoice reference — a sync cannot be confirmed without it.")
     hist = (doc.get("history") or [])[-19:] + [{
         "at": _now(), "event": "manual_mark_synced", "status": "synced",
         "detail": body.note or f"Reconciled by {user.get('email')}", "by": user.get("email")}]

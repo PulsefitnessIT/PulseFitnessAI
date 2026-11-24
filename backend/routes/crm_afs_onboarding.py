@@ -469,7 +469,7 @@ def _invoice_line_to_cleans(ln, site):
 @router.post("/analyze-pdf")
 async def analyze_pdf(file: UploadFile = File(...), customer_name: str = Form(""),
                       contract_type: str = Form("gold"), grouping: str = Form("master"),
-                      user=Depends(get_crm_user)):
+                      user=Depends(require_crm_perm("contracts.manage"))):
     """Upload a prior supplier's invoice / agreement PDF. AI extracts what the
     customer currently pays; the lines flow into the same review queue."""
     of = _of(user)
@@ -566,7 +566,7 @@ class PatchIn(BaseModel):
 
 
 @router.patch("/{import_id}/rows")
-async def patch_rows(import_id: str, body: PatchIn, user=Depends(get_crm_user)):
+async def patch_rows(import_id: str, body: PatchIn, user=Depends(require_crm_perm("contracts.manage"))):
     of = _of(user)
     org_id = _org(user)
     doc = await db.crm2_afs_onboarding.find_one({"id": import_id, **of})
@@ -638,62 +638,203 @@ def _valid_freq(v) -> str:
     return v if v in PPM_FREQUENCIES else "annual"
 
 
+# ── Existing-customer / site / equipment reconciliation ──────────────────────
+# Commit never blindly creates a customer: an existing CRM company that matches
+# must be linked (or "create new" explicitly chosen), existing sites are reused
+# by name/code, and equipment already registered (same serial) is linked, not
+# duplicated. Contract dates / billing frequency are never invented.
+
+_CO_SUFFIX = re.compile(r"\b(ltd|limited|plc|llp|inc|co|company|the|uk|group)\b")
+_JUNK_SERIALS = {"", "N/A", "NA", "NONE", "UNKNOWN", "WORN AWAY", "WORN", "TBC", "-", "--", "?", "0", "NO SERIAL"}
+BILLING_FREQUENCIES = ("monthly", "quarterly", "annual", "annually", "biannual")
+
+
+def _norm_name(v) -> str:
+    t = re.sub(r"[^a-z0-9 ]+", " ", str(v or "").lower())
+    return re.sub(r"\s+", " ", _CO_SUFFIX.sub(" ", t)).strip()
+
+
+def _norm_serial(v) -> str:
+    t = re.sub(r"\s+", " ", str(v or "").strip().upper())
+    return "" if t in _JUNK_SERIALS else t
+
+
+def _add_years(d, n: int):
+    try:
+        return d.replace(year=d.year + n)
+    except ValueError:  # 29 Feb → 28 Feb
+        return d.replace(year=d.year + n, day=28)
+
+
+def annual_term_end(start_iso: str) -> Optional[str]:
+    """Calendar-aware 12-month term: same date next year minus one day."""
+    try:
+        d = datetime.fromisoformat(str(start_iso)[:10]).date()
+    except (TypeError, ValueError):
+        return None
+    return (_add_years(d, 1) - timedelta(days=1)).isoformat()
+
+
+async def _customer_candidates(op_org: str, customer: str) -> list:
+    target = _norm_name(customer)
+    if not target:
+        return []
+    out = []
+    async for c in db.crm2_companies.find({"organization_id": op_org},
+                                          {"_id": 0, "id": 1, "name": 1, "linked_organization_id": 1}):
+        n = _norm_name(c.get("name"))
+        if not n:
+            continue
+        if n == target:
+            match = "exact"
+        elif len(n) >= 4 and len(target) >= 4 and (n in target or target in n):
+            match = "similar"
+        else:
+            continue
+        lo = c.get("linked_organization_id")
+        out.append({**c, "match": match,
+                    "sites": await db.sites.count_documents({"organization_id": lo}) if lo else 0,
+                    "equipment": await db.equipment.count_documents({"organization_id": lo}) if lo else 0})
+    out.sort(key=lambda x: (x["match"] != "exact", x.get("name") or ""))
+    return out[:8]
+
+
+@router.get("/{import_id}/reconcile")
+async def reconcile(import_id: str, user=Depends(get_crm_user)):
+    """Preview which existing customer / sites / equipment this import will
+    link to before anything is written."""
+    of = _of(user)
+    doc = await db.crm2_afs_onboarding.find_one({"id": import_id, **of}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Import not found")
+    cands = await _customer_candidates(_org(user), doc.get("customer_name") or "")
+    return {"customer_name": doc.get("customer_name"), "candidates": cands,
+            "decision_required": bool(cands)}
+
+
 @router.post("/{import_id}/commit")
-async def commit(import_id: str, data: dict = Body(default={}), user=Depends(get_crm_user)):
+async def commit(import_id: str, data: dict = Body(default={}), user=Depends(require_crm_perm("contracts.manage"))):
     of = _of(user)
     op_org = _org(user)
+    data = data or {}
     doc = await db.crm2_afs_onboarding.find_one({"id": import_id, **of})
     if not doc:
         raise HTTPException(404, "Import not found")
-    if doc.get("status") == "committed":
+    if doc.get("status") in ("committed", "committing"):
         raise HTTPException(409, "This import has already been committed.")
     rows = [r for r in doc.get("rows", []) if r.get("include")]
     if not rows:
         raise HTTPException(400, "No rows selected to import.")
     customer = (doc.get("customer_name") or "Imported customer").strip()
+
+    # 0) Customer reconciliation — link an existing CRM company or explicitly create.
+    company = None
+    if data.get("company_id"):
+        company = await db.crm2_companies.find_one({"id": data["company_id"], "organization_id": op_org}, {"_id": 0})
+        if not company:
+            raise HTTPException(404, "Selected customer not found")
+    elif not data.get("create_new_customer"):
+        cands = await _customer_candidates(op_org, customer)
+        if cands:
+            raise HTTPException(409, {"code": "customer_match_required", "candidates": cands,
+                                      "message": "This customer may already exist. Link the existing customer or confirm a new one."})
+
+    # Atomic claim so a double-click / retry can never commit twice.
+    prev_status = doc.get("status")
+    claimed = await db.crm2_afs_onboarding.find_one_and_update(
+        {"id": import_id, **of, "status": {"$nin": ["committed", "committing"]}},
+        {"$set": {"status": "committing", "updated_at": _now()}})
+    if not claimed:
+        raise HTTPException(409, "This import has already been committed.")
+    try:
+        return await _do_commit(import_id, doc, rows, customer, company, data, user, of, op_org)
+    except Exception:
+        await db.crm2_afs_onboarding.update_one({"id": import_id, **of, "status": "committing"},
+                                                {"$set": {"status": prev_status or "ready"}})
+        raise
+
+
+async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op_org):
     grouping = doc.get("grouping", "per_site")
     now = datetime.now(timezone.utc)
-    today = now.strftime("%Y-%m-%d")
+    reused = {"customer": bool(company), "sites": 0, "equipment": 0}
 
-    # 1) Customer platform org (lite, operations only) — holds sites + equipment.
-    cust_org_id = _id()
-    await db.organizations.insert_one({
-        "id": cust_org_id, "name": customer, "account_type": "lite",
-        "enabled_modules": ["operations"], "created_via": "afs_estate_onboarding",
-        "created_at": _now(), "updated_at": _now()})
+    # 1+2) Customer org + CRM company (reuse when linked).
+    if company:
+        crm_company_id = company["id"]
+        customer = company.get("name") or customer
+        cust_org_id = company.get("linked_organization_id")
+        if not cust_org_id:
+            cust_org_id = _id()
+            await db.organizations.insert_one({
+                "id": cust_org_id, "name": customer, "account_type": "lite",
+                "enabled_modules": ["operations"], "created_via": "afs_estate_onboarding",
+                "created_at": _now(), "updated_at": _now()})
+            await db.crm2_companies.update_one({"id": crm_company_id}, {"$set": {
+                "linked_organization_id": cust_org_id, "updated_at": _now()}})
+    else:
+        cust_org_id = _id()
+        await db.organizations.insert_one({
+            "id": cust_org_id, "name": customer, "account_type": "lite",
+            "enabled_modules": ["operations"], "created_via": "afs_estate_onboarding",
+            "created_at": _now(), "updated_at": _now()})
+        crm_company_id = _id()
+        await db.crm2_companies.insert_one({
+            "id": crm_company_id, "organization_id": op_org, "name": customer,
+            "type": "customer", "linked_organization_id": cust_org_id,
+            "is_operator_company": False, "created_via": "afs_estate_onboarding",
+            "created_at": _now(), "updated_at": _now()})
 
-    # 2) CRM company mirror (scoped to the operator org) linked to the new org.
-    crm_company_id = _id()
-    await db.crm2_companies.insert_one({
-        "id": crm_company_id, "organization_id": op_org, "name": customer,
-        "type": "customer", "linked_organization_id": cust_org_id,
-        "is_operator_company": False, "created_via": "afs_estate_onboarding",
-        "created_at": _now(), "updated_at": _now()})
-
-    # 3) Sites (one per distinct site name) under the customer org.
-    site_ids = {}
-    site_docs = []
+    # 3) Sites — reuse an existing site (same name or site code) before creating.
+    existing_sites = await db.sites.find({"organization_id": cust_org_id},
+                                         {"_id": 0, "id": 1, "name": 1, "site_code": 1}).to_list(2000)
+    by_name = {_norm_name(x.get("name")): x["id"] for x in existing_sites if x.get("name")}
+    by_code = {str(x["site_code"]).strip().upper(): x["id"] for x in existing_sites if x.get("site_code")}
+    site_ids, site_docs = {}, []
     for r in rows:
         sn = r["clean"]["site_name"] or "Unassigned site"
-        if sn not in site_ids:
-            sid = _id()
-            site_ids[sn] = sid
-            site_docs.append({
-                "id": sid, "organization_id": cust_org_id, "name": sn,
-                "site_code": r["clean"]["site_code"] or None, "status": "active",
-                "created_via": "afs_estate_onboarding", "created_at": _now(), "updated_at": _now()})
+        if sn in site_ids:
+            continue
+        code = str(r["clean"].get("site_code") or "").strip().upper()
+        hit = by_code.get(code) if code else None
+        hit = hit or by_name.get(_norm_name(sn))
+        if hit:
+            site_ids[sn] = hit
+            reused["sites"] += 1
+            continue
+        sid = _id()
+        site_ids[sn] = sid
+        site_docs.append({
+            "id": sid, "organization_id": cust_org_id, "name": sn,
+            "site_code": r["clean"]["site_code"] or None, "status": "active",
+            "created_via": "afs_estate_onboarding", "created_at": _now(), "updated_at": _now()})
     if site_docs:
         await db.sites.insert_many(site_docs)
 
-    # 4) Equipment register rows (batched insert_many — scales to large estates).
-    eq_docs = []
+    # 4) Equipment — link an already-registered serial instead of duplicating it.
+    existing_eq = {}
+    async for e in db.equipment.find({"organization_id": cust_org_id, "serial_number": {"$nin": [None, ""]}},
+                                     {"_id": 0, "id": 1, "serial_number": 1}):
+        k = _norm_serial(e.get("serial_number"))
+        if k:
+            existing_eq.setdefault(k, e["id"])
+    eq_docs, seen = [], set()
     for r in rows:
         c = r["clean"]
+        k = _norm_serial(c.get("serial"))
+        if k and (k in existing_eq):
+            r["_equipment_id"] = existing_eq[k]
+            if k not in seen:
+                reused["equipment"] += 1
+            seen.add(k)
+            continue
         eid = _id()
         r["_equipment_id"] = eid
+        if k:
+            existing_eq[k] = eid
         eq_docs.append({
             "id": eid, "organization_id": cust_org_id,
-            "site_id": site_ids.get(c["site_name"]),
+            "site_id": site_ids.get(c["site_name"] or "Unassigned site"),
             "name": c["description"] or c["model"] or "Equipment",
             "model": c["model"] or None, "model_code": r["match"]["matched_code"] or c["model"] or None,
             "make": c["make"] or None, "serial_number": c["serial"] or None,
@@ -703,64 +844,71 @@ async def commit(import_id: str, data: dict = Body(default={}), user=Depends(get
     for i in range(0, len(eq_docs), 500):
         await db.equipment.insert_many(eq_docs[i:i + 500])
 
-    # 5) Grouped DRAFT contracts, carrying the chosen (inherited/Pulse) value.
+    # 5) Grouped DRAFT contracts. Dates and billing frequency come only from
+    # the source data / coordinator; anything missing is flagged, not invented.
+    freq = (data.get("billing_frequency") or "").strip().lower() or None
+    if freq and freq not in BILLING_FREQUENCIES:
+        raise HTTPException(400, f"billing_frequency must be one of {list(BILLING_FREQUENCIES)}")
     groups: Dict[str, List[dict]] = {}
     for r in rows:
         groups.setdefault(_group_key(r, grouping), []).append(r)
 
+    from utils.cm_actions import raise_missing_info_action
     contract_ids = []
     seq = 0
     for gkey, grp in groups.items():
         annual = round(sum(_row_value(r) for r in grp), 2)
         seq += 1
         cid = _id()
-        num = f"PF-MA-IMP-{now.strftime('%y%m')}-{seq:02d}"
+        num = f"PF-MA-IMP-{now.strftime('%y%m')}-{import_id[:4].upper()}-{seq:02d}"
         title = customer if grouping == "master" else (
             f"{customer} — {gkey.title()}" if grouping == "per_status" else f"{customer} — {gkey}")
         starts = sorted([r["clean"]["contract_start"] for r in grp if r["clean"]["contract_start"]])
-        start_date = starts[0] if starts else today
-        end_date = (datetime.fromisoformat(start_date) + timedelta(days=365)).strftime("%Y-%m-%d")
-        await db.crm2_contracts.insert_one({
+        start_date = starts[0] if starts else None
+        end_date = annual_term_end(start_date) if start_date else None
+        missing = [f for f, v in (("start_date", start_date), ("billing_frequency", freq)) if not v]
+        contract = {
             "id": cid, "organization_id": op_org, "contract_number": num,
             "company_id": crm_company_id, "company_name": customer, "title": title,
             "linked_organization_id": cust_org_id,
             "contract_type": doc.get("contract_type", "gold"), "tier": doc.get("contract_type", "gold"),
             "annual_value": annual, "total_value": round(annual, 2),
-            "billing_frequency": "monthly", "status": "draft",
-            "start_date": start_date, "end_date": end_date,
+            "billing_frequency": freq, "status": "draft",
+            "start_date": start_date, "end_date": end_date, "missing_fields": missing,
             "source": "afs_estate_onboarding", "source_import_id": import_id,
-            "customer_type": "commercial", "created_at": _now(), "updated_at": _now()})
-        # Link equipment cover to this contract.
-        cover_ids = [r["_equipment_id"] for r in grp]
+            "customer_type": "commercial", "created_at": _now(), "updated_at": _now()}
+        await db.crm2_contracts.insert_one(dict(contract))
+        if missing:
+            await raise_missing_info_action(op_org, contract)
+        cover_ids = list({r["_equipment_id"] for r in grp})
         await db.equipment.update_many(
             {"id": {"$in": cover_ids}, "organization_id": cust_org_id},
             {"$set": {"contract_cover": {"contract_id": cid, "contract_number": num,
                                          "tier": doc.get("contract_type", "gold")}, "updated_at": _now()}})
         contract_ids.append({"id": cid, "contract_number": num, "title": title,
-                             "annual_value": annual, "assets": len(grp)})
+                             "annual_value": annual, "assets": len(grp), "missing_fields": missing})
 
-    # Sites go live at commit — auto-load each site's PPM schedules in the
-    # background at the chosen cadence, now that equipment is inserted.
-    # kickoff is idempotent and never blocks the commit response.
-    site_frequencies = (data or {}).get("site_frequencies") or {}
+    site_frequencies = data.get("site_frequencies") or {}
     ppm_backfill = []
     for sn, sid in site_ids.items():
-        freq = _valid_freq(site_frequencies.get(sn))
+        pf = _valid_freq(site_frequencies.get(sn))
         try:
             run = await kickoff_site_ppm_backfill(
-                cust_org_id, sid, freq, user.get("full_name", "") or "Estate Onboarding")
-            ppm_backfill.append({"site_id": sid, "site_name": sn, "frequency": freq,
+                cust_org_id, sid, pf, user.get("full_name", "") or "Estate Onboarding")
+            ppm_backfill.append({"site_id": sid, "site_name": sn, "frequency": pf,
                                  "run_id": run.get("run_id"), "status": run.get("status")})
         except Exception as e:
             logger.warning("PPM backfill kickoff failed for site %s: %s", sid, e)
 
     committed = {"customer_org_id": cust_org_id, "crm_company_id": crm_company_id,
-                 "sites": len(site_ids), "equipment": len(rows), "contracts": contract_ids,
+                 "sites": len(set(site_ids.values())), "equipment": len(rows), "contracts": contract_ids,
+                 "reused": reused, "new_sites": len(site_docs), "new_equipment": len(eq_docs),
                  "ppm_backfill": ppm_backfill}
     await db.crm2_afs_onboarding.update_one({"id": import_id, **of}, {"$set": {
         "status": "committed", "committed": committed, "committed_at": _now(), "updated_at": _now()}})
     await record_audit(entity_type="afs_onboarding", entity_id=import_id, action="commit", user=user,
-                       extra={"customer": customer, "contracts": len(contract_ids), "equipment": len(rows)})
+                       extra={"customer": customer, "contracts": len(contract_ids), "equipment": len(rows),
+                              "reused": reused})
     return {"import_id": import_id, "committed": committed}
 
 
@@ -858,7 +1006,7 @@ async def _append_to_session(session, new_rows, source_meta):
 
 
 @router.delete("/{import_id}/sources/{source_id}")
-async def remove_source(import_id: str, source_id: str, user=Depends(get_crm_user)):
+async def remove_source(import_id: str, source_id: str, user=Depends(require_crm_perm("contracts.manage"))):
     """Undo a single added file from a merge session before commit — drops that
     file's rows and its source entry, then re-indexes and re-totals."""
     of = _of(user)
@@ -887,7 +1035,7 @@ class SessionIn(BaseModel):
 
 
 @router.post("/session")
-async def create_session(body: SessionIn, user=Depends(get_crm_user)):
+async def create_session(body: SessionIn, user=Depends(require_crm_perm("contracts.manage"))):
     if not body.customer_name.strip():
         raise HTTPException(400, "Enter the customer name.")
     doc = {
@@ -911,7 +1059,7 @@ class AppendSheetIn(BaseModel):
 
 
 @router.post("/{import_id}/append-spreadsheet")
-async def append_spreadsheet(import_id: str, body: AppendSheetIn, user=Depends(get_crm_user)):
+async def append_spreadsheet(import_id: str, body: AppendSheetIn, user=Depends(require_crm_perm("contracts.manage"))):
     of = _of(user)
     org_id = _org(user)
     session = await db.crm2_afs_onboarding.find_one({"id": import_id, "source": "merged", **of})
@@ -945,7 +1093,7 @@ async def append_spreadsheet(import_id: str, body: AppendSheetIn, user=Depends(g
 
 
 @router.post("/{import_id}/append-pdf")
-async def append_pdf(import_id: str, file: UploadFile = File(...), user=Depends(get_crm_user)):
+async def append_pdf(import_id: str, file: UploadFile = File(...), user=Depends(require_crm_perm("contracts.manage"))):
     of = _of(user)
     org_id = _org(user)
     session = await db.crm2_afs_onboarding.find_one({"id": import_id, "source": "merged", **of})

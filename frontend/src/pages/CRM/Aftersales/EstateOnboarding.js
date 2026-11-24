@@ -64,6 +64,9 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
   const [done, setDone] = useState(null);
   const [ppm, setPpm] = useState(null);
   const [siteFreq, setSiteFreq] = useState({}); // { site_name: 'annual'|'biannual'|'quarterly' }
+  const [billFreq, setBillFreq] = useState('');
+  const [matchCands, setMatchCands] = useState(null); // existing-customer candidates awaiting a decision
+  const [matchChoice, setMatchChoice] = useState('');
 
   // multi-file merge
   const [mergeSummary, setMergeSummary] = useState(null);
@@ -125,13 +128,18 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
 
   const doCommit = async () => {
     setBusy(true); setErr('');
+    const decision = matchChoice === '__new__' ? { create_new_customer: true } : (matchChoice ? { company_id: matchChoice } : {});
     try {
-      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/commit`, { site_frequencies: siteFreq }, { headers: headers() });
+      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/commit`,
+        { site_frequencies: siteFreq, billing_frequency: billFreq || null, ...decision }, { headers: headers() });
       setDone(r.data.committed);
       setPpm(null);
+      setMatchCands(null);
       setStep('done');
     } catch (e) {
-      setErr(e?.response?.data?.detail || 'Commit failed.');
+      const d = e?.response?.data?.detail;
+      if (d && d.code === 'customer_match_required') { setMatchCands(d.candidates || []); setErr(d.message); }
+      else setErr(typeof d === 'string' ? d : (d?.message || 'Commit failed.'));
     } finally { setBusy(false); }
   };
 
@@ -670,8 +678,38 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
             );
           })()}
 
-          <div className="flex items-center gap-3">
-            <button data-testid="afs-onb-commit" onClick={doCommit} disabled={busy}
+          {matchCands && (
+            <Card c={c} isDark={isDark} testId="afs-onb-match">
+              <p className="text-sm font-bold mb-1" style={{ color: c.text }}>Is this an existing customer?</p>
+              <p className="text-xs mb-3" style={{ color: c.textDim }}>Link the existing CRM customer so sites and equipment are reused instead of duplicated.</p>
+              <div className="space-y-1.5">
+                {matchCands.map(m => (
+                  <label key={m.id} className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: c.text }} data-testid={`afs-onb-match-${m.id}`}>
+                    <input type="radio" name="afs-match" checked={matchChoice === m.id} onChange={() => setMatchChoice(m.id)} />
+                    <span className="font-semibold">{m.name}</span>
+                    <span style={{ color: c.textDim }}>{m.match === 'exact' ? 'Exact name match' : 'Similar name'} · {m.sites} sites · {m.equipment} equipment</span>
+                  </label>
+                ))}
+                <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: c.text }} data-testid="afs-onb-match-new">
+                  <input type="radio" name="afs-match" checked={matchChoice === '__new__'} onChange={() => setMatchChoice('__new__')} />
+                  <span>None of these — create a new customer</span>
+                </label>
+              </div>
+            </Card>
+          )}
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="text-xs inline-flex items-center gap-2" style={{ color: c.textDim }}>
+              Billing frequency
+              <select data-testid="afs-onb-billing-frequency" value={billFreq} onChange={e => setBillFreq(e.target.value)}
+                className="px-2 py-1 rounded text-xs" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                <option value="">Not known yet (flag for follow-up)</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </label>
+            <button data-testid="afs-onb-commit" onClick={doCommit} disabled={busy || (matchCands && !matchChoice)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold"
               style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: busy ? 0.5 : 1 }}>
               {busy ? <RotateCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
@@ -696,12 +734,18 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
             {stat('Equipment', done.equipment, 'afs-onb-done-equipment')}
             {stat('Draft contracts', done.contracts.length, 'afs-onb-done-contracts', 'var(--color-brand-cyan)')}
           </div>
+          {done.reused && (
+            <p className="text-xs mb-3" style={{ color: c.textDim }} data-testid="afs-onb-done-reused">
+              {done.reused.customer ? 'Linked to the existing customer. ' : 'New customer created. '}
+              Reused {done.reused.sites} existing site(s) and {done.reused.equipment} registered machine(s); added {done.new_sites ?? 0} site(s) and {done.new_equipment ?? 0} machine(s).
+            </p>
+          )}
           <p className="text-xs font-bold mb-1.5" style={{ color: c.textDim }}>Draft contracts created</p>
           <div className="space-y-1 mb-4">
             {done.contracts.map(ct => (
               <div key={ct.id} className="flex justify-between text-xs" style={{ color: c.text }}>
                 <span>{ct.contract_number} · {ct.title}</span>
-                <span style={{ color: c.textDim }}>{ct.assets} assets · {gbp(ct.annual_value)}/yr</span>
+                <span style={{ color: c.textDim }}>{ct.assets} assets · {gbp(ct.annual_value)}/yr{(ct.missing_fields || []).length ? ` · needs ${ct.missing_fields.join(', ').replace(/_/g, ' ')}` : ''}</span>
               </div>
             ))}
           </div>

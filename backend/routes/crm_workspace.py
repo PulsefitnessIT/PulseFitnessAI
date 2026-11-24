@@ -3,7 +3,10 @@
 `require_crm_perm(perm)` is the backend gate for sensitive CRM actions; it
 never relies on the frontend hiding a menu.
 """
-from fastapi import APIRouter, Depends, HTTPException
+import hmac
+import os
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from utils.database import db
 from utils.crm_workspace import (
@@ -95,3 +98,77 @@ async def assign_role(user_id: str, data: dict, user=Depends(require_crm_perm("p
 async def role_audit(user_id: str, user=Depends(require_crm_perm("permissions.admin"))):
     rows = await db.crm_workspace_role_audit.find({"user_id": user_id}, {"_id": 0}).sort("at", -1).to_list(50)
     return {"history": rows}
+
+
+# ── Action Centre: daily checks + approval-first renewals ─────────────────
+
+@router.post("/daily-checks/run")
+async def run_checks_now(user=Depends(require_crm_perm("tasks.manage"))):
+    from utils.cm_actions import run_daily_checks
+    return await run_daily_checks(user.get("organization_id"), actor=user.get("full_name") or "coordinator")
+
+
+@router.post("/renewals/prepare")
+async def renewals_prepare(dry_run: bool = True, user=Depends(require_crm_perm("renewals.review"))):
+    from utils.cm_renewals import prepare_renewals
+    return await prepare_renewals(user.get("organization_id"), actor=user.get("full_name") or "coordinator",
+                                  dry_run=dry_run)
+
+
+@router.post("/renewals/{renewal_id}/approve-send")
+async def renewal_approve_send(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.review"))):
+    from utils.cm_renewals import approve_and_send_renewal
+    pct = (data or {}).get("uplift_percent")
+    if pct not in (None, ""):
+        try:
+            pct = float(pct)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "uplift_percent must be a number")
+        if not -20 <= pct <= 25:
+            raise HTTPException(400, "uplift_percent must be between -20 and 25")
+    else:
+        pct = None
+    res = await approve_and_send_renewal(renewal_id, user, pct)
+    if not res.get("ok"):
+        raise HTTPException(409, res.get("error") or "Could not send renewal")
+    return res
+
+
+async def _daily_checks_all(run_id: str) -> None:
+    from utils.cm_actions import run_daily_checks
+    from utils.crm_workspace import _operator_org_ids
+    results = []
+    for org_id in sorted(await _operator_org_ids()):
+        try:
+            results.append(await run_daily_checks(org_id, actor="Daily checks (7am)"))
+        except Exception as e:  # keep other orgs running
+            results.append({"organization_id": org_id, "error": str(e)})
+    await db.cm_daily_check_runs.update_one({"run_id": run_id}, {"$set": {"status": "done", "results": results}})
+
+
+@router.post("/cron/daily-checks")
+async def cron_daily_checks(request: Request, background: BackgroundTasks):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET") or ""
+    auth = request.headers.get("authorization") or ""
+    token = auth[7:] if auth.lower().startswith("bearer ") else ""
+    if not secret or not token or not hmac.compare_digest(token, secret):
+        raise HTTPException(401, "Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if body is not None and not isinstance(body, dict):
+        raise HTTPException(400, "Invalid body")
+    run_id = request.headers.get("x-webhook-id") or (body or {}).get("run_id") or ""
+    if not run_id:
+        from uuid import uuid4
+        run_id = f"manual-{uuid4()}"
+    from datetime import datetime, timezone
+    res = await db.cm_daily_check_runs.update_one(
+        {"run_id": run_id}, {"$setOnInsert": {"run_id": run_id, "status": "queued",
+                                              "at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    if res.upserted_id is None:
+        return {"accepted": True, "duplicate": True, "run_id": run_id}
+    background.add_task(_daily_checks_all, run_id)
+    return {"accepted": True, "run_id": run_id}

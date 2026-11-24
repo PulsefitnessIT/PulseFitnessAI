@@ -205,3 +205,36 @@ async def run_workspace_boot() -> dict:
             await db.crm_users.update_one({"id": cu["id"]}, {"$set": {"role": new_role, "role_reconciled_at": _now()}})
             reconciled += 1
     return {"grants_applied": applied, "crm_roles_reconciled": reconciled}
+
+
+async def run_integrity_boot() -> dict:
+    """Idempotent: remove fabricated Sicon/Sage references and classify MOD
+    rate-card prices that were never verified."""
+    import re as _re
+    from utils.mod_sor_data import build_seed_rate_card
+    fixed_sicon = fixed_sage = 0
+    async for c in db.crm2_contracts.find({"$or": [{"sicon_contract_id": {"$regex": "^SICON-"}},
+                                                   {"sage_reference": {"$regex": "^SAGE-"}}]},
+                                          {"_id": 0, "id": 1, "sicon_contract_id": 1, "sage_reference": 1}):
+        upd = {}
+        if c.get("sicon_contract_id") == f"SICON-{c['id'][:8].upper()}":
+            upd.update({"sicon_contract_id": None, "sicon_sync_status": "pending",
+                        "sicon_sync_detail": "Earlier simulated Sicon reference removed — not confirmed by Sicon."})
+            fixed_sicon += 1
+        if c.get("sage_reference") == f"SAGE-{c['id'][:8].upper()}":
+            upd.update({"sage_reference": None, "sage_sync_status": "pending",
+                        "sage_sync_detail": "Earlier simulated Sage reference removed — not confirmed by Sage."})
+            fixed_sage += 1
+        if upd:
+            await db.crm2_contracts.update_one({"id": c["id"]}, {"$set": upd})
+    seed = {d["id"]: d for d in build_seed_rate_card()}
+    classified = 0
+    async for rc in db.mod_sor_rate_card.find({"price_status": {"$exists": False}}, {"_id": 0}):
+        sd = seed.get(rc["id"]) or {}
+        same = all(rc.get(f) == sd.get(f) for f in ("type_a_price", "type_b_price"))
+        status = "verified" if (rc.get("updated_by") or not same) else "placeholder"
+        await db.mod_sor_rate_card.update_one({"id": rc["id"]}, {"$set": {"price_status": status}})
+        classified += 1
+    _ = _re
+    return {"fabricated_sicon_refs_removed": fixed_sicon, "fabricated_sage_refs_removed": fixed_sage,
+            "mod_rates_classified": classified}

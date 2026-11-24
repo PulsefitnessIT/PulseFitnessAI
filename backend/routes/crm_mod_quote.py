@@ -87,7 +87,7 @@ def require_operator_perm(perm: str):
 
 async def _ensure_rate_card() -> None:
     if await db.mod_sor_rate_card.count_documents({}) == 0:
-        await db.mod_sor_rate_card.insert_many(build_seed_rate_card())
+        await db.mod_sor_rate_card.insert_many([{**d, "price_status": "placeholder"} for d in build_seed_rate_card()])
 
 
 async def _rate_card_list() -> list[dict]:
@@ -119,6 +119,13 @@ async def update_rate_card_item(item_id: str, data: dict, user=Depends(require_o
         raise HTTPException(400, "No editable price fields supplied")
     update["updated_at"] = _now()
     update["updated_by"] = user.get("full_name") or user.get("id")
+    # An admin entering the contracted price is the verification step.
+    update.update({"price_status": "verified", "verified_by": user.get("email"), "verified_at": _now(),
+                   "price_source": "manual_entry"})
+    for f in ("valid_from", "valid_to"):
+        if data.get(f):
+            update[f] = str(data[f])[:10]
+    await _snapshot_rate(entry, user, "manual_edit")
     await db.mod_sor_rate_card.update_one({"id": item_id}, {"$set": update})
     await log_audit(user, "mod_rate_card", item_id, "updated", update)
     return await db.mod_sor_rate_card.find_one({"id": item_id}, {"_id": 0})
@@ -143,9 +150,124 @@ async def reseed_rate_card(user=Depends(require_operator_perm("pricing.manage"))
             "you are sure — the real contracted prices are NOT restored from code.",
         )
     await db.mod_sor_rate_card.delete_many({})
-    await db.mod_sor_rate_card.insert_many(build_seed_rate_card())
+    await db.mod_sor_rate_card.insert_many([{**d, "price_status": "placeholder"} for d in build_seed_rate_card()])
     await log_audit(user, "mod_rate_card", "all", "reseeded", {"confirm": confirm})
     return {"items": await _rate_card_list()}
+
+
+async def _snapshot_rate(entry: dict, user: dict, reason: str) -> None:
+    await db.mod_sor_rate_card_history.insert_one({
+        "id": str(uuid.uuid4()), "item_id": entry.get("id"), "reason": reason,
+        "snapshot": {k: v for k, v in entry.items() if k != "_id"},
+        "by": user.get("email"), "at": _now()})
+
+
+def rate_is_usable(rc: dict | None, today: str | None = None) -> tuple[bool, str]:
+    """Verified AND inside its validity window → may be sent to a customer."""
+    if not rc:
+        return False, "not on the rate card"
+    if (rc.get("price_status") or "placeholder") != "verified":
+        return False, "placeholder price (not verified)"
+    today = today or datetime.now(timezone.utc).date().isoformat()
+    if rc.get("valid_to") and str(rc["valid_to"])[:10] < today:
+        return False, f"expired {rc['valid_to']}"
+    if rc.get("valid_from") and str(rc["valid_from"])[:10] > today:
+        return False, f"not valid until {rc['valid_from']}"
+    return True, "verified"
+
+
+def _hdr(v) -> str:
+    return " ".join(str(v or "").lower().replace("_", " ").split())
+
+
+def _price_col_map(header: list) -> dict:
+    """Map header cells → rate-card price fields (Type A/B × Year 1-4)."""
+    out = {}
+    for i, h in enumerate(header):
+        t = _hdr(h)
+        typ = "a" if ("type a" in t or t.startswith("a ") or t == "a" or "annual" in t) else (
+            "b" if ("type b" in t or t.startswith("b ") or t == "b" or "ad-hoc" in t or "adhoc" in t or "ad hoc" in t) else None)
+        if not typ:
+            continue
+        yr = 1
+        for n in (2, 3, 4):
+            if f"y{n}" in t.replace(" ", "") or f"year {n}" in t or f"yr {n}" in t:
+                yr = n
+        field = f"type_{typ}_price" + ("" if yr == 1 else f"_y{yr}")
+        out.setdefault(field, i)
+    return out
+
+
+def _key_col(header: list):
+    for want in ("item no", "item", "sor", "code", "line"):
+        for i, h in enumerate(header):
+            if want in _hdr(h):
+                return i
+    return None
+
+
+@router.post("/rate-card/import")
+async def import_rate_card(file: UploadFile = File(...), valid_from: str = Form(""), valid_to: str = Form(""),
+                           dry_run: bool = Form(True), user=Depends(require_operator_perm("pricing.manage"))):
+    """Upload the contracted MOD price file (xlsx/csv). Matches each row to a
+    rate-card line by item number or SOR code, previews first (dry_run), then
+    writes VERIFIED prices with their validity window and keeps history."""
+    if not _is_admin(user):
+        raise HTTPException(403, "Only CRM admins can import the SOR rate card")
+    name = (file.filename or "").lower()
+    if not name.endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(400, "Upload a .xlsx, .xls or .csv price file.")
+    rows = list(spreadsheet_rows(await file.read(), file.filename or ""))
+    hdr_idx = next((i for i, r in enumerate(rows[:30]) if _key_col(r) is not None and _price_col_map(r)), None)
+    if hdr_idx is None:
+        raise HTTPException(400, "Could not find a header row with an item/SOR code column and Type A / Type B price columns.")
+    header = rows[hdr_idx]
+    kcol, pcols = _key_col(header), _price_col_map(header)
+    card = await _rate_card_list()
+    by_key = {}
+    for rc in card:
+        for k in (rc.get("item_no"), rc.get("code_a"), rc.get("code_b")):
+            if k not in (None, ""):
+                by_key[str(k).strip().upper()] = rc
+    matched, unmatched = [], []
+    for r in rows[hdr_idx + 1:]:
+        if kcol >= len(r) or r[kcol] in (None, ""):
+            continue
+        raw = r[kcol]
+        key = str(int(raw) if isinstance(raw, float) and raw.is_integer() else raw).strip().upper()
+        rc = by_key.get(key)
+        prices = {}
+        for f, ci in pcols.items():
+            if ci < len(r) and r[ci] not in (None, ""):
+                try:
+                    prices[f] = round(float(str(r[ci]).replace("£", "").replace(",", "")), 2)
+                except ValueError:
+                    pass
+        if not rc:
+            unmatched.append({"key": key, "prices": prices})
+            continue
+        if prices:
+            matched.append({"id": rc["id"], "label": rc.get("label"), "key": key,
+                            "old": {f: rc.get(f) for f in prices}, "new": prices})
+    result = {"dry_run": dry_run, "header_row": hdr_idx + 1, "columns": {"key": kcol, **pcols},
+              "matched": matched, "unmatched": unmatched,
+              "not_in_file": [rc["id"] for rc in card if rc["id"] not in {m["id"] for m in matched}],
+              "valid_from": valid_from[:10] or None, "valid_to": valid_to[:10] or None}
+    if dry_run:
+        return result
+    if not valid_from or not valid_to:
+        raise HTTPException(400, "Enter the 'valid from' and 'valid to' dates for this price list.")
+    for m in matched:
+        entry = next(rc for rc in card if rc["id"] == m["id"])
+        await _snapshot_rate(entry, user, f"import:{file.filename}")
+        await db.mod_sor_rate_card.update_one({"id": m["id"]}, {"$set": {
+            **m["new"], "price_status": "verified", "valid_from": valid_from[:10], "valid_to": valid_to[:10],
+            "price_source": file.filename, "verified_by": user.get("email"), "verified_at": _now(),
+            "updated_at": _now(), "updated_by": user.get("full_name") or user.get("id")}})
+    await log_audit(user, "mod_rate_card", "all", "imported",
+                    {"file": file.filename, "matched": len(matched), "unmatched": len(unmatched)})
+    result["items"] = await _rate_card_list()
+    return result
 
 
 # ── MOD sites & equipment mapping ──────────────────────────────────
@@ -538,6 +660,8 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quo
                 "serial_number": raw.get("serial_number"),
                 "service_type": line_ct,
                 "contracted": True,
+                "rate_card_id": rc["id"],
+                "rate_status": "verified" if rate_is_usable(rc)[0] else rate_is_usable(rc)[1],
             })
         else:
             # POA / Type C / custom-price line — price supplied by the user.
@@ -567,6 +691,8 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quo
                 "sicon_ref": co.get("sicon_ref_b"),
                 "quantity": call_outs, "unit_price": co.get("type_b_price"),
                 "discount": 0, "service_type": "B", "contracted": True,
+                "rate_card_id": co["id"],
+                "rate_status": "verified" if rate_is_usable(co)[0] else rate_is_usable(co)[1],
             })
 
     subtotal = round(sum(
@@ -591,6 +717,7 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quo
         "opportunity_id": data.get("opportunity_id"),
         "status": "draft",
         "lines": lines,
+        "unverified_rate_lines": sum(1 for l in lines if l.get("contracted") and l.get("rate_status") != "verified"),
         "subtotal": subtotal,
         "vat_rate": vat_rate, "vat_amount": vat_amount,
         "tax_rate": vat_rate, "tax_amount": vat_amount, "tax_label": "VAT",
@@ -692,6 +819,25 @@ async def send_quote_for_esign(quote_id: str, data: dict, user=Depends(require_o
         {"id": quote_id, "organization_id": user.get("organization_id")}, {"_id": 0})
     if not quote:
         raise HTTPException(404, "Quote not found")
+
+    # Never send unverified / placeholder / expired MOD prices to a customer.
+    card = {rc["id"]: rc for rc in await _rate_card_list()}
+    by_code = {}
+    for rc in card.values():
+        for k in (rc.get("code_a"), rc.get("code_b")):
+            if k:
+                by_code[str(k)] = rc
+    blocked = []
+    for ln in quote.get("lines") or []:
+        if not ln.get("contracted"):
+            continue
+        rc = card.get(ln.get("rate_card_id")) or by_code.get(str(ln.get("sku") or ""))
+        ok, why = rate_is_usable(rc)
+        if not ok:
+            blocked.append(f"{ln.get('product_name') or ln.get('description')}: {why}")
+    if blocked:
+        raise HTTPException(409, "This quote uses MOD rates that an admin has not verified yet, so it can't be sent: "
+                                 + "; ".join(sorted(set(blocked))[:8]))
 
     to_addr = (data.get("to") or "").strip().lower()
     if not to_addr and quote.get("contact_id"):

@@ -29,6 +29,24 @@ function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onClose })
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
 
   const setField = (id, field, val) => setRows(rows.map(r => r.id === id ? { ...r, [field]: val } : r));
+  const [priceFile, setPriceFile] = useState(null);
+  const [validFrom, setValidFrom] = useState('');
+  const [validTo, setValidTo] = useState('');
+  const [importPreview, setImportPreview] = useState(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const runImport = async (dryRun) => {
+    if (!priceFile) return;
+    setImportBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', priceFile); fd.append('valid_from', validFrom); fd.append('valid_to', validTo);
+      fd.append('dry_run', dryRun ? 'true' : 'false');
+      const r = await axios.post(`${API}/crm/mod-quote/rate-card/import`, fd, { headers: headers() });
+      setImportPreview(r.data);
+      if (!dryRun) { setRows(r.data.items || rows); notify.success(`${r.data.matched.length} contracted rate(s) verified`); onSaved && onSaved(); }
+    } catch (e) { notify.error(e.response?.data?.detail || 'Could not read that price file'); }
+    setImportBusy(false);
+  };
 
   const save = async (row) => {
     setSavingId(row.id);
@@ -60,6 +78,21 @@ function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onClose })
           </div>
           <button onClick={onClose} style={{ color: c.textDim }} data-testid="mod-rate-card-close"><X size={18} /></button>
         </div>
+        <div className="mb-4 p-3 rounded-lg" style={{ border: `1px solid ${c.border}` }} data-testid="mod-rate-import">
+          <p className="text-xs font-semibold mb-2" style={{ color: c.text }}>Upload contracted price file</p>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={e => { setPriceFile(e.target.files?.[0] || null); setImportPreview(null); }} data-testid="mod-rate-import-file" />
+            <label style={{ color: c.textDim }}>Valid from <input type="date" value={validFrom} onChange={e => setValidFrom(e.target.value)} className="px-1 py-0.5 rounded" style={inputStyle} data-testid="mod-rate-import-from" /></label>
+            <label style={{ color: c.textDim }}>to <input type="date" value={validTo} onChange={e => setValidTo(e.target.value)} className="px-1 py-0.5 rounded" style={inputStyle} data-testid="mod-rate-import-to" /></label>
+            <button onClick={() => runImport(true)} disabled={!priceFile || importBusy} className="px-2 py-1 rounded border disabled:opacity-40" style={{ borderColor: c.border, color: c.text }} data-testid="mod-rate-import-preview">Preview</button>
+            <button onClick={() => runImport(false)} disabled={!importPreview || importBusy || !validFrom || !validTo} className="px-2 py-1 rounded font-medium disabled:opacity-40" style={{ background: 'var(--color-info-ios)', color: '#fff' }} data-testid="mod-rate-import-apply">Apply &amp; verify</button>
+          </div>
+          {importPreview && (
+            <p className="text-[11px] mt-2" style={{ color: c.textDim }} data-testid="mod-rate-import-summary">
+              {importPreview.matched.length} line(s) matched{importPreview.unmatched.length ? `, ${importPreview.unmatched.length} not recognised (${importPreview.unmatched.slice(0, 5).map(u => u.key).join(', ')})` : ''}{importPreview.not_in_file.length ? `, ${importPreview.not_in_file.length} rate-card line(s) not in the file` : ''}.
+            </p>
+          )}
+        </div>
         <table className="w-full text-xs">
           <thead>
             <tr style={{ color: c.textDim, borderBottom: `1px solid ${c.border}` }}>
@@ -73,6 +106,9 @@ function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onClose })
                 <td className="py-1.5 pr-2" style={{ color: c.text }}>
                   <span className="font-medium">{r.label}</span>
                   {r.is_poa && <span className="ml-1 text-[9px] px-1 rounded" style={{ background: 'var(--color-warning)', color: '#000' }}>POA</span>}
+                  {!r.is_poa && (r.price_status === 'verified'
+                    ? <span className="ml-1 text-[9px] px-1 rounded" style={{ background: 'var(--color-success-alt)', color: '#fff' }} title={r.valid_to ? `Valid ${r.valid_from || ''} – ${r.valid_to}` : 'Verified'} data-testid={`mod-rate-status-${r.id}`}>VERIFIED</span>
+                    : <span className="ml-1 text-[9px] px-1 rounded" style={{ background: 'var(--color-warning)', color: '#000' }} data-testid={`mod-rate-status-${r.id}`}>PLACEHOLDER</span>)}
                 </td>
                 {['type_a_price', 'type_a_price_y2', 'type_a_price_y3', 'type_a_price_y4',
                   'type_b_price', 'type_b_price_y2', 'type_b_price_y3', 'type_b_price_y4'].map(f => (
@@ -523,7 +559,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                             <input type="number" step="0.01" placeholder="POA" value={l.unit_price ?? ''} onChange={e => updateLine(l.key, { unit_price: Number(e.target.value) || 0 })}
                               className="w-16 px-1 py-1 rounded text-right" style={inputStyle} data-testid={`mod-line-price-${l.key}`} />
                           ) : (
-                            <span style={{ color: c.text }}>{l.rate_card_id ? fmt(priceFor(l.rate_card_id, lineCt(l))) : '—'}</span>
+                            <span style={{ color: c.text }}>{l.rate_card_id ? fmt(priceFor(l.rate_card_id, lineCt(l))) : '—'}
+                              {l.rate_card_id && (rateCard.find(r => r.id === l.rate_card_id) || {}).price_status !== 'verified' && (
+                                <span className="block text-[9px] font-semibold" style={{ color: 'var(--color-accent-amber)' }} data-testid={`mod-line-unverified-${l.key}`}>Unverified rate</span>
+                              )}
+                            </span>
                           )}
                         </td>
                         <td className="text-center">

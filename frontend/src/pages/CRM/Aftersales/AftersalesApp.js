@@ -12,6 +12,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { useCRM } from '../CRMApp';
 import SubTabBar from '../../../components/shared/SubTabBar';
 import CRMContracts from '../CRMContracts';
@@ -89,8 +90,22 @@ function DashboardTab({ API, headers, c, isDark }) {
 
   const runScan = async () => {
     setScanning(true);
-    try { await axios.post(`${API}/crm/v2/aftersales/alerts/run`, {}, { headers: headers() }); loadAlerts(); }
+    try { await axios.post(`${API}/crm/workspace/daily-checks/run`, {}, { headers: headers() }); loadAlerts(); }
+    catch (e) { toast.error(e.response?.data?.detail || 'Scan failed'); }
     finally { setScanning(false); }
+  };
+  const [sendingId, setSendingId] = useState('');
+  const [pctById, setPctById] = useState({});
+  const approveRenewal = async (a) => {
+    const pct = String(pctById[a.id] ?? '');
+    setSendingId(a.id);
+    try {
+      const r = await axios.post(`${API}/crm/workspace/renewals/${a.renewal_contract_id}/approve-send`,
+        pct.trim() === '' ? {} : { uplift_percent: Number(pct) }, { headers: headers() });
+      toast.success(r.data.email_delivered ? `Renewal sent to ${r.data.to}` : `Renewal approved — email not delivered, share: ${r.data.accept_link}`);
+      loadAlerts();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not send renewal'); }
+    setSendingId('');
   };
   const dismissAlert = async (id) => {
     await axios.post(`${API}/crm/v2/aftersales/alerts/${id}/dismiss`, {}, { headers: headers() });
@@ -182,19 +197,33 @@ function DashboardTab({ API, headers, c, isDark }) {
           ) : (
             (alerts.alerts || []).filter(a => a.status === 'open').map((a) => {
               const isWarranty = a.type === 'warranty_alert';
-              const col = a.threshold_days <= 90 ? 'var(--color-danger)' : a.threshold_days <= 120 ? 'var(--color-accent-amber)' : 'var(--color-info-ios)';
+              const kind = { warranty_alert: 'WARRANTY', rpi_review_due: 'RPI REVIEW', contract_missing_info: 'MISSING INFO',
+                renewal_approval: 'RENEWAL APPROVAL', renewal_blocked: 'RENEWAL BLOCKED' }[a.type] || 'ACTION';
+              const col = !a.threshold_days ? (a.type === 'renewal_approval' ? 'var(--color-info-ios)' : 'var(--color-accent-amber)')
+                : a.threshold_days <= 90 ? 'var(--color-danger)' : a.threshold_days <= 120 ? 'var(--color-accent-amber)' : 'var(--color-info-ios)';
               return (
                 <div key={a.id} data-testid={`afs-alert-${a.id}`} className="flex items-start gap-3 p-3 rounded-lg border"
                      style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border }}>
                   <span className="mt-0.5 shrink-0">{isWarranty ? <ShieldCheck size={16} style={{ color: col }} /> : <TrendingUp size={16} style={{ color: col }} />}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: col + '22', color: col }}>≤{a.threshold_days}d</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: isDark ? '#26292b' : 'var(--color-neutral-100)', color: c.textDim }}>{isWarranty ? 'WARRANTY' : 'RPI REVIEW'}</span>
+                      {a.threshold_days ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: col + '22', color: col }}>≤{a.threshold_days}d</span> : null}
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: isDark ? '#26292b' : 'var(--color-neutral-100)', color: c.textDim }} data-testid={`afs-alert-kind-${a.id}`}>{kind}</span>
                       <span className="text-sm font-semibold truncate" style={{ color: c.text }}>{a.subject}</span>
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: c.textDim }}>{a.body}</p>
                   </div>
+                  {a.type === 'renewal_approval' && a.renewal_contract_id && (
+                    <input type="number" step="0.1" placeholder="% rise" value={pctById[a.id] ?? ''} data-testid={`afs-alert-pct-${a.id}`}
+                      onChange={e => setPctById(m => ({ ...m, [a.id]: e.target.value }))} title="Approved price increase (%) — leave blank to keep the prepared figure"
+                      className="shrink-0 w-20 text-xs px-2 py-1 rounded-md border" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
+                  )}
+                  {a.type === 'renewal_approval' && a.renewal_contract_id && (
+                    <button data-testid={`afs-alert-approve-${a.id}`} onClick={() => approveRenewal(a)} disabled={sendingId === a.id}
+                      className="shrink-0 text-xs px-2 py-1 rounded-md inline-flex items-center gap-1 disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+                      <Mail size={12} /> {sendingId === a.id ? 'Sending…' : 'Approve & send'}
+                    </button>
+                  )}
                   <button data-testid={`afs-alert-dismiss-${a.id}`} onClick={() => dismissAlert(a.id)}
                     className="shrink-0 text-xs px-2 py-1 rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textDim }}>
                     <Check size={12} /> Done

@@ -127,6 +127,12 @@ async def push_to_sicon(payload: dict) -> dict:
     if not finance_provider_configured():
         return {"ok": False, "status": "awaiting_credentials",
                 "detail": "Sicon WebAPI not configured — queued for finance import/export."}
+    # Phase 1 is strictly READ-ONLY: no Sage/Sicon write leaves PulseFitness.ai
+    # until SICON_ALLOW_WRITES is explicitly switched on.
+    from utils.sicon_common import env_allow_writes
+    if not env_allow_writes():
+        return {"ok": False, "status": "writes_disabled",
+                "detail": "Sage/Sicon write-back is switched off (read-only phase) — queued for finance import/export."}
     cfg = _cfg()
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
     scheme = cfg["auth_scheme"].strip()
@@ -147,7 +153,11 @@ async def push_to_sicon(payload: dict) -> dict:
             pass
         ref = (data.get("id") or data.get("order_id") or data.get("document_no")
                or data.get("sales_order_number") or "")
-        return {"ok": True, "status": "synced", "external_ref": ref, "response": data}
+        if not ref:
+            # Never report success without a verifiable Sage reference.
+            return {"ok": False, "status": "unconfirmed", "response": data,
+                    "detail": "Sicon accepted the request but returned no Sales Order reference — verify in Sage."}
+        return {"ok": True, "status": "synced", "external_ref": str(ref), "response": data}
     except Exception as e:  # network / connector down
         return {"ok": False, "status": "failed", "detail": f"Sicon WebAPI unreachable: {e}"}
 
@@ -166,7 +176,7 @@ async def enqueue_finance_sync(org_id: str, contract_id: str, event: str, actor:
     payload = build_sales_order_payload(contract, bill.get("invoices", []), company)
 
     push = await push_to_sicon(payload)
-    status = push["status"]  # synced | awaiting_credentials | failed
+    status = push["status"]  # synced | awaiting_credentials | writes_disabled | unconfirmed | failed
     outbox_status = "synced" if status == "synced" else ("failed" if status == "failed" else "queued")
 
     existing = await db.crm2_afs_finance_sync.find_one({"contract_id": contract_id, **of}, {"_id": 0})

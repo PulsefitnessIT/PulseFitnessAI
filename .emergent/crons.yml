@@ -28,3 +28,11 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: cm-daily-checks
+    description: "Weekday 7am UK Contract Management checks: renewals to prepare, missing contract info, warranty/RPI reminders"
+    cron: "0 7 * * 1-5"
+    timezone: "Europe/London"
+    endpoint: "{{BASE_URL}}/api/crm/workspace/cron/daily-checks"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true
