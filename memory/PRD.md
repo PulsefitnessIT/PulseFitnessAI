@@ -39445,3 +39445,11 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - `routes/crm_service_planner.py`: GET /service-planner, POST /service-planner/sync, GET /service-planner/engineers, POST /contracts/{cid}/obligations/{oid}/book (creates the ordinary Service Desk PPM job once), /review (exceptions.approve), GET /contracts/{cid}/service-reconciliation, /obligations/{oid}/candidates.
 - Hooks: svc_state.transition + Sicon inbound updates re-sync the contract; daily checks sync all; `ensure_annual_ppm` skips contract-covered machines.
 - UI: Service planner table inside the existing CM → Service tab (buckets, search, book, review). Tests: iteration_309/310 + pytest suites (123 CM/PPM/Sicon tests pass).
+
+## Nov 2026 — Maintenance Master bridge + deferred Sicon (design unchanged)
+- `routes/crm_maintenance_master.py` + `utils/mm_import.py`; UI `MaintenanceMaster.js` in CM → Contracts & Renewals.
+- Chunked upload → original in GridFS (`mm_workbooks`) with SHA-256; staged rows `crm2_mm_rows` (all source cells + sheet/row); classification + totals; reconciliation/exception reports; authorised (exceptions.approve) resumable commit into existing `crm2_contracts`/`crm2_companies` (unique `mm_record_key`); revisioned edits audited in `crm2_contract_changes`; notes; Current-data export; Updated Master export in original layout + "Pulse Fitness Pro changes" sheet; re-import keeps app edits (conflicts flagged); Sicon queue `crm2_sicon_contract_queue` held (no writes) + identity reconcile; cutover record.
+- Renewal drafts of imported contracts no longer copy `mm_record_key` (fixed crash).
+- Real 12 Nov 2026 workbook staged in preview (upload e7a84748…, NOT committed): 8,067 new contracts, 11 duplicate/overlap, 1,127 missing information, 1 review, 200 MOD held.
+- Tests: test_cm_maintenance_master.py (2), test_mm_api_iter311.py / test_mm_master_export_iter311.py (10, need mm_ui_seed), CM regression 51 pass; iteration_311/312.
+- Runbook: /app/memory/MAINTENANCE_MASTER_RUNBOOK.md

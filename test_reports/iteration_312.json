@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 312: retest of the 8 Maintenance Master fixes from iteration 311, plus a short regression, through the public URL (API + UI as coordinator and aftersales manager). Fictional mmt_ui_ upload seeded, then committed through the UI by the manager: the first confirm was cancelled and the upload stayed 'ready'; the second confirm was accepted and created 5 contracts. Cleaned up at the end. The real upload e7a84748 was never committed: it is still 'ready' with 0 committed rows. Tests: test_cm_maintenance_master.py 2/2 pass; test_mm_api_iter311.py 9/9 pass; new test_mm_api_iter312.py 3/4 pass. FIX 1 PASS: the real exception report has 1,339 rows, no row or contract has 'approve creation', and 'Missing information only' shows 2 contracts (MMT-1002 and the Delta row with no number) and not MMT-1001. FIX 2 PARTIAL: the 'Pulse Fitness Pro changes' sheet exists, Comments and Contract amount are written to their cells, annual_value is labelled 'no column…' and the tooltip is there. But coordinator_name is wrongly labelled with the column 'Contract coordinator', which is not in the workbook, so that value is not written anywhere. FIX 3 PASS: the confirm dialog shows the counts and cancel does nothing. FIX 4 PASS: typing straight after opening, then saving, persisted (revision 1→2, history shows both fields). FIX 5 PARTIAL: the picker shows 3 uploads and switches to the real upload (totals 8393/200/813 correct). But the real upload still says 'identical to an earlier upload' because its stored same_file_as (fef328cc, a failed upload) was saved before the fix. FIX 6 PASS: with the rows request slowed down, 'Loading rows…' showed on first load and after switching. FIX 7 PASS: 'Use RAF Brize Norton (no account ref · 07db4f)' / '(… · b78ad5)'. FIX 8 PASS: the MMT-1002 card shows 'Annual value unknown'; the others show £/yr. Adding a note did not bump the revision (it stayed 2) and the history entry's revision matches the contract revision.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /export/master", "issue": "The 'Pulse Fitness Pro changes' sheet gives coordinator_name the column 'Contract coordinator' (from mm.FIELDS), but the workbook has no such column, so _rebuild_master skips it without warning and the value is in no cell. Cause: export_master adds f to `written` when `f in rev` (the field is mapped), without checking that the header exists in the sheet. Fix: build the sheet header map in export_master (or return the fields actually written from _rebuild_master) and label a field 'no column in workbook — listed here only' when its header is missing. A field that was edited and then set back to its baseline is also labelled 'no column', because `written` only holds fields that are edited now."},
+      {"endpoint": "crm2_mm_uploads e7a84748 (data)", "issue": "The real upload still has same_file_as='fef328cc…' (a failed upload), saved before the fix, so the UI still shows 'identical to an earlier upload'. The fix only applies to new uploads. Either work it out when the upload is read (ignore it if the referenced upload is failed), or, with the user's approval, unset that field once on e7a84748."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "UploadPreview", "issue": "Not keyed by upload.id, so the class filter and the 'Create unmatched customers' checkbox carry over when the picker switches uploads. If a manager ticks it on a test upload and then switches to the real one, the box stays ticked. The confirm text does say 'WILL be created'. Add key={latest.id}.", "selector": "[data-testid=mm-create-customers]", "priority": "LOW"},
+      {"component": "UploadPreview rows", "issue": "While 'Loading rows…' shows, the previous upload's rows stay in the table. Clear them or dim the table.", "selector": "[data-testid=mm-rows]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Live compliance card", "issues": ["'Annual value unknown' is in the green success colour, like a real value. Use a muted or warning colour."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mm_api_iter312.py", "/app/backend/tests/test_mm_api_iter311.py", "/app/backend/tests/test_cm_maintenance_master.py", "/app/test_reports/pytest/pytest_iter312.xml"],
+  "action_items": [
+    "export_master: label coordinator_name (and any mapped field whose header is missing from the sheet) 'no column in workbook — listed here only'. Today it claims the column 'Contract coordinator'.",
+    "Stop the real upload showing 'identical to an earlier upload' because of its stale same_file_as, pointing to failed upload fef328cc.",
+    "Optional: key UploadPreview by upload.id; give 'Annual value unknown' a muted colour."
+  ],
+  "critical_code_review_comments": [
+    "crm_maintenance_master.py export_master: `written` only checks that the field is mapped, not that the column exists. Root cause of the FIX 2 failure.",
+    "complete_upload only excludes failed uploads for new uploads; old records keep a stale same_file_as.",
+    "crm_maintenance_master.py is 798 lines, over 700. Think about splitting export/report into their own module."
+  ],
+  "updated_files": ["/app/backend/tests/test_mm_api_iter312.py"],
+  "success_rate": {"backend": "92% (12/13 incl. iter311 regression; 2/2 base)", "frontend": "~90% (7 of 8 fixes fully pass in UI; FIX 5 badge stale)"},
+  "seed_data_creation": "Fictional mmt_ui_ upload seeded with mm_ui_seed.py seed and committed through the UI (5 MMT- contracts). Removed with mm_ui_seed.py cleanup: mm contracts 0, real upload 'ready', 0 committed rows.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Flow: mm_ui_seed.py seed → log in as cm.aftersales, go to /contract-management, then crm-nav-contracts; check mm-upload-meta contains 'mmt_'; tick mm-create-customers; click mm-commit and accept the window.confirm. Then run tests/test_mm_api_iter312.py and iter311.py, then cleanup. test_master_export_changes_sheet fails until the coordinator_name label is fixed. Never commit e7a84748."
+}

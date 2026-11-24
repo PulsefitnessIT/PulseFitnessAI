@@ -58,6 +58,7 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
   useEffect(() => {
     if (upload.state === 'parsing' || upload.state === 'classifying') return;
     setRowsLoading(true);
+    setRows({ rows: [], count: 0 });
     axios.get(`${API}/crm/v2/aftersales/maintenance-master/uploads/${upload.id}/rows`, { headers: headers(), params: { cls } })
       .then(r => setRows(r.data)).catch(() => setRows({ rows: [], count: 0 })).finally(() => setRowsLoading(false));
   }, [API, headers, upload.id, upload.state, cls]);
@@ -326,7 +327,7 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
                 className="mt-3 text-xs px-2 py-1.5 rounded-lg border max-w-full" style={{ background: 'transparent', borderColor: c.border, color: c.text }}>
           {list.uploads.map(u => <option key={u.id} value={u.id}>{`${u.filename} · ${(u.created_at || '').slice(0, 16).replace('T', ' ')} · ${u.state}`}</option>)}
         </select>)}
-      {latest ? <UploadPreview API={API} headers={headers} c={c} upload={latest} canApprove={canApprove} onChanged={() => setTick(t => t + 1)} />
+      {latest ? <UploadPreview key={latest.id} API={API} headers={headers} c={c} upload={latest} canApprove={canApprove} onChanged={() => setTick(t => t + 1)} />
         : <div className="mt-3 text-xs" style={{ color: c.textDim }} data-testid="mm-empty">No workbook uploaded yet.</div>}
       <ContractsList API={API} headers={headers} c={c} canApprove={canApprove} refreshKey={tick} />
     </div>

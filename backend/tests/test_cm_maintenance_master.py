@@ -213,6 +213,7 @@ def test_full_interim_workflow():
     assert wb.sheetnames == ["Maintenance Database", "Expired", "Service Planner", "Sicon Contracts", "MOD", "Pulse Fitness Pro changes"]
     chg = list(wb["Pulse Fitness Pro changes"].iter_rows(values_only=True))
     assert any(r[3] == "annual_value" and str(r[4]).startswith("no column") and float(r[6]) == 1600 for r in chg[1:]), chg
+    assert any(r[3] == "coordinator_name" and str(r[4]).startswith("no column") for r in chg[1:]), chg
     hdr = [c.value for c in wb["Maintenance Database"][1]]
     assert wb["Maintenance Database"].cell(row=2, column=hdr.index("Contract amount (£)") + 1).value == 1550  # source row untouched
     assert wb["Maintenance Database"].cell(row=2, column=hdr.index("Contract number") + 1).value == "MMT-1001"

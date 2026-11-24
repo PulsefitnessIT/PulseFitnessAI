@@ -243,14 +243,22 @@ async def classify_upload(org: str, uid: str) -> dict:
 
 @router.get("/uploads")
 async def list_uploads(user=Depends(require_crm_perm("contracts.read"))):
-    rows = await db.crm2_mm_uploads.find({"organization_id": _org(user)}, {"_id": 0, "sheets": 0}).sort("created_at", -1).to_list(50)
+    rows = [await _fresh_same(x) for x in await db.crm2_mm_uploads.find(
+        {"organization_id": _org(user)}, {"_id": 0, "sheets": 0}).sort("created_at", -1).to_list(50)]
     cut = await db.crm2_mm_cutover.find_one({"organization_id": _org(user)}, {"_id": 0})
     return {"uploads": rows, "cutover": cut, "sicon_writes_enabled": os.environ.get("SICON_ALLOW_WRITES", "false").lower() == "true"}
 
 
+async def _fresh_same(u: dict) -> dict:
+    if u.get("same_file_as") and await db.crm2_mm_uploads.count_documents(
+            {"id": u["same_file_as"], "state": {"$in": ["failed", "uploading"]}}, limit=1):
+        u["same_file_as"] = None  # an earlier failed upload is not a real duplicate
+    return u
+
+
 @router.get("/uploads/{uid}")
 async def get_upload(uid: str, user=Depends(require_crm_perm("contracts.read"))):
-    return await _upload(user, uid)
+    return await _fresh_same(await _upload(user, uid))
 
 
 @router.get("/uploads/{uid}/rows")
@@ -730,6 +738,7 @@ async def export_master(user=Depends(require_crm_perm("contracts.read"))):
         raise HTTPException(400, "No committed Maintenance Master yet.")
     rev = {v: k for k, v in mm.FIELDS.items()}
     edits, appended, changes = [], [], []
+    heads = {sh["name"]: set(sh.get("headers") or []) for sh in u.get("sheets") or []}
     pos = {r["record_key"]: {"sheet": r["sheet"], "row": r["row"]} async for r in db.crm2_mm_rows.find(
         {"upload_id": u["id"], "role": "contract"}, {"_id": 0, "record_key": 1, "sheet": 1, "row": 1})}
     async for c in db.crm2_contracts.find({"organization_id": org, "mm_record_key": {"$type": "string"}},
@@ -739,7 +748,7 @@ async def export_master(user=Depends(require_crm_perm("contracts.read"))):
             continue
         written = set()
         for f in mm.edited_fields(c):
-            if f in rev:
+            if f in rev and rev[f] in heads.get(src["sheet"], set()):
                 edits.append((src["sheet"], src["row"], rev[f], mm.current(c, f)))
                 written.add(f)
         if mm.edited_fields(c):
