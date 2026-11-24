@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only E2E test (Playwright, 1920x1080) of the Quote → Contract flow, logged in as cm.coordinator@pulsefitness.test on /contract-management → Contracts → Agreements. Used fictional TEST_qcui_ data (3 maintenance quotes for one customer that has no contracts). Every requested check PASSED. (1) Quote rows: the 2 sent quotes show 'Record acceptance' and the accepted quote shows 'Prepare agreement'. After conversion every row shows only 'Open agreement' and the status 'Agreement prepared'. (2) Record acceptance on q1 shows the toast 'Accepted — agreement PF-MA-xxxx pre-filled' and opens afs-agreement-detail as a Draft. The start date (2026-01-31) and 4 visits/yr come from the quote, and the health card reads 'Contract Ready'. A double-click on q2's button sent only 1 accept POST and the list holds exactly 1 agreement per quote (also checked in the database). (3) The progress card starts with step 0 done (data-done=yes) and steps 1–5 not done. Each step flips as expected through Generate → Sign → Activate. After activation all 6 steps are done: 'Service plan · 6 visits' (after editing visits from 4 to 3 over a 2-year term) and 'Billing · 8 invoices'. afs-ag-plan-summary reads 'Next visit due 2027-01-31 · first invoice 2026-01-31 (£300.00) · Sage queued'. The activation card is visible and says 'Live contract … created'. (4) Draft edits: the visits field saves on blur (4 → 3). For q2 (no requested start date) the health card showed '1 item(s) require attention • Start / end dates not set' and Generate was disabled. Typing 2027-03-01 and leaving the field changed health to 'Contract Ready', Schedule 2 to 2027-03-01 → 2029-02-28, and enabled Generate. After Generate, the start/visits inputs are hidden. (5) The prepare dropdown listed only the accepted quote. The Prepare button stayed disabled until both a quote and a start date were chosen. Preparing opened the detail with start date 2027-04-01, after which the dropdown was empty. (6) Sign form: Submit stays disabled until a name is entered and the authority box is ticked. Signing hides the form and sets the status to Signed. (7) Action Centre list (afs-alerts-list), checked after each step: 'Complete agreement: PF-MA-…' → 'Awaiting signature: …' → 'Ready to activate: …' → no open item after activation. The database confirmed the earlier items were closed (status done). (8) Activating q2 for the same customer, with the q1 contract now active, showed the expected conflict box (afs-ag-activation-issue) listing the active contract and the covered serials. The coordinator sees no override controls, and the status becomes Activation Attention. There were no page errors. All TEST_qcui_ data was removed afterwards, including contracts, schedules, billing, finance sync and activities.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Agreement timeline", "issues": ["When the signatory position is blank the timeline reads 'Signed by TEST Sam Signer ()' with empty brackets (cosmetic)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/_qcui_seed.py"],
+  "action_items": [
+    "Optional (minor): drop the empty '()' from the 'Signed by' timeline entry when no position is given.",
+    "Optional (minor): when an agreement goes to activation_attention, two open Action Centre items exist for it: 'Ready to activate: PF-MA-…' (agreement_step) and 'Review before activation: PF-MA-…' (activation_conflict). Consider closing or merging the 'Ready to activate' item while the conflict review is open.",
+    "Optional (minor): when the start date is in the past, plan summary 'Next visit due' skips visits that are already overdue (start 2026-01-31, 3 visits/yr, preview date 2026-11-24 → next due 2027-01-31). Confirm that is intended rather than showing the earliest overdue visit."
+  ],
+  "critical_code_review_comments": [
+    "AftersalesApp.js is 3115 lines; AgreementsTab alone is ~600 lines. Split it into a separate module (AgreementDetail, AgreementProgress, CustomerQuotesList).",
+    "AgreementsTab mixes alert() and toast for errors (generate/sign use alert(); accept/patch/activate use toast). Use toast throughout for consistency.",
+    "prepare() has no catch, so an API error (for example a 400 'Only an accepted maintenance quotation…') gives the user no feedback."
+  ],
+  "updated_files": ["/app/backend/tests/_qcui_seed.py (new helper: seed | cleanup | tasks for fictional TEST_qcui_ UI data)"],
+  "success_rate": {"backend": "N/A (frontend only; backend covered by pytest)", "frontend": "100%"},
+  "seed_data_creation": "Created via tests/_qcui_seed.py seed: operator-org company TEST_qcui_co (coordinator cm-test-coord), org TEST_qcui_cust, site, 2 equipment items, quotes TEST_qcui_q1 (sent), q2 (sent, no start date), q3 (accepted). All removed with `_qcui_seed.py cleanup`; only audit-log entries remain.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run `cd /app/backend && export MONGO_URL/DB_NAME from .env && PYTHONPATH=/app/backend python tests/_qcui_seed.py seed`, then clean up with `... cleanup`. Run python tests/_clear_login_ratelimit.py before each login. Log in at /login (gx-login-email/password/submit), go to /contract-management → nav button 'Contracts' → button 'Agreements'. Action Centre items show in [data-testid=afs-alerts-list]. A second agreement for the same customer conflicts on activation (expected)."
+}

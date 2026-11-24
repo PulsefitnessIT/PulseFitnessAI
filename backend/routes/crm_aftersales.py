@@ -2222,7 +2222,8 @@ async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(require_c
         "signed_at": _now(), "tc_version": ag.get("tc_version"),
         "template_version": ag.get("template_version"),
     }
-    tl = ag.get("timeline", []) + [{"at": _now(), "event": f"Signed by {body.signatory_name} ({body.position})", "by": body.email}]
+    who = f"{body.signatory_name} ({body.position})" if body.position.strip() else body.signatory_name
+    tl = ag.get("timeline", []) + [{"at": _now(), "event": f"Signed by {who}", "by": body.email}]
     await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
         "status": "signed", "signature": sig, "signed_at": _now(), "timeline": tl, "updated_at": _now()}})
     await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="sign", user=user,

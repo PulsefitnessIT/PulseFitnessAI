@@ -39398,3 +39398,11 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - MOD: existing prices are now "historical". They stay usable until the first authorised price file is applied (mod_rate_card_meta), after which they are blocked unless verified.
 - Tests: backend/tests/test_cm_phase_ab.py (13). The legacy test_aftersales_phase3 was updated for the conflict review. Frontend: iteration_301 (all issues fixed).
 - NEXT: Phase C — accepted maintenance quote → agreement pre-fill (dates, billing, serials) → signature → activation → service/billing plan, end to end. Phase D — invoice/delivery-note import in Build Quote. Phase E — service-vs-history planner and invoice-run preview.
+
+## Jun 2026 — Contract Management Phase C: Quote → Contract (design unchanged)
+- `POST /crm/v2/aftersales/quotes/{id}/accept` records acceptance and pre-fills ONE draft agreement (idempotent; blocks declined/unpriced quotes). Portal acceptance now also sets status=accepted.
+- Agreement pre-fill from quote: requested_start_date → calendar end date (cm_dates.term_end), visits_per_year, preferred_payment, source_sales_quote_id; quote stores agreement_id.
+- PATCH agreement accepts start_date + visits_per_year (draft only, validated). Prepare-from-quote completes a dateless auto-prepared draft.
+- One Action Centre item per stage (`cm:agreement-complete|sign|activate:{id}`), earlier stages auto-close; none open after activation.
+- UI (existing styles): quote-row "Record acceptance" / "Prepare agreement" / "Open agreement"; agreement progress card (pre-filled → generated → signed → active → service plan → billing) with plan summary; draft start date/visits inputs; prepare dropdown lists accepted quotes only.
+- Tests: backend/tests/test_cm_quote_to_contract.py (+53 CM suite tests green); iteration_302 frontend 100%.
