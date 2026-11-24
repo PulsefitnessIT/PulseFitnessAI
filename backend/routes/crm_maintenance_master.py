@@ -932,19 +932,22 @@ async def daily_view(coordinator: str = "", user=Depends(require_crm_perm("contr
             "coordinator_name": 1, "mm_exceptions": 1, "mm": 1, "annual_value": 1, "payment_frequency": 1}
 
     async def grab(extra, sort=("end_date", 1)):
+        follow = extra.pop("_follow", False)
         f = {**base, **extra}
         n = await db.crm2_contracts.count_documents(f)
         rows = await db.crm2_contracts.find(f, proj).sort(*sort).limit(8).to_list(8)
         return {"count": n, "items": [{"id": r["id"], "contract_number": r.get("contract_number"),
                                        "customer": r.get("company_name") or r.get("title"), "end_date": r.get("end_date"),
-                                       "status": r.get("status"), "detail": "; ".join((r.get("mm_exceptions") or [])[:2]) or
-                                       (r.get("mm") or {}).get("next_action")} for r in rows]}
+                                       "status": r.get("status"),
+                                       "detail": (f"{(r.get('mm') or {}).get('next_action') or 'Follow up'} · due {(r.get('mm') or {}).get('next_action_date')}"
+                                                  if follow else "; ".join((r.get("mm_exceptions") or [])[:2]) or (r.get("mm") or {}).get("next_action"))}
+                          for r in rows]}
     cards = {
         "expiring_soon": await grab({"status": "active", "end_date": {"$gte": t, "$lte": soon}}),
         "renewals": await grab({"status": {"$in": ["renewal_pending_approval", "renewal_draft", "renewal_pending"]}}),
         "missing_information": await grab({"mm_exceptions.0": {"$exists": True}, "status": {"$nin": ["expired", "cancelled"]}}),
         "awaiting_approval": await grab({"status": {"$in": ["draft", "pending_approval"]}}),
-        "follow_up": await grab({"mm.next_action_date": {"$lte": t, "$gte": "2000-01-01"}, "status": {"$nin": ["expired", "cancelled"]}},
+        "follow_up": await grab({"_follow": True, "mm.next_action_date": {"$lte": t, "$gte": "2000-01-01"}, "status": {"$nin": ["expired", "cancelled"]}},
                                 ("mm.next_action_date", 1)),
         "unverified_billing": await grab({"historical_import": True, "status": "active", "$or": [
             {"annual_value": None}, {"payment_frequency": {"$in": [None, ""]}}]}),
@@ -1092,6 +1095,7 @@ async def invoice_run_export(period: str, user=Depends(require_crm_perm("contrac
     summary = [["Period", period], ["PREVIEW ONLY — nothing has been invoiced or posted"], ["Proposed invoices", t["proposed"]],
                ["Net £", t["net"]], ["VAT rate", d["vat_pct"] if d["vat_verified"] else "not configured — VAT not calculated"],
                ["VAT £", t["vat"]], ["Gross £", t["gross"]], ["Needs information", t["needs_information"]],
-               ["Already invoiced", t["already_invoiced"]], ["Duplicates excluded", t["duplicates"]]]
+               ["Already invoiced", t["already_invoiced"]], ["Duplicates excluded", t["duplicates"]],
+               ["Not proposed — contract missing / not live", t["excluded_not_live"]]]
     blob = await asyncio.to_thread(_xlsx, {"Summary": summary, "Invoice run": rows})
     return _send(blob, f"invoice-run-preview-{period}.xlsx")

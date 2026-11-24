@@ -1048,7 +1048,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
     axios.get(`${API}/crm/v2/companies?limit=200`, { headers: headers() })
       .then(r => setCompanies(r.data.companies || r.data || [])).catch(() => setCompanies([]));
     axios.get(`${API}/crm/v2/aftersales/revenue/warranty-opportunities?window_days=365`, { headers: headers() })
-      .then(r => setWarrantyOpps(r.data.opportunities || [])).catch(() => setWarrantyOpps([]));
+      .then(r => setWarrantyOpps([...new Map((r.data.opportunities || []).map(o => [o.company_id, o])).values()])).catch(() => setWarrantyOpps([]));
   }, [API, headers]);
   // The list is capped — make sure a prefilled / chosen customer is always selectable.
   useEffect(() => {

@@ -39453,3 +39453,10 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Real 12 Nov 2026 workbook staged in preview (upload e7a84748…, NOT committed): 8,067 new contracts, 11 duplicate/overlap, 1,127 missing information, 1 review, 200 MOD held.
 - Tests: test_cm_maintenance_master.py (2), test_mm_api_iter311.py / test_mm_master_export_iter311.py (10, need mm_ui_seed), CM regression 51 pass; iteration_311/312.
 - Runbook: /app/memory/MAINTENANCE_MASTER_RUNBOOK.md
+
+## 24 Nov 2026 — Release-readiness sprint (Contracts & Renewals)
+- Exception Resolution Centre (row detail/raw cells, audited corrections, duplicate decisions, customer search, unresolved export); missing-info rows held, never committed; skipped class.
+- Coordinator Daily View (`GET /maintenance-master/daily`), invoice-run preview (`GET /maintenance-master/invoice-run`, export) — preview only, live contracts only.
+- Sicon states extended (held_for_sicon, conflict, changes_pending); blank-never-overwrites in Master export; `scripts/cm_backup.py`.
+- Fixed: renewal of imported contracts, /crm/v2/contracts/workspace route order, warranty-opps duplicate key, CM lint clean.
+- Tests: test_cm_maintenance_master.py 3 pass; CM regression 51 pass; iteration_313/314. Report: /app/memory/RELEASE_CANDIDATE_CONTRACTS.md

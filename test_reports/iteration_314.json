@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 314: retested the iter313 fixes using the public URL. Accounts: cm.aftersales (manager) and cm.coordinator. Viewports: 1920x1080 and 1366x768. I seeded mmt_ui_master.xlsx and, as the manager, used the UI to correct Delta (MMT-1005, end date 2027-01-31, amount 800), skip one MMT-1003 duplicate and commit (6 created, 0 failed). Cleanup is done: 0 MMT contracts, companies or uploads remain, and the TEST_ schedule is deleted. The real upload e7a84748 was only read and is unchanged (ready, 0 committed, 0 corrections or decisions). Backend: new test_mm_api_iter314.py passes 7/7; test_cm_maintenance_master.py regression passes 3/3. VERIFIED FIXES: (1) Invoice run: 2026-11 and 2026-12 list no blank-contract rows. 40 orphan rows are counted in excluded_not_live and shown in cm-invoice-not-live. After commit, 2026-12 shows MMT-1001 \u00a31,500 proposed and MMT-1002 \u00a375 'needs information' (Sage account missing). The xlsx export downloads. (2) Daily service_attention is 0 with only orphan schedules (was 107). I added a TEST_ schedule on MMT-1001 (1 overdue, 1 due visit). The card then showed 2, with items reading 'MMT-1001 MMT Alpha Gym'. Clicking cm-daily-item-service_attention-0 filled the contract search with MMT-1001. Coordinator=ZZZ_nobody gives 0. (3) Daily view refreshes after a correction (import exceptions 3\u21922), after a skip (\u21920) and after commit (cards update without a manual refresh). (4) Sicon queue: the toast reads 'Held for Sicon \u2014 nothing has been sent (Sicon writes are switched off)'. mm-sync-state and the list column both show 'Held for Sicon' straight away. In the DB, state = held_for_sicon. (5) The 'contract number missing' filter on the real upload returns exactly 786, all truly missing. (6) Skip: the row is classed 'skipped' with chip 'Not imported (decided) \u00b7 1'. The other duplicate became New contract (6 in total). The commit confirm read 'New contracts: 6' and did not include the skipped row. Undo (reset) restores the original counts. (7) The preview row shows the corrected MMT-1005 and 2027-01-31. An open resolution row closes when a filter changes. (8) GET /crm/v2/contracts/workspace returns 200. There were no 4xx or console errors on the Contracts tab or the Review Queue. REGRESSION OK: resolution correct/skip, contract editor ('Unsaved changes' \u2192 'Saved \u00b7 revision 2', history lists 3 field changes with who and why), the coordinator sees no commit or Sicon buttons, and the Service planner, Build Quote and Finance tabs render. ONE FIX STILL INCOMPLETE: the daily view does NOT refresh after a contract-editor save. I set next_action_date=today on MMT-1002 and saved. The API then returned follow_up=1, but the card still showed 0 until a reload.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /maintenance-master/invoice-run/export", "issue": "The Summary sheet does not include totals.excluded_not_live ('Not proposed \u2014 contract missing / not live'), although the UI shows it."},
+      {"endpoint": "GET /maintenance-master/daily", "issue": "follow_up item detail shows mm_exceptions text (e.g. 'annual value not stated as annual...') rather than the due next_action ('TEST_ call customer'), so the coordinator cannot see what the follow-up is."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ContractsList / ContractEditor (MaintenanceMaster.js:296)", "issue": "The editor gets onSaved={load}, which reloads only the contracts list. The panel tick is never bumped, so CoordinatorDailyView keeps stale counts after a save or a Sicon queue. Reproduced: follow_up stayed 0 after save while the API returned 1. Fix: pass an onChanged prop from MaintenanceMasterPanel (setTick) into ContractsList and call it from onSaved together with load.", "selector": "[data-testid=mm-edit-save], [data-testid=cm-daily-card-follow_up]", "priority": "MEDIUM"},
+      {"component": "UploadPreview row actions", "issue": "A row skipped with 'Do not import' (state still staged, match new) still shows the 'New customer' button (mm-create-<id>). Clicking it records a new decision that replaces the skip. Hide the row link/create buttons when decision.action == 'skip'.", "selector": "[data-testid^=mm-create-]", "priority": "LOW"},
+      {"component": "Build Quote \u2014 Warranty \u2192 Maintenance Opportunities", "issue": "React warning 'two children with the same key' (1ea48949-...). The 'Iso Demo Fitness \u00b7 7 assets ending warranty' card is rendered twice.", "selector": "Build Quote tab", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Finance \u2014 invoice run", "issues": ["cm-invoice-period uses the native <input type=month> browser picker instead of a shadcn picker. This is a minor consistency issue."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mm_api_iter314.py", "/app/backend/tests/test_cm_maintenance_master.py", "/app/test_reports/pytest/iter314_pre.xml", "/app/test_reports/pytest/iter314_post.xml", "/app/test_reports/pytest/iter314_regression.xml"],
+  "action_items": [
+    "MaintenanceMaster.js: bump the panel refresh tick from ContractEditor onSaved (save and Sicon queue) so the daily view refreshes after a contract save",
+    "Hide the 'New customer' and 'Use <company>' buttons on rows whose decision is skip",
+    "Optional: add excluded_not_live to the invoice-run export Summary sheet; show next_action in follow_up item detail; dedupe the Build Quote warranty opportunity cards (duplicate React key)"
+  ],
+  "critical_code_review_comments": [
+    "crm_maintenance_master.py is 1098 lines (>700). Consider splitting the daily view and invoice run into their own module.",
+    "daily_view service_attention counts only status=='active', while invoice-run LIVE also includes pending_start and renewal states. Check this is intended.",
+    "invoice_run loads every org contract and billing doc into memory on each call. This is fine now but will not scale to an 8k-row master. Consider projecting or filtering by period."
+  ],
+  "updated_files": ["/app/backend/tests/test_mm_api_iter314.py"],
+  "success_rate": {"backend": "100%", "frontend": "92%"},
+  "seed_data_creation": "mm_ui_seed.py seed (mmt_ui_master.xlsx) committed through the UI, plus a temporary crm2_afs_service_schedules doc id TEST_i314_sched on MMT-1001. Both were removed (mm_ui_seed.py cleanup + delete by id). The real upload is untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: /login?next=/contract-management (gx-login-email + input[type=password] + Enter), then crm-nav-contracts or crm-nav-finance. Clear the rate limit with `python tests/_clear_login_ratelimit.py` (I hit a 429 after about 5 logins). test_mm_api_iter314.py: run its first 6 tests after the seed and before commit (they skip and then reset a duplicate). test_post_commit_* needs the committed seed plus a service schedule on MMT-1001. Expected on the real upload: 786 for 'contract number missing'. The org has 40 orphan billing invoices in 2026-11 and 2026-12 (23 in 2027-01), excluded from the run. To retest the remaining bug, set next_action_date=today on a contract in the editor and check that cm-daily-card-follow_up increments without pressing mm-refresh.",
+  "rca of the issue": "Daily view stale after a contract save: MaintenanceMasterPanel passes refreshKey={tick} to CoordinatorDailyView, but ContractsList renders ContractEditor with onSaved={load}, its own list loader. So editor saves and Sicon queueing never call setTick. Commit, correction and skip go through UploadPreview.onChanged, which does bump the tick, so those paths refresh correctly."
+}

@@ -147,11 +147,11 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged, startUn
               <td className="px-2">{r.status}</td><td className="px-2">{(CLS.find(x => x[0] === r.cls) || [])[1] || r.cls}{r.state === 'committed' ? ' ✓' : ''}</td>
               <td className="px-2" style={{ color: c.textDim }}>{[...(r.problems || []), r.hold_reason, r.conflicts?.length ? `app kept: ${r.conflicts.join(', ')}` : ''].filter(Boolean).join('; ')}</td>
               <td className="px-2 whitespace-nowrap">
-                {r.state === 'staged' && (r.match?.candidates || []).map(k => (
+                {r.state === 'staged' && r.decision?.action !== 'skip' && (r.match?.candidates || []).map(k => (
                   <button key={k.id} onClick={() => decide(r.id, 'link_company', k.id)} data-testid={`mm-link-${r.id}-${k.id}`}
                           className="mr-1 px-1.5 py-0.5 rounded border" style={{ borderColor: c.border }}
                           title={k.id}>Use {k.name}{k.ref ? ` (${k.ref})` : ` (no account ref · ${k.id.slice(0, 6)})`}</button>))}
-                {r.state === 'staged' && r.match?.status === 'new' && (
+                {r.state === 'staged' && r.decision?.action !== 'skip' && r.match?.status === 'new' && (
                   <button onClick={() => decide(r.id, 'create_customer')} data-testid={`mm-create-${r.id}`}
                           className="px-1.5 py-0.5 rounded border" style={{ borderColor: c.border }}>New customer</button>)}
               </td>
@@ -257,7 +257,7 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
   );
 }
 
-function ContractsList({ API, headers, c, canApprove, refreshKey, search }) {
+function ContractsList({ API, headers, c, canApprove, refreshKey, search, onChanged }) {
   const [q, setQ] = useState('');
   useEffect(() => { if (search) setQ(search.q); }, [search]);
   const [status, setStatus] = useState('');
@@ -293,7 +293,7 @@ function ContractsList({ API, headers, c, canApprove, refreshKey, search }) {
               <td className="px-2">{ct.direct_debit || '—'}</td><td className="px-2">{ct.coordinator_name || '—'}</td>
               <td className="px-2">{ct.status}{(ct.mm_exceptions || []).length ? ' ⚠' : ''}</td><td className="px-2">{SYNC[ct.sicon_sync?.state] || '—'}</td>
             </tr>
-            {open === ct.id && <tr><td colSpan={8}><ContractEditor API={API} headers={headers} c={c} id={ct.id} canApprove={canApprove} onSaved={load} /></td></tr>}
+            {open === ct.id && <tr><td colSpan={8}><ContractEditor API={API} headers={headers} c={c} id={ct.id} canApprove={canApprove} onSaved={() => { load(); onChanged?.(); }} /></td></tr>}
           </Fragment>))}</tbody>
         </table>
       </div>
@@ -311,6 +311,7 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
   const [picked, setPicked] = useState('');
   const [search, setSearch] = useState(null);
   const [focusExceptions, setFocusExceptions] = useState(0);
+  const [dailyTick, setDailyTick] = useState(0);
   const fileRef = useRef(null);
   const load = useCallback(() => axios.get(`${API}/crm/v2/aftersales/maintenance-master/uploads`, { headers: headers() })
     .then(r => setList(r.data)).catch(() => setList({ uploads: [] })), [API, headers]);
@@ -362,7 +363,7 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
           <Btn c={c} testId="mm-refresh" onClick={() => setTick(t => t + 1)}><RotateCw size={13} /></Btn>
         </div>
       </div>
-      <div className="mt-3"><CoordinatorDailyView API={API} headers={headers} c={c} refreshKey={tick}
+      <div className="mt-3"><CoordinatorDailyView API={API} headers={headers} c={c} refreshKey={`${tick}-${dailyTick}`}
         onOpenContract={n => { setSearch({ q: n, t: Date.now() }); setTimeout(() => document.querySelector('[data-testid=mm-contracts]')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
         onOpenExceptions={() => { setFocusExceptions(x => x + 1); setTimeout(() => document.querySelector('[data-testid=mm-res-filters]')?.scrollIntoView({ behavior: 'smooth' }), 100); }} /></div>
       {list.uploads.length > 1 && (
@@ -372,7 +373,7 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
         </select>)}
       {latest ? <UploadPreview key={`${latest.id}-${focusExceptions}`} startUnresolved={focusExceptions > 0} API={API} headers={headers} c={c} upload={latest} canApprove={canApprove} onChanged={() => setTick(t => t + 1)} />
         : <div className="mt-3 text-xs" style={{ color: c.textDim }} data-testid="mm-empty">No workbook uploaded yet.</div>}
-      <ContractsList API={API} headers={headers} c={c} canApprove={canApprove} refreshKey={tick} search={search} />
+      <ContractsList API={API} headers={headers} c={c} canApprove={canApprove} refreshKey={tick} search={search} onChanged={() => setDailyTick(x => x + 1)} />
     </div>
   );
 }
