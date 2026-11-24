@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { useCRM } from '../CRMApp';
 import { useAuth } from '@/App';
 import { can } from '@/utils/capabilities';
+import { MaintenanceMasterPanel } from './MaintenanceMaster';
 import SubTabBar from '../../../components/shared/SubTabBar';
 import CRMContracts from '../CRMContracts';
 import EstateOnboarding from './EstateOnboarding';
@@ -3664,7 +3665,7 @@ export default function AftersalesApp({ sections = null, initialTab = 'dashboard
     <div data-testid="afs-app">
       {tabs.length > 1 && <SubTabBar tabs={tabs} active={tab} onChange={setTab} testId="afs-tab" ariaLabel="Aftersales sections" />}
       {tab === 'contracts'
-        ? <><LiveCompliancePanel API={API} headers={headers} c={c} isDark={isDark} /><CRMContracts /></>
+        ? <><MaintenanceMasterPanel API={API} headers={headers} c={c} isDark={isDark} /><LiveCompliancePanel API={API} headers={headers} c={c} isDark={isDark} /><CRMContracts /></>
         : <TabComp API={API} headers={headers} c={c} isDark={isDark} editQuote={editQuote} setEditQuote={setEditQuote} goTo={setTab} />}
     </div>
   );

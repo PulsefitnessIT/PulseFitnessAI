@@ -131,7 +131,9 @@ async def _create_draft(org_id: str, c: dict, item: dict, actor: str) -> str:
         **{k: v for k, v in c.items() if k not in (
             "id", "_id", "created_at", "status", "signature", "signed_by", "signed_at", "version",
             "accept_token", "auto_renewal_sent_at", "renewal_contract_id", "sicon_contract_id",
-            "sage_reference", "sicon_sync_status", "sage_sync_status", "finance_sync_status")},
+            "sage_reference", "sicon_sync_status", "sage_sync_status", "finance_sync_status",
+            "mm_record_key", "mm_baseline", "mm_conflicts", "mm_source", "sicon_sync", "revision", "historical_import")},
+        "renewed_from_mm_record_key": c.get("mm_record_key"),
         "id": new_id, "contract_number": f"{c.get('contract_number', 'CTR')}/R{(c.get('version') or 1) + 1}",
         "status": "renewal_pending_approval", "previous_contract_id": c["id"],
         "start_date": item["new_start"], "end_date": item["new_end"],
