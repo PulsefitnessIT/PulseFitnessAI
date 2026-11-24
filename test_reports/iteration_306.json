@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend retest of the iteration_305 fixes (Playwright 1920x1080, cm.aftersales and cm.coordinator accounts, real AI extraction, fictional TEST_p6_ seed). 4/4 fixes PASS. (1) SAVE TWICE: I imported sales invoice SI-P6-7701, clicked Use in Build Quote, then Build. Save 1 showed 'Quote AFS-2026-AA495 saved'. Save 2 showed the info toast 'Existing maintenance quote AFS-2026-AA495 reused'. The prefill banner stayed after both saves and went away only after Clear. DB check: exactly 1 crm2_afs_quotes row with that source_import_id (source=document_import), and no auto_estate quote was created for the customer. (2) CUSTOMER SEARCH: an invoice with an unknown customer showed 'not confidently identified — choose'. Typing 1 letter left the default list (202 options) unchanged. Typing 'TEST_p6_Kes' narrowed the list to the TEST_ customer. Choosing it set 'TEST_p6_Kestrel Leisure Trust (chosen by coordinator)', re-matched the lines (the line now shows '1 on register'), loaded the site and enabled Use in Build Quote. (3) VARIANT LINE: the Match column showed '—' plus buttons afs-aq-import-variant-3-TEST_p6_cfg-var1 (LED) and -var2 (Touch). The 'Include' option was disabled, the decision stayed 'Needs review' and Apply was disabled ('1 line(s) need a decision'). Clicking Touch showed 'Machine chosen', enabled and selected Include, and removed the buttons. The applied quote priced 'TEST_P6Cross Touch', so the chosen variant was used. (4) AGREEMENT signed by e-signature with signed_document_error: afs-ag-activate count is 0. Only the afs-ag-signed-doc-failed banner with Retry storage is shown, plus Back and Preview agreement. I did not click Retry: this was a seeded agreement with no stored document. The design is unchanged.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Build Quote — document import customer select", "issues": ["Before searching, the default list (/crm/v2/companies?limit=200) shows many duplicate names in preview data, e.g. 'Pulse Fitness — Test Admin' about 150 times. Search is now the way to find a customer, so consider showing only the suggested candidates until 2+ letters are typed. Low priority."]},
+      {"screen": "Build Quote result (seed artifact)", "issues": ["With my fictional configs (no rate card), the result showed CANNOT AUTO QUOTE, 'RRP req.' on every line and £0, next to 'Resolve 0 exceptions — No exceptions — ready to review'. The headline and the exceptions panel disagree. This is probably caused by my seed data, but check that RRP_REQUIRED lines are listed as exceptions."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/_seed_cm_iter306.py"],
+  "action_items": [
+    "None blocking. Optional: limit the default customer list before searching; check that the exception count is consistent when lines show 'RRP req.'."
+  ],
+  "critical_code_review_comments": [
+    "AftersalesApp.js is about 3450 lines. Split DocumentImportCard, AutoQuoteTab and the agreement detail into separate modules.",
+    "searchCo has no debounce or stale-response guard, so a slow earlier response can overwrite newer results."
+  ],
+  "updated_files": ["/app/backend/tests/_seed_cm_iter306.py (new seed/cleanup/check helper)"],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% (4/4 fixes)"},
+  "seed_data_creation": "TEST_p6_ org, site, company (sage_account P6ACC-3301), 4 service configs (P6-TRD-100, P6-BIKE-20, P6-VAR LED/Touch) and agreement TEST_p6_ag (cloned schedule, status signed, customer_esignature, signed_document_error). Also the created import(s), quote AFS-2026-AA495 and equipment. Everything was removed with 'python tests/_seed_cm_iter306.py cleanup'; a verification check found 0 TEST_p6_ rows. Approved terms count is 0 (unchanged). No terms were touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Seed: cd /app/backend && python tests/_clear_login_ratelimit.py && python tests/_seed_cm_iter306.py seed. This writes /tmp/TEST_p6_invoice.pdf (matched by account) and /tmp/TEST_p6_unknown.pdf (unknown customer). Then use 'check' to verify the DB and 'cleanup' to remove the data. Login is at /login (gx-login-email/password/submit) → /launch → /contract-management. Use cm.aftersales for Build Quote and cm.coordinator for Contracts → afs-tab-agreements → afs-ag-row-TEST_p6_ag."
+}

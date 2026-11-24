@@ -818,7 +818,7 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
               <select data-testid="afs-aq-import-customer-select" value="" onChange={e => pickCustomer(e.target.value)} className="px-2 py-1 text-xs rounded-md" style={inpStyle}>
                 <option value="">{imp.customer?.company ? 'Change…' : 'Select customer…'}</option>
                 {(imp.customer?.candidates || []).map(x => <option key={x.id} value={x.id}>{x.name} (suggested)</option>)}
-                {(coResults || companies).map(x => <option key={`a-${x.id}`} value={x.id}>{x.name}</option>)}
+                {(coResults || []).map(x => <option key={`a-${x.id}`} value={x.id}>{x.name}</option>)}
               </select></>}
           </div>
           <table className="w-full text-xs" data-testid="afs-aq-import-lines">
