@@ -4215,6 +4215,8 @@ async def apply_quote_import(import_id: str, body: ImportApplyIn, user=Depends(r
             cfg = await db.crm2_afs_service_configs.find_one({"id": d.config_id, **of}, _PUBLIC)
             if not cfg:
                 raise HTTPException(400, f"Line {ln['line_no']}: machine not found")
+            if decision == "accepted" and cfg.get("contract_eligible") is False:
+                raise HTTPException(400, f"Line {ln['line_no']}: {cfg.get('model')} is not eligible for maintenance — exclude it.")
             ln["matched"] = {"config_id": cfg["id"], "model": cfg.get("model"), "console_type": cfg.get("console_type") or "",
                              "reference_sku": cfg.get("reference_sku"), "basis": "chosen by coordinator"}
         ln["decision"], ln["decided_by"] = decision, (user.get("email") if d else "auto")

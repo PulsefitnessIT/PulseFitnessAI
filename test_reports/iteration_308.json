@@ -1,0 +1,33 @@
+{
+  "summary": "Retest of the 2 follow-ups from iteration_307, run on the public URL as cm.coordinator with real AI extraction and fictional TEST_bq8_ data. (1) CUSTOMER SEARCH RACE: FIXED. I used Playwright route interception to make the requests slow (Alphazed 2.5s, Betaquill 1.5s). Case A: let the first query finish, then change the text. The Alphazed results disappeared at once, the dropdown showed 'Searching…' at 0ms and again at +1.0s, and the final list was only Betaquill Club 00-11. Case B: change the text while the Alphazed request is still loading (it gets aborted). 'Searching…' stayed at 0ms, +150ms and +950ms, with no stale results and no early drop of the loading text. The final list was only Betaquill. Fast typing sent 1 request, for the final text only. Typing one character sent no request. Nonsense text showed 'No customers found'. Choosing a customer set '(chosen by coordinator)'. Note: the customer-matcher's '(suggested)' candidate option stays listed during searches, which is by design. (2) DECISION SELECT: FIXED in the UI. On lines flagged 'Not contract-eligible' (Machine matched — Not eligible for maintenance) and 'Already under contract', the decision is 'Exclude' and the 'Include' option is disabled. select_option('accepted') cannot pick it. The approved line still shows 'Matched (exact code)', which is enabled. BACKEND: POST apply with an ineligible line set to {decision:'accepted'} returns 400 '...not eligible for maintenance — exclude it...', and nothing is written. It also returns 400 when an eligible config_id override is sent for that line. An already-covered line set to accepted returns 400 'already under an active contract'. A normal apply returns 200 and creates only the eligible machine. NEW GAP (MEDIUM): an unknown-code line can be accepted with a config_id that points at a contract_eligible:false config. Apply returns 200 and creates equipment for the ineligible machine. The 'unsupported' check only looks at the flags computed at extraction time, and it never re-checks the config chosen by the coordinator. The UI makes this reachable: util/config-search ('Find machine…') returns ineligible configs, and so do the variant buttons.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/v2/aftersales/build-quote/imports/{id}/apply", "issue": "When d.config_id overrides the match (Find machine / variant pick), the chosen config's eligibility is not checked. An unknown-code line accepted with an ineligible config (contract_eligible False) returns 200 and creates equipment. Fix: after loading cfg for d.config_id, if cfg.get('contract_eligible') is False (or the line's commercial status re-evaluates to not_eligible) and decision == 'accepted', return 400 'not eligible for maintenance'. Do the same for already_covered when there are serials."},
+      {"endpoint": "GET /api/crm/v2/aftersales/onboarding/util/config-search", "issue": "Returns ineligible configs with no eligibility field, so the Find machine list cannot mark or hide them."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Import card, already-covered line", "issues": ["The Match column still shows 'Machine matched — Price approved' in green on a line excluded as 'Already under contract'. This could be read as ready to price. Low priority."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cm_iter308_import_guards.py", "/app/test_reports/pytest/iter308.xml"],
+  "action_items": [
+    "MEDIUM: in apply_quote_import, reject decision 'accepted' when the coordinator-chosen config (d.config_id) is contract_eligible False. Optionally filter ineligible configs out of the Find machine / variant options, or mark them.",
+    "LOW (optional): soften the green 'Price approved' label on lines excluded as already covered."
+  ],
+  "critical_code_review_comments": [
+    "searchCo now bumps st.seq at abort/clearTimeout and clears coResults when a term starts loading. A stale finally block can no longer clear loading. Verified.",
+    "apply_quote_import: the eligibility guard relies only on ln.flags from extraction time. A config override bypasses it (see backend minor #1).",
+    "AftersalesApp.js is about 3470 lines and should be split. DocumentImportCard would be a natural module to move out."
+  ],
+  "updated_files": ["/app/backend/tests/test_cm_iter308_import_guards.py"],
+  "success_rate": {"backend": "83% (5/6; the 1 failure is the new config-override gap)", "frontend": "100% (both follow-ups verified)"},
+  "seed_data_creation": "Pytest seeds and removes its own TEST_bq8api_ data in its fixture, deleting by exact ids. For the UI, a temporary /tmp seed made 25 TEST_bq8_ companies, 2 configs, an org, a site, a contract, a rate group and 1 equipment; it was cleaned by exact ids and the temp script and PDFs were deleted. The check shows 0 remaining. No helper files depending on seed modules were left in /app/backend/tests.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /login (gx-login-email/password/submit), password CmTest2026!. After login, /launch: click the 'Contract Management' card, then crm-nav-build-quote. To test the race, use page.route on /api/crm/v2/companies?search= with asyncio.sleep delays. Run test_cm_iter308_import_guards.py with the MONGO_URL, DB_NAME and REACT_APP_BACKEND_URL env vars and PYTHONPATH=/app/backend. test_apply_rejects_unknown_line_with_ineligible_config should pass once the gap is fixed."
+}

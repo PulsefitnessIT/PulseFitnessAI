@@ -850,7 +850,7 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
                   <td className="text-center">{ln.quantity}</td>
                   <td className="text-[11px]" style={{ color: c.textDim }}>{ln.serials.join(', ') || '—'}{ln.existing_equipment.length > 0 && <div>{ln.existing_equipment.length} on register</div>}</td>
                   <td className="text-[11px]">{ln.matched ? `${ln.matched.model}${ln.matched.console_type ? ` / ${ln.matched.console_type}` : ''} · ${ln.matched.basis}` : '—'}
-                    {ln.commercial && <div data-testid={`afs-aq-import-commercial-${ln.line_no}`} className="text-[10px]" style={{ color: ln.commercial.ready ? 'var(--color-success-alt)' : 'var(--color-accent-amber)' }}>{ln.commercial.label}</div>}
+                    {ln.commercial && !ln.flags.includes('already_covered') && <div data-testid={`afs-aq-import-commercial-${ln.line_no}`} className="text-[10px]" style={{ color: ln.commercial.ready ? 'var(--color-success-alt)' : 'var(--color-accent-amber)' }}>{ln.commercial.label}</div>}
                     {(ln.variant_options || []).length > 0 && !dec[ln.line_no]?.config_id && (
                       <div className="mt-1 flex flex-wrap gap-1">{ln.variant_options.map(v => (
                         <button key={v.config_id} data-testid={`afs-aq-import-variant-${ln.line_no}-${v.config_id}`} onClick={() => setDec(d => ({ ...d, [ln.line_no]: { decision: 'accepted', config_id: v.config_id } }))}
