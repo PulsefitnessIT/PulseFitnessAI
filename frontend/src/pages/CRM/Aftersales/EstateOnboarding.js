@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   UploadCloud, FileSpreadsheet, RotateCw, AlertTriangle, CheckCircle2,
-  ArrowRight, Building2, Wrench, X, CalendarClock, Loader2,
+  ArrowRight, Building2, X, CalendarClock, Loader2,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -36,7 +36,7 @@ const CANON = [
   { id: 'notes', label: 'Notes' },
 ];
 
-function Card({ children, c, isDark, className = '', testId }) {
+function Card({ children, c: _c, isDark, className = '', testId }) {
   return (
     <div data-testid={testId} className={`p-4 rounded-xl border ${className}`}
       style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
@@ -259,7 +259,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
 
   const stat = (label, val, testId, color) => (
     <div className="p-3 rounded-xl border" data-testid={testId}
-      style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border }}>
+      style={{ background: isDark ? 'var(--pulse-black)' : '#fff', borderColor: c.border }}>
       <div className="text-xl font-extrabold" style={{ color: color || c.text }}>{val}</div>
       <div className="text-[11px] font-medium mt-0.5" style={{ color: c.textDim }}>{label}</div>
     </div>
@@ -321,19 +321,19 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                     <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Customer name</label>
                     <input data-testid="afs-onb-pdf-customer" value={customer} onChange={e => setCustomer(e.target.value)}
                       placeholder="e.g. Riverside Leisure Trust"
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Package tier</label>
                     <select data-testid="afs-onb-pdf-tier" value={tier} onChange={e => setTier(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                       <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Group contracts by</label>
                     <select data-testid="afs-onb-pdf-grouping" value={grouping} onChange={e => setGrouping(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                       <option value="master">One master contract</option>
                       <option value="per_site">One contract per site</option>
                       <option value="per_status">Split by Contract vs Warranty</option>
@@ -379,19 +379,19 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                     <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Customer name</label>
                     <input data-testid="afs-onb-merge-customer" value={customer} onChange={e => setCustomer(e.target.value)}
                       placeholder="e.g. Wiltshire Council"
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Package tier</label>
                     <select data-testid="afs-onb-merge-tier" value={tier} onChange={e => setTier(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                       <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Group contracts by</label>
                     <select data-testid="afs-onb-merge-grouping" value={grouping} onChange={e => setGrouping(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                       <option value="per_site">One contract per site</option>
                       <option value="master">One master contract</option>
                       <option value="per_status">Split by Contract vs Warranty</option>
@@ -467,7 +467,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                           <span className="text-xs" style={{ color: c.textDim }}>Sheet</span>
                           <select data-testid="afs-onb-merge-sheet" value={mergeSheet}
                             onChange={e => { setMergeSheet(e.target.value); const m = mergeScratch.sheets?.find(s => s.name === e.target.value); if (m) setMergeHeaderRow(m.header_row); }}
-                            className="px-2 py-1 rounded text-xs" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                            className="px-2 py-1 rounded text-xs" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                             {mergeScratch.sheets.map(s => <option key={s.name} value={s.name}>{s.name} ({s.n_rows})</option>)}
                           </select>
                         </div>
@@ -477,7 +477,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                               <span className="text-[11px] w-28 shrink-0" style={{ color: c.textDim }}>{f.label}</span>
                               <select data-testid={`afs-onb-merge-map-${f.id}`} value={mergeMap[f.id] ?? ''}
                                 onChange={e => setMergeMap(m => { const n = { ...m }; if (e.target.value === '') delete n[f.id]; else n[f.id] = Number(e.target.value); return n; })}
-                                className="flex-1 px-2 py-1 rounded text-[11px]" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                                className="flex-1 px-2 py-1 rounded text-[11px]" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                                 <option value="">— not in file —</option>
                                 {((mergeScratch.sheets.find(s => s.name === mergeSheet) || {}).headers || []).map((h, i) => <option key={i} value={i}>{h || `Column ${i + 1}`}</option>)}
                               </select>
@@ -514,26 +514,26 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                 <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Customer name</label>
                 <input data-testid="afs-onb-customer" value={customer} onChange={e => setCustomer(e.target.value)}
                   placeholder="e.g. Wiltshire Council"
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
               </div>
               <div>
                 <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Sheet</label>
                 <select data-testid="afs-onb-sheet" value={sheetName} onChange={e => onSheetChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                   {analysis.sheets.map(s => <option key={s.name} value={s.name}>{s.name} ({s.n_rows} rows)</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Package tier</label>
                 <select data-testid="afs-onb-tier" value={tier} onChange={e => setTier(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                   <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option>
                 </select>
               </div>
               <div>
                 <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Group contracts by</label>
                 <select data-testid="afs-onb-grouping" value={grouping} onChange={e => setGrouping(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                   <option value="per_site">One contract per site</option>
                   <option value="master">One master contract</option>
                   <option value="per_status">Split by Contract vs Warranty</option>
@@ -551,7 +551,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                   <span className="text-xs w-32 shrink-0" style={{ color: c.textDim }}>{f.label}</span>
                   <select data-testid={`afs-onb-map-${f.id}`} value={colMap[f.id] ?? ''}
                     onChange={e => setColMap(m => { const n = { ...m }; if (e.target.value === '') delete n[f.id]; else n[f.id] = Number(e.target.value); return n; })}
-                    className="flex-1 px-2 py-1.5 rounded-lg text-xs" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                    className="flex-1 px-2 py-1.5 rounded-lg text-xs" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                     <option value="">— not in file —</option>
                     {(sheetMeta?.headers || []).map((h, i) => <option key={i} value={i}>{h || `Column ${i + 1}`}</option>)}
                   </select>
@@ -617,20 +617,20 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                         {r.exceptions.includes('missing_serial')
                           ? <input data-testid={`afs-onb-serial-${r.index}`} defaultValue="" placeholder="add serial"
                               onBlur={e => e.target.value.trim() && patchRow(r.index, { serial: e.target.value.trim() })}
-                              className="w-24 px-1.5 py-0.5 rounded" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+                              className="w-24 px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
                           : r.clean.serial}
                       </td>
                       <td className="pr-2 text-right">
                         {r.inherited.annual != null ? gbp(r.inherited.annual)
                           : <input data-testid={`afs-onb-cost-${r.index}`} type="number" placeholder="cost"
                               onBlur={e => e.target.value && patchRow(r.index, { annual_cost: Number(e.target.value) })}
-                              className="w-20 px-1.5 py-0.5 rounded text-right" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />}
+                              className="w-20 px-1.5 py-0.5 rounded text-right" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />}
                       </td>
                       <td className="pr-2 text-right">{r.pulse.annual > 0 ? gbp(r.pulse.annual) : '—'}</td>
                       <td className="pr-2">
                         <select data-testid={`afs-onb-use-${r.index}`} value={r.chosen_price}
                           onChange={e => patchRow(r.index, { chosen_price: e.target.value })}
-                          className="px-1.5 py-0.5 rounded" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                          className="px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                           <option value="inherited">Inherited</option>
                           <option value="pulse" disabled={r.pulse.annual <= 0}>Pulse</option>
                         </select>
@@ -674,7 +674,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                         value={siteFreq[sn] || 'annual'}
                         onChange={e => setSiteFreq(f => ({ ...f, [sn]: e.target.value }))}
                         className="px-2 py-1 rounded text-xs shrink-0"
-                        style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                        style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                         {CADENCES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
                       </select>
                     </div>
@@ -708,7 +708,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
             <label className="text-xs inline-flex items-center gap-2" style={{ color: c.textDim }}>
               Billing frequency
               <select data-testid="afs-onb-billing-frequency" value={billFreq} onChange={e => setBillFreq(e.target.value)}
-                className="px-2 py-1 rounded text-xs" style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                className="px-2 py-1 rounded text-xs" style={{ background: isDark ? 'var(--pulse-black)' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
                 <option value="">Not known yet (flag for follow-up)</option>
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -758,7 +758,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
           {/* PPM auto-load progress — sites go live at commit, schedules build in the background */}
           {ppm && ppm.total_sites > 0 && (
             <div data-testid="afs-onb-ppm-progress" className="p-3 rounded-lg border mb-3"
-              style={{ background: isDark ? '#1b1c1d' : 'var(--color-neutral-50)', borderColor: c.border }}>
+              style={{ background: isDark ? 'var(--pulse-black)' : 'var(--color-neutral-50)', borderColor: c.border }}>
               <div className="flex items-center gap-2 mb-1.5">
                 {ppm.all_done
                   ? <CalendarClock size={16} style={{ color: 'var(--color-success-alt)' }} />

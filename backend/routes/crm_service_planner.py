@@ -9,7 +9,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from routes.crm_auth import get_crm_user
 from routes.crm_workspace import require_crm_perm
 from utils.cm_service_link import (CANCELLED_CASE, _brief, _hist, _linked_org, candidate_cases, link_case, obligation_bucket,
                                    sync_all, sync_contract)

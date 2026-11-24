@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 import io
 import logging
 import os
@@ -34,6 +35,7 @@ def _spawn(coro):
     t.add_done_callback(_TASKS.discard)
 
 
+UNRESOLVED = ("duplicate_overlap", "missing_information", "requires_review")
 CLASSES = ("matched_unchanged", "matched_differences", "new_contract", "duplicate_overlap",
            "missing_information", "requires_review")
 
@@ -155,6 +157,11 @@ async def _parse_job(org: str, uid: str, blob: bytes | None = None):
         await db.crm2_mm_uploads.update_one({"id": uid}, {"$set": {"state": "failed", "error": str(e)[:500]}})
 
 
+def effective(r: dict) -> dict:
+    """Source values with coordinator corrections applied (the raw row is never changed)."""
+    return {**r["mapped"], **{k: v["value"] for k, v in (r.get("corrections") or {}).items()}}
+
+
 async def classify_upload(org: str, uid: str) -> dict:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     idx = await mm.company_index(org)
@@ -186,15 +193,17 @@ async def classify_upload(org: str, uid: str) -> dict:
         if c.get("contract_number"):
             existing.setdefault(("n", str(c["contract_number"])), c)
     live_numbers = {}
-    async for r in db.crm2_mm_rows.find({"upload_id": uid, "role": "contract"}, {"_id": 0, "mapped": 1}):
-        m = r["mapped"]
+    async for r in db.crm2_mm_rows.find({"upload_id": uid, "role": "contract"}, {"_id": 0, "mapped": 1, "corrections": 1, "decision": 1}):
+        if (r.get("decision") or {}).get("action") == "skip":
+            continue
+        m = effective(r)
         if m.get("contract_number") and mm.contract_status(m.get("start_date"), m.get("end_date"), today) in ("active", "future"):
             live_numbers[m["contract_number"]] = live_numbers.get(m["contract_number"], 0) + 1
     counts = {k: 0 for k in CLASSES}
     totals = {}
     ops = []
     async for r in db.crm2_mm_rows.find({"upload_id": uid, "role": {"$in": ["contract", "held"]}}, {"_id": 0}):
-        m = r["mapped"]
+        m = effective(r)
         st = mm.contract_status(m.get("start_date"), m.get("end_date"), today)
         t = totals.setdefault(r["sheet"], {"rows": 0, "contract_amount": 0.0, "original_amount": 0.0, "annual_value": 0.0,
                                            "active": 0, "expired": 0, "future": 0, "uncertain": 0})
@@ -215,7 +224,8 @@ async def classify_upload(org: str, uid: str) -> dict:
                                                   {"_id": 0, "contract_number": 1})
             if ov:
                 ex = {"_overlap": f"overlaps active CRM contract {ov.get('contract_number')} for this customer"}
-        dup = live_numbers.get(m.get("contract_number"), 0) > 1 and st in ("active", "future")
+        dup = (live_numbers.get(m.get("contract_number"), 0) > 1 and st in ("active", "future")
+               and (r.get("decision") or {}).get("action") not in ("skip", "accept_duplicate"))
         cls, problems = mm.classify(m, cust, ex, dup, today)
         diff, conflicts, updates = {}, [], []
         if ex and not ex.get("_overlap"):
@@ -236,7 +246,9 @@ async def classify_upload(org: str, uid: str) -> dict:
     from pymongo import UpdateOne
     for i in range(0, len(ops), 1000):
         await db.crm2_mm_rows.bulk_write([UpdateOne({"id": rid}, {"$set": upd}) for rid, upd in ops[i:i + 1000]], ordered=False)
+    corrected = await db.crm2_mm_rows.count_documents({"upload_id": uid, "corrections": {"$exists": True}})
     return {"counts": counts, "totals": totals, "held_mod": sum(1 for _, u in ops if u["cls"] == "held_mod"),
+            "corrected_rows": corrected,
             "evidence": {"service_planner_records": len(planner), "sicon_contract_numbers": len(sicon)},
             "conflicts": sum(1 for _, u in ops if u.get("conflicts")), "classified_at": _now()}
 
@@ -262,13 +274,20 @@ async def get_upload(uid: str, user=Depends(require_crm_perm("contracts.read")))
 
 
 @router.get("/uploads/{uid}/rows")
-async def upload_rows(uid: str, cls: str = "", q: str = "", page: int = 1, user=Depends(require_crm_perm("contracts.read"))):
+async def upload_rows(uid: str, cls: str = "", q: str = "", page: int = 1, issue: str = "", coordinator: str = "",
+                      unresolved: bool = False, user=Depends(require_crm_perm("contracts.read"))):
+    import re
     await _upload(user, uid)
     f = {"upload_id": uid, "role": {"$in": ["contract", "held"]}}
     if cls:
         f["cls"] = cls
+    if issue:
+        f["problems"] = {"$regex": re.escape(issue), "$options": "i"}
+    if coordinator:
+        f["mapped.coordinator_name"] = {"$regex": f"^{re.escape(coordinator)}", "$options": "i"}
+    if unresolved:
+        f.update({"state": "staged", "decision.action": {"$ne": "skip"}, "cls": cls if cls else {"$in": list(UNRESOLVED)}})
     if q:
-        import re
         rx = {"$regex": re.escape(q), "$options": "i"}
         f["$or"] = [{"mapped.customer_name": rx}, {"mapped.contract_number": rx}, {"mapped.site_account": rx}]
     n = await db.crm2_mm_rows.count_documents(f)
@@ -288,18 +307,92 @@ async def row_decision(uid: str, rid: str, body: DecisionIn, user=Depends(requir
     r = await db.crm2_mm_rows.find_one({"id": rid, "upload_id": uid}, {"_id": 0, "state": 1, "match": 1})
     if not r or r["state"] != "staged":
         raise HTTPException(400, "Only staged rows can be decided.")
+    if body.action in ("skip", "accept_duplicate") and not body.note.strip():
+        raise HTTPException(400, "Record why this decision was made.")
     if body.action == "link_company":
         co = await db.crm2_companies.find_one({"id": body.company_id or "", "organization_id": _org(user)}, {"_id": 0, "id": 1, "name": 1})
         if not co:
             raise HTTPException(400, "Choose an existing CRM customer.")
         dec = {"action": "link_company", "company_id": co["id"], "company_name": co["name"]}
-    elif body.action in ("create_customer", "skip", "reset"):
+    elif body.action in ("create_customer", "skip", "reset", "accept_duplicate"):
         dec = {"action": body.action}
     else:
         raise HTTPException(400, "Unknown decision")
-    await db.crm2_mm_rows.update_one({"id": rid}, {"$set": {"decision": None if body.action == "reset" else
-                                                             {**dec, "by": _who(user), "at": _now(), "note": body.note}}})
+    entry = {**dec, "by": _who(user), "at": _now(), "note": body.note}
+    await db.crm2_mm_rows.update_one({"id": rid}, {"$set": {"decision": None if body.action == "reset" else entry},
+                                                   "$push": {"decision_log": entry}})
+    if body.action in ("skip", "accept_duplicate", "reset"):
+        await _refresh_summary(_org(user), uid)
     return {"ok": True}
+
+
+async def _refresh_summary(org: str, uid: str):
+    summary = await classify_upload(org, uid)
+    await db.crm2_mm_uploads.update_one({"id": uid}, {"$set": {"summary": summary}})
+    return summary
+
+
+@router.get("/uploads/{uid}/rows/{rid}")
+async def row_detail(uid: str, rid: str, user=Depends(require_crm_perm("contracts.read"))):
+    await _upload(user, uid)
+    r = await db.crm2_mm_rows.find_one({"id": rid, "upload_id": uid}, {"_id": 0})
+    if not r:
+        raise HTTPException(404, "Row not found")
+    return {**r, "effective": effective(r)}
+
+
+CORRECTABLE = {"contract_number", "start_date", "end_date", "contract_amount", "payment_frequency", "customer_name",
+               "site_account", "invoice_account", "visits_per_year", "coordinator_name"}
+
+
+class CorrectIn(BaseModel):
+    fields: dict
+    reason: str
+
+
+@router.post("/uploads/{uid}/rows/{rid}/correct")
+async def correct_row(uid: str, rid: str, body: CorrectIn, user=Depends(require_crm_perm("contracts.manage"))):
+    """Confirmed correction of a flagged row before commit — source cells stay untouched."""
+    await _upload(user, uid)
+    if not body.reason.strip():
+        raise HTTPException(400, "Record why the value is being corrected (e.g. checked against the signed agreement).")
+    bad = [k for k in body.fields if k not in CORRECTABLE]
+    if bad:
+        raise HTTPException(400, f"Cannot correct: {', '.join(bad)}")
+    r = await db.crm2_mm_rows.find_one({"id": rid, "upload_id": uid}, {"_id": 0, "state": 1})
+    if not r or r["state"] != "staged":
+        raise HTTPException(400, "Only rows not yet committed can be corrected.")
+    sets, entry = {}, {"by": _who(user), "at": _now(), "reason": body.reason.strip()}
+    for k, v in body.fields.items():
+        if k in ("start_date", "end_date"):
+            v = mm.norm_date(v)[0]
+            if not v:
+                raise HTTPException(400, f"{k} must be a date (YYYY-MM-DD)")
+        if k == "contract_amount":
+            v = mm.num(v)
+            if v is None:
+                raise HTTPException(400, "contract_amount must be a number")
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                raise HTTPException(400, f"{k} cannot be blank — leave it flagged instead")
+        sets[f"corrections.{k}"] = {"value": v, **entry}
+    await db.crm2_mm_rows.update_one({"id": rid}, {"$set": sets, "$push": {"decision_log": {"action": "correct", "fields": body.fields, **entry}}})
+    summary = await _refresh_summary(_org(user), uid)
+    row = await db.crm2_mm_rows.find_one({"id": rid}, {"_id": 0, "raw": 0})
+    return {"row": row, "counts": summary["counts"]}
+
+
+@router.get("/customers")
+async def search_customers(q: str, user=Depends(require_crm_perm("contracts.read"))):
+    import re
+    if len(q.strip()) < 2:
+        return {"customers": []}
+    rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+    rows = await db.crm2_companies.find({"organization_id": _org(user), "archived": {"$ne": True},
+                                         "$or": [{"name": rx}, {"legal_name": rx}, {"sage_account": rx}, {"account_number": rx}]},
+                                        {"_id": 0, "id": 1, "name": 1, "legal_name": 1, "sage_account": 1, "postcode": 1}).limit(20).to_list(20)
+    return {"customers": rows}
 
 
 # ───────────────────────────── commit (authorised, resumable, idempotent)
@@ -330,7 +423,8 @@ async def commit_upload(uid: str, body: CommitIn, user=Depends(require_crm_perm(
     return {"upload_id": uid, "state": "committing"}
 
 
-COMMITTABLE = ("new_contract", "matched_unchanged", "matched_differences", "missing_information", "requires_review")
+# Missing-information rows stay in the review queue until corrected — never committed as if valid.
+COMMITTABLE = ("new_contract", "matched_unchanged", "matched_differences", "requires_review")
 
 
 async def _resolve_company(org: str, r: dict, body: CommitIn, made: dict, actor: str):
@@ -428,7 +522,9 @@ async def _commit_row(org, u, r, body, made, actor, today) -> str:
     if not company:
         await db.crm2_mm_rows.update_one({"id": r["id"]}, {"$set": {"hold_reason": why}})
         return "held"
-    doc = mm.new_contract_doc(org, u, {**r, "evidence": r.get("evidence")}, company, actor, today)
+    doc = mm.new_contract_doc(org, u, {**r, "mapped": effective(r), "evidence": r.get("evidence")}, company, actor, today)
+    if r.get("corrections"):
+        doc["mm_corrections"] = r["corrections"]
     doc["mm_exceptions"] = r.get("problems") or []
     if doc["annual_value"] is None:
         doc["mm_exceptions"].append("annual value not stated as annual in the workbook — confirm")
@@ -573,6 +669,11 @@ async def queue_sicon(cid: str, user=Depends(require_crm_perm("exceptions.approv
     except DuplicateKeyError:
         entry = await db.crm2_sicon_contract_queue.find_one({"key": key}, {"_id": 0})
     entry.pop("_id", None)
+    await db.crm2_contracts.update_one({"id": cid}, {"$set": {
+        "sicon_sync.state": "held_for_sicon", "sicon_sync.held_revision": entry["revision"],
+        "sicon_sync.previous_approved_revision": (c.get("sicon_sync") or {}).get("held_revision"),
+        "sicon_sync.queue_id": entry["id"], "sicon_sync.last_attempt_at": None,
+        "sicon_sync.last_result": "held — SICON_ALLOW_WRITES is false; nothing sent"}})
     return entry
 
 
@@ -612,6 +713,10 @@ async def sicon_reconcile(body: SimIn, user=Depends(require_crm_perm("exceptions
                                                   "id": {"$ne": c["id"]}}, {"_id": 0, "contract_number": 1})
         if other or (c.get("sicon_contract_id") and c["sicon_contract_id"] != mt.sicon_contract_id):
             out["conflict"].append({"contract_number": mt.contract_number, "reason": "Sicon ID already used / differs — review"})
+            if body.apply:
+                await db.crm2_contracts.update_one({"id": c["id"]}, {"$set": {
+                    "sicon_sync.state": "conflict", "sicon_sync.conflict": {"offered_sicon_contract_id": mt.sicon_contract_id,
+                                                                           "at": _now(), "by": _who(user)}}})
             continue
         if (c.get("sicon_sync") or {}).get("identity_verified"):
             out["already"].append(mt.contract_number)
@@ -651,7 +756,9 @@ def _send(blob: bytes, name: str):
 async def upload_report(uid: str, kind: str = "reconciliation", user=Depends(require_crm_perm("contracts.read"))):
     u = await _upload(user, uid)
     f = {"upload_id": uid, "role": {"$in": ["contract", "held"]}}
-    if kind == "exceptions":
+    if kind == "unresolved":
+        f.update({"state": "staged", "decision.action": {"$ne": "skip"}, "cls": {"$in": list(UNRESOLVED)}})
+    elif kind == "exceptions":
         f["$or"] = [{"cls": {"$in": ["duplicate_overlap", "missing_information", "requires_review"]}},
                     {"problems.0": {"$exists": True}}, {"conflicts.0": {"$exists": True}}, {"hold_reason": {"$exists": True}}]
     head = ["Sheet", "Row", "Record key", "Customer / site", "Contract number", "Start", "Expiry", "Status",
@@ -748,9 +855,9 @@ async def export_master(user=Depends(require_crm_perm("contracts.read"))):
             continue
         written = set()
         for f in mm.edited_fields(c):
-            if f in rev and rev[f] in heads.get(src["sheet"], set()):
+            if f in rev and rev[f] in heads.get(src["sheet"], set()) and mm.current(c, f) not in (None, ""):
                 edits.append((src["sheet"], src["row"], rev[f], mm.current(c, f)))
-                written.add(f)
+                written.add(f)  # a blank never overwrites a populated workbook cell — it is listed instead
         if mm.edited_fields(c):
             async for h in db.crm2_contract_changes.find({"contract_id": c["id"], "field": {"$ne": "note"}}, {"_id": 0}).sort("at", 1):
                 changes.append([src.get("sheet"), src.get("row"), c.get("contract_number"), h["field"],
@@ -804,3 +911,174 @@ async def reparse_upload(uid: str, user=Depends(require_crm_perm("contracts.mana
     await db.crm2_mm_uploads.update_one({"id": uid}, {"$set": {"state": "parsing"}})
     _spawn(_parse_job(_org(user), uid))
     return {"upload_id": uid, "state": "parsing"}
+
+
+# ───────────────────────────── coordinator daily view
+
+@router.get("/daily")
+async def daily_view(coordinator: str = "", user=Depends(require_crm_perm("contracts.read"))):
+    """Actionable work for the day across contracts, renewals, service, imports, billing and Sicon."""
+    import re
+    from utils.cm_service_link import obligation_bucket
+    org = _org(user)
+    today = datetime.now(timezone.utc).date()
+    t, soon = today.isoformat(), (today + timedelta(days=90)).isoformat()
+    base = {"organization_id": org}
+    if coordinator:
+        base["coordinator_name"] = {"$regex": f"^{re.escape(coordinator)}", "$options": "i"}
+    proj = {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1, "title": 1, "end_date": 1, "status": 1,
+            "coordinator_name": 1, "mm_exceptions": 1, "mm": 1, "annual_value": 1, "payment_frequency": 1}
+
+    async def grab(extra, sort=("end_date", 1)):
+        f = {**base, **extra}
+        n = await db.crm2_contracts.count_documents(f)
+        rows = await db.crm2_contracts.find(f, proj).sort(*sort).limit(8).to_list(8)
+        return {"count": n, "items": [{"id": r["id"], "contract_number": r.get("contract_number"),
+                                       "customer": r.get("company_name") or r.get("title"), "end_date": r.get("end_date"),
+                                       "status": r.get("status"), "detail": "; ".join((r.get("mm_exceptions") or [])[:2]) or
+                                       (r.get("mm") or {}).get("next_action")} for r in rows]}
+    cards = {
+        "expiring_soon": await grab({"status": "active", "end_date": {"$gte": t, "$lte": soon}}),
+        "renewals": await grab({"status": {"$in": ["renewal_pending_approval", "renewal_draft", "renewal_pending"]}}),
+        "missing_information": await grab({"mm_exceptions.0": {"$exists": True}, "status": {"$nin": ["expired", "cancelled"]}}),
+        "awaiting_approval": await grab({"status": {"$in": ["draft", "pending_approval"]}}),
+        "follow_up": await grab({"mm.next_action_date": {"$lte": t, "$gte": "2000-01-01"}, "status": {"$nin": ["expired", "cancelled"]}},
+                                ("mm.next_action_date", 1)),
+        "unverified_billing": await grab({"historical_import": True, "status": "active", "$or": [
+            {"annual_value": None}, {"payment_frequency": {"$in": [None, ""]}}]}),
+        "sicon_pending": await grab({"mm_record_key": {"$type": "string"}, "status": "active",
+                                     "sicon_sync.state": {"$nin": ["ready_for_sync", "synced_verified"]}}),
+    }
+    svc = {"due": 0, "overdue": 0, "review": 0, "items": []}
+    async for sc in db.crm2_afs_service_schedules.find(base if not coordinator else {"organization_id": org}, {"_id": 0, "contract_id": 1, "visits": 1}):
+        for v in sc.get("visits") or []:
+            b = obligation_bucket(v, t)
+            if b in ("due", "overdue", "review"):
+                svc[b] += 1
+                if len(svc["items"]) < 8:
+                    svc["items"].append({"contract_id": sc["contract_id"], "due": v.get("planned_date"), "bucket": b})
+    cards["service_attention"] = {"count": svc["due"] + svc["overdue"] + svc["review"], **svc}
+    latest = await db.crm2_mm_uploads.find_one({"organization_id": org, "state": {"$nin": ["failed", "uploading"]}},
+                                               {"_id": 0, "id": 1, "filename": 1}, sort=[("created_at", -1)])
+    unresolved = 0
+    if latest:
+        f = {"upload_id": latest["id"], "state": "staged", "decision.action": {"$ne": "skip"}, "cls": {"$in": list(UNRESOLVED)}}
+        if coordinator:
+            f["mapped.coordinator_name"] = {"$regex": f"^{re.escape(coordinator)}", "$options": "i"}
+        unresolved = await db.crm2_mm_rows.count_documents(f)
+    cards["import_exceptions"] = {"count": unresolved, "upload_id": (latest or {}).get("id"), "items": []}
+    coords = sorted({c for c in await db.crm2_contracts.distinct("coordinator_name", {"organization_id": org}) if c})
+    return {"today": t, "coordinator": coordinator, "coordinators": coords, "cards": cards}
+
+
+# ───────────────────────────── monthly invoice-run preview (no posting)
+
+_FREQ = {"annually": 12, "annual": 12, "yearly": 12, "monthly": 1, "quarterly": 3, "bi-annually": 6, "biannual": 6,
+         "six monthly": 6, "half yearly": 6, "semiannual": 6}
+
+
+async def _vat_pct(org: str):
+    s = await db.crm2_afs_settings.find_one({"organization_id": org}, {"_id": 0, "vat_pct": 1}) or {}
+    return s.get("vat_pct")
+
+
+@router.get("/invoice-run")
+async def invoice_run(period: str, user=Depends(require_crm_perm("contracts.read"))):
+    """Proposed maintenance invoices for one month — preview only, nothing is created or posted."""
+    from utils.cm_dates import add_months, parse_date
+    if not re.fullmatch(r"\d{4}-\d{2}", period or ""):
+        raise HTTPException(400, "period must be YYYY-MM")
+    org = _org(user)
+    vat = await _vat_pct(org)
+    rows, seen = [], {}
+
+    def add(row):
+        key = (row["contract_id"], row["billing_date"])
+        if key in seen:
+            row["warnings"].append("duplicate billing obligation — excluded from total")
+            row["duplicate"] = True
+        seen[key] = True
+        rows.append(row)
+    contracts = {c["id"]: c async for c in db.crm2_contracts.find({"organization_id": org}, {"_id": 0, "mm_source": 0, "mm_baseline": 0})}
+    async for b in db.crm2_afs_billing.find({"organization_id": org}, {"_id": 0}):
+        c = contracts.get(b.get("contract_id")) or {}
+        for inv in b.get("invoices") or []:
+            if not str(inv.get("due_date") or "").startswith(period):
+                continue
+            w = []
+            done = inv.get("status") in ("raised", "invoiced", "paid", "posted") or inv.get("sage_invoice_ref")
+            if done:
+                w.append("already invoiced — not proposed again")
+            add({"contract_id": b["contract_id"], "contract_number": c.get("contract_number"), "customer": c.get("company_name"),
+                 "description": c.get("title") or "Maintenance agreement", "frequency": b.get("frequency"),
+                 "billing_date": inv["due_date"], "amount": inv.get("amount"), "amount_basis": "agreed billing schedule",
+                 "sage_account": c.get("sage_account_ref") or c.get("sage_reference"), "status": "already_invoiced" if done else "proposed",
+                 "direct_debit": c.get("direct_debit") or c.get("payment_method"), "source": "agreement billing schedule", "warnings": w,
+                 "duplicate": False, "existing_ref": inv.get("sage_invoice_ref")})
+    billed = {r["contract_id"] for r in rows}
+    y, mth = int(period[:4]), int(period[5:])
+    for c in contracts.values():
+        if not c.get("historical_import") or c.get("status") != "active" or c["id"] in billed:
+            continue
+        sd, ed = parse_date(c.get("start_date")), parse_date(c.get("end_date"))
+        step = _FREQ.get((c.get("payment_frequency") or "").strip().lower())
+        w = []
+        if not sd:
+            continue
+        if not step:
+            w.append(f"billing frequency '{c.get('payment_frequency') or 'missing'}' not recognised")
+            step = None
+        due = None
+        if step:
+            k = ((y - sd.year) * 12 + (mth - sd.month))
+            if k < 0 or k % step:
+                continue
+            due = add_months(sd, k)
+            if ed and due > ed:
+                continue
+        elif sd.month != mth:
+            continue
+        amount, basis = None, ""
+        mmv = c.get("mm") or {}
+        if step == 12 and c.get("annual_value") is not None:
+            amount, basis = c["annual_value"], "annual value"
+        elif mmv.get("instalment_amount") not in (None, ""):
+            amount, basis = mm.num(mmv["instalment_amount"]), "confirmed instalment amount"
+        else:
+            w.append("instalment amount not confirmed — workbook contract amount shown for reference only")
+        if not c.get("sage_account_ref"):
+            w.append("Sage account missing")
+        add({"contract_id": c["id"], "contract_number": c.get("contract_number"), "customer": c.get("company_name"),
+             "description": mmv.get("contract_type") or "Maintenance contract", "frequency": c.get("payment_frequency"),
+             "billing_date": (due or sd).isoformat(), "amount": amount, "amount_basis": basis,
+             "reference_amount": mmv.get("contract_amount"), "sage_account": c.get("sage_account_ref"),
+             "status": "proposed" if amount is not None and not w else "needs_information",
+             "direct_debit": c.get("direct_debit"), "source": "Maintenance Master import", "warnings": w,
+             "duplicate": False, "invoice_history": mmv.get("invoice_numbers")})
+    ok = [r for r in rows if r["status"] == "proposed" and not r["duplicate"]]
+    net = round(sum(r["amount"] or 0 for r in ok), 2)
+    rows.sort(key=lambda r: (r["billing_date"], r["customer"] or ""))
+    return {"period": period, "rows": rows, "vat_pct": vat, "vat_verified": vat is not None,
+            "totals": {"proposed": len(ok), "net": net, "vat": round(net * vat, 2) if vat is not None else None,
+                       "gross": round(net * (1 + vat), 2) if vat is not None else None,
+                       "needs_information": sum(1 for r in rows if r["status"] == "needs_information"),
+                       "already_invoiced": sum(1 for r in rows if r["status"] == "already_invoiced"),
+                       "duplicates": sum(1 for r in rows if r["duplicate"])},
+            "preview_only": True, "posting_enabled": False}
+
+
+@router.get("/invoice-run/export")
+async def invoice_run_export(period: str, user=Depends(require_crm_perm("contracts.read"))):
+    d = await invoice_run(period, user)
+    head = ["Billing date", "Contract", "Customer", "Description", "Frequency", "Amount £", "Basis", "Workbook amount £",
+            "Sage account", "Direct Debit", "Status", "Warnings", "Source"]
+    rows = [head] + [[r["billing_date"], r["contract_number"], r["customer"], r["description"], r["frequency"], r["amount"],
+                      r["amount_basis"], r.get("reference_amount"), r["sage_account"], r["direct_debit"], r["status"],
+                      "; ".join(r["warnings"]), r["source"]] for r in d["rows"]]
+    t = d["totals"]
+    summary = [["Period", period], ["PREVIEW ONLY — nothing has been invoiced or posted"], ["Proposed invoices", t["proposed"]],
+               ["Net £", t["net"]], ["VAT rate", d["vat_pct"] if d["vat_verified"] else "not configured — VAT not calculated"],
+               ["VAT £", t["vat"]], ["Gross £", t["gross"]], ["Needs information", t["needs_information"]],
+               ["Already invoiced", t["already_invoiced"]], ["Duplicates excluded", t["duplicates"]]]
+    blob = await asyncio.to_thread(_xlsx, {"Summary": summary, "Invoice run": rows})
+    return _send(blob, f"invoice-run-preview-{period}.xlsx")

@@ -8,6 +8,8 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { UploadCloud, FileSpreadsheet, Download, Loader2, RotateCw, Save, History, Send } from 'lucide-react';
 import { useCRM } from '../CRMApp';
+import { RowResolution } from './MMResolution';
+import { CoordinatorDailyView } from './CMDailyAndInvoice';
 
 const CHUNK = 2 * 1024 * 1024;
 const CLS = [
@@ -16,16 +18,17 @@ const CLS = [
   ['missing_information', 'Missing information'], ['requires_review', 'Requires review'], ['held_mod', 'MOD (held)'],
 ];
 const SYNC = {
-  not_reconciled: 'Not yet reconciled', awaiting_customer_mapping: 'Awaiting customer mapping',
-  awaiting_sicon_matching: 'Awaiting Sicon matching', ready_for_sync: 'Ready for synchronisation',
-  changes_pending: 'Changes pending', sync_failed: 'Synchronisation failed', synced_verified: 'Synchronised & verified',
+  not_reconciled: 'Local only', awaiting_customer_mapping: 'Local only — Sage account needed',
+  awaiting_sicon_matching: 'Awaiting verification', ready_for_sync: 'Ready for approval', held_for_sicon: 'Held for Sicon',
+  changes_pending: 'Changes since last approval', conflict: 'Conflict — review', sync_failed: 'Failed',
+  synced_verified: 'Synchronised (verified)',
 };
 const EDIT_FIELDS = [
   ['customer_name', 'Customer / site'], ['start_date', 'Start date'], ['end_date', 'Expiry date'],
   ['annual_value', 'Annual value (£)'], ['contract_amount', 'Contract amount (£)'], ['payment_frequency', 'Payment frequency'],
   ['direct_debit', 'Paid by Direct Debit'], ['visits_per_year', 'Services per year'], ['coordinator_name', 'Contract coordinator'],
   ['renewal_status', 'Renewal status'], ['next_action_date', 'Next action date'], ['next_action', 'Next action'],
-  ['invoice_numbers', 'Invoice numbers'], ['sage_account_ref', 'Sage account'], ['comments', 'Comments'],
+  ['instalment_amount', 'Confirmed instalment amount (£)'], ['invoice_numbers', 'Invoice numbers'], ['sage_account_ref', 'Sage account'], ['comments', 'Comments'],
 ];
 const val = (c, f) => (['start_date', 'end_date', 'annual_value', 'coordinator_name', 'visits_per_year', 'payment_frequency',
   'direct_debit', 'sicon_contract_id', 'sage_account_ref'].includes(f) ? c[f] : (c.mm || {})[f]) ?? '';
@@ -48,8 +51,14 @@ function Btn({ children, onClick, disabled, testId, primary, c, title }) {
   );
 }
 
-function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
+function UploadPreview({ API, headers, c, upload, canApprove, onChanged, startUnresolved }) {
   const [cls, setCls] = useState('');
+  const [unresolved, setUnresolved] = useState(!!startUnresolved);
+  const [issue, setIssue] = useState('');
+  const [coord, setCoord] = useState('');
+  const [q, setQ] = useState('');
+  const [openRow, setOpenRow] = useState(null);
+  const [reload, setReload] = useState(0);
   const [rows, setRows] = useState({ rows: [], count: 0 });
   const [rowsLoading, setRowsLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -59,12 +68,14 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
     if (upload.state === 'parsing' || upload.state === 'classifying') return;
     setRowsLoading(true);
     setRows({ rows: [], count: 0 });
-    axios.get(`${API}/crm/v2/aftersales/maintenance-master/uploads/${upload.id}/rows`, { headers: headers(), params: { cls } })
-      .then(r => setRows(r.data)).catch(() => setRows({ rows: [], count: 0 })).finally(() => setRowsLoading(false));
-  }, [API, headers, upload.id, upload.state, cls]);
+    const t = setTimeout(() => axios.get(`${API}/crm/v2/aftersales/maintenance-master/uploads/${upload.id}/rows`,
+      { headers: headers(), params: { cls, unresolved, issue, coordinator: coord, q } })
+      .then(r => setRows(r.data)).catch(() => setRows({ rows: [], count: 0 })).finally(() => setRowsLoading(false)), 250);
+    return () => clearTimeout(t);
+  }, [API, headers, upload.id, upload.state, cls, unresolved, issue, coord, q, reload]);
   const commit = async () => {
     const n = s.counts || {};
-    const msg = `Commit this workbook into Contract Management?\n\nNew contracts: ${n.new_contract || 0}\nMatched (linked, CRM kept): ${(n.matched_unchanged || 0) + (n.matched_differences || 0)}\nMissing information (imported with exceptions): ${n.missing_information || 0}\nRequires review (held until decided): ${n.requires_review || 0}\nDuplicates / overlaps (held): ${n.duplicate_overlap || 0}\n\n${createCustomers ? 'Unmatched customers WILL be created.' : 'Rows with unmatched customers will be held.'}\nNo visits, invoices, emails or Sicon writes are created.`;
+    const msg = `Commit this workbook into Contract Management?\n\nNew contracts: ${n.new_contract || 0}\nMatched (linked, CRM kept): ${(n.matched_unchanged || 0) + (n.matched_differences || 0)}\nMissing information (held in the review queue): ${n.missing_information || 0}\nRequires review (held until decided): ${n.requires_review || 0}\nDuplicates / overlaps (held): ${n.duplicate_overlap || 0}\n\n${createCustomers ? 'Unmatched customers WILL be created.' : 'Rows with unmatched customers will be held.'}\nNo visits, invoices, emails or Sicon writes are created.`;
     if (!window.confirm(msg)) return;
     setBusy(true);
     try {
@@ -77,7 +88,7 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
   const decide = async (rid, action, company_id) => {
     try {
       await axios.post(`${API}/crm/v2/aftersales/maintenance-master/uploads/${upload.id}/rows/${rid}/decision`,
-        { action, company_id }, { headers: headers() });
+        { action, company_id, note: 'Chosen from the preview list' }, { headers: headers() });
       toast.success('Decision saved'); setCls(x => x);
       onChanged();
     } catch (e) { toast.error(e.response?.data?.detail || 'Could not save'); }
@@ -109,11 +120,27 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
             {label}{id && s.counts ? ` · ${s.counts[id] ?? (id === 'held_mod' ? s.held_mod : 0)}` : ''}
           </button>))}
       </div>
-      <div className="rounded-xl border overflow-x-auto max-h-96" style={{ borderColor: c.border }}>
+      <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="mm-res-filters">
+        <label className="inline-flex items-center gap-1" style={{ color: c.textDim }}>
+          <input type="checkbox" checked={unresolved} onChange={e => setUnresolved(e.target.checked)} data-testid="mm-filter-unresolved" /> Unresolved only
+        </label>
+        <select value={issue} onChange={e => setIssue(e.target.value)} data-testid="mm-filter-issue" className="px-2 py-1 rounded-lg border" style={{ background: 'transparent', borderColor: c.border, color: c.text }}>
+          <option value="">Any issue</option><option value="contract number">Contract number missing</option>
+          <option value="date">Start / expiry date missing</option><option value="amount">Contract amount missing</option>
+          <option value="more than one">Duplicate contract number</option><option value="overlap">Overlaps a CRM contract</option>
+          <option value="name matches">Customer name only</option><option value="Sicon">Sicon ID conflict</option>
+        </select>
+        <input value={coord} onChange={e => setCoord(e.target.value)} placeholder="Coordinator" data-testid="mm-filter-coordinator"
+               className="px-2 py-1 rounded-lg border w-32" style={{ background: 'transparent', borderColor: c.border, color: c.text }} />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Customer / contract / account" data-testid="mm-filter-q"
+               className="px-2 py-1 rounded-lg border w-48" style={{ background: 'transparent', borderColor: c.border, color: c.text }} />
+      </div>
+      <div className="rounded-xl border overflow-x-auto max-h-[32rem]" style={{ borderColor: c.border }}>
         <table className="w-full text-xs" data-testid="mm-rows">
           <thead><tr style={{ color: c.textDim }}>{['Sheet / row', 'Customer', 'Contract', 'Term', 'Status', 'Classification', 'Notes', ''].map(h => <th key={h} className="px-2 py-1 text-left">{h}</th>)}</tr></thead>
-          <tbody>{rows.rows.map(r => (
-            <tr key={r.id} className="border-t" style={{ borderColor: c.border, color: c.text }} data-testid={`mm-row-${r.id}`}>
+          <tbody>{rows.rows.map(r => (<Fragment key={r.id}>
+            <tr className="border-t cursor-pointer" style={{ borderColor: c.border, color: c.text }} data-testid={`mm-row-${r.id}`}
+                onClick={() => setOpenRow(o => (o === r.id ? null : r.id))}>
               <td className="px-2 py-1">{r.sheet} · {r.row}</td><td className="px-2">{r.mapped.customer_name}</td>
               <td className="px-2">{r.mapped.contract_number || '—'}</td><td className="px-2">{r.mapped.start_date || '?'} → {r.mapped.end_date || '?'}</td>
               <td className="px-2">{r.status}</td><td className="px-2">{(CLS.find(x => x[0] === r.cls) || [])[1] || r.cls}{r.state === 'committed' ? ' ✓' : ''}</td>
@@ -127,7 +154,11 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
                   <button onClick={() => decide(r.id, 'create_customer')} data-testid={`mm-create-${r.id}`}
                           className="px-1.5 py-0.5 rounded border" style={{ borderColor: c.border }}>New customer</button>)}
               </td>
-            </tr>))}</tbody>
+            </tr>
+            {openRow === r.id && <tr><td colSpan={8} className="p-2" onClick={e => e.stopPropagation()}>
+              <RowResolution API={API} headers={headers} c={c} uploadId={upload.id} rowId={r.id} onChanged={() => { setReload(x => x + 1); onChanged(); }} />
+            </td></tr>}
+          </Fragment>))}</tbody>
         </table>
       </div>
       <div className="text-[11px]" style={{ color: c.textDim }} data-testid="mm-rows-count">
@@ -135,6 +166,7 @@ function UploadPreview({ API, headers, c, upload, canApprove, onChanged }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Btn c={c} testId="mm-report-reconciliation" onClick={() => download(API, headers, `${base}/report?kind=reconciliation`, 'reconciliation.xlsx')}><Download size={13} /> Reconciliation report</Btn>
+        <Btn c={c} testId="mm-report-unresolved" onClick={() => download(API, headers, `${base}/report?kind=unresolved`, 'unresolved.xlsx')}><Download size={13} /> Unresolved items</Btn>
         <Btn c={c} testId="mm-report-exceptions" onClick={() => download(API, headers, `${base}/report?kind=exceptions`, 'exceptions.xlsx')}><Download size={13} /> Exception report</Btn>
         <Btn c={c} testId="mm-original" onClick={() => download(API, headers, `${base}/original`, upload.filename)}><FileSpreadsheet size={13} /> Original workbook</Btn>
         {canApprove && ['ready', 'partial', 'commit_failed', 'committed'].includes(upload.state) && (<>
@@ -163,6 +195,7 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
   useEffect(() => { load(); }, [load]);
   if (!data) return <Loader2 size={14} className="animate-spin" />;
   const ct = data.contract;
+  const unsaved = EDIT_FIELDS.some(([f]) => String(form[f] ?? '') !== String(val(ct, f)));
   const save = async () => {
     const changes = Object.fromEntries(EDIT_FIELDS.map(([f]) => [f, form[f]]).filter(([f, v]) => String(v ?? '') !== String(val(ct, f))));
     if (!Object.keys(changes).length) { toast.info('No changes'); return; }
@@ -204,6 +237,8 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
         <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for change / approval reference" data-testid="mm-edit-reason"
                className="text-xs px-2 py-1 rounded-md border w-72" style={inp} />
         <Btn c={c} primary testId="mm-edit-save" onClick={save}><Save size={13} /> Save changes</Btn>
+        <span data-testid="mm-edit-state" className="text-[11px]" style={{ color: unsaved ? 'var(--color-warning-alt)' : c.textDim }}>
+          {unsaved ? 'Unsaved changes' : `Saved · revision ${ct.revision}`}</span>
         {canApprove && <Btn c={c} testId="mm-sicon-queue" onClick={queue}><Send size={13} /> Approve for Sicon queue</Btn>}
       </div>
       <div className="flex gap-2 items-center">
@@ -220,8 +255,9 @@ function ContractEditor({ API, headers, c, id, canApprove, onSaved }) {
   );
 }
 
-function ContractsList({ API, headers, c, canApprove, refreshKey }) {
+function ContractsList({ API, headers, c, canApprove, refreshKey, search }) {
   const [q, setQ] = useState('');
+  useEffect(() => { if (search) setQ(search.q); }, [search]);
   const [status, setStatus] = useState('');
   const [exceptions, setExceptions] = useState(false);
   const [data, setData] = useState({ contracts: [], count: 0 });
@@ -271,6 +307,8 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
   const [progress, setProgress] = useState(null);
   const [tick, setTick] = useState(0);
   const [picked, setPicked] = useState('');
+  const [search, setSearch] = useState(null);
+  const [focusExceptions, setFocusExceptions] = useState(0);
   const fileRef = useRef(null);
   const load = useCallback(() => axios.get(`${API}/crm/v2/aftersales/maintenance-master/uploads`, { headers: headers() })
     .then(r => setList(r.data)).catch(() => setList({ uploads: [] })), [API, headers]);
@@ -322,14 +360,17 @@ export function MaintenanceMasterPanel({ API, headers, c, isDark }) {
           <Btn c={c} testId="mm-refresh" onClick={() => setTick(t => t + 1)}><RotateCw size={13} /></Btn>
         </div>
       </div>
+      <div className="mt-3"><CoordinatorDailyView API={API} headers={headers} c={c}
+        onOpenContract={n => { setSearch({ q: n, t: Date.now() }); setTimeout(() => document.querySelector('[data-testid=mm-contracts]')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
+        onOpenExceptions={() => { setFocusExceptions(x => x + 1); setTimeout(() => document.querySelector('[data-testid=mm-res-filters]')?.scrollIntoView({ behavior: 'smooth' }), 100); }} /></div>
       {list.uploads.length > 1 && (
         <select value={latest?.id || ''} onChange={e => setPicked(e.target.value)} data-testid="mm-upload-picker"
                 className="mt-3 text-xs px-2 py-1.5 rounded-lg border max-w-full" style={{ background: 'transparent', borderColor: c.border, color: c.text }}>
           {list.uploads.map(u => <option key={u.id} value={u.id}>{`${u.filename} · ${(u.created_at || '').slice(0, 16).replace('T', ' ')} · ${u.state}`}</option>)}
         </select>)}
-      {latest ? <UploadPreview key={latest.id} API={API} headers={headers} c={c} upload={latest} canApprove={canApprove} onChanged={() => setTick(t => t + 1)} />
+      {latest ? <UploadPreview key={`${latest.id}-${focusExceptions}`} startUnresolved={focusExceptions > 0} API={API} headers={headers} c={c} upload={latest} canApprove={canApprove} onChanged={() => setTick(t => t + 1)} />
         : <div className="mt-3 text-xs" style={{ color: c.textDim }} data-testid="mm-empty">No workbook uploaded yet.</div>}
-      <ContractsList API={API} headers={headers} c={c} canApprove={canApprove} refreshKey={tick} />
+      <ContractsList API={API} headers={headers} c={c} canApprove={canApprove} refreshKey={tick} search={search} />
     </div>
   );
 }

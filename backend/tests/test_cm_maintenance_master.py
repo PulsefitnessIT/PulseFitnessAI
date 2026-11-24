@@ -245,6 +245,99 @@ def test_full_interim_workflow():
     assert requests.get(f"{MM}/contracts/{alpha['id']}", headers=coord).json()["contract"]["annual_value"] == 1600
 
 
+def test_resolution_daily_invoice_and_backup():
+    coord, mgr = _h("cm-test-coord"), _h("cm-test-asm")
+    up = mdb.crm2_mm_uploads.find_one({"filename": "mmt_master_v1.xlsx"})
+    U = f"{MM}/uploads/{up['id']}"
+    # Scenario E — missing data is held, never fabricated; a confirmed correction releases it.
+    assert not mdb.crm2_contracts.find_one({"mm_record_key": "MAIN-99005"})
+    delta = mdb.crm2_mm_rows.find_one({"upload_id": up["id"], "record_key": "MAIN-99005"})
+    assert delta["cls"] == "missing_information" and delta["state"] == "staged"
+    assert requests.post(f"{U}/rows/{delta['id']}/correct", headers=coord,
+                         json={"fields": {"contract_number": "MMT-1005"}, "reason": " "}).status_code == 400
+    assert requests.post(f"{U}/rows/{delta['id']}/correct", headers=coord,
+                         json={"fields": {"end_date": ""}, "reason": "x"}).status_code == 400
+    r = requests.post(f"{U}/rows/{delta['id']}/correct", headers=coord, json={
+        "fields": {"contract_number": "MMT-1005", "end_date": "2027-01-31", "contract_amount": "640"},
+        "reason": "Checked signed agreement"})
+    assert r.status_code == 200, r.text
+    assert r.json()["row"]["cls"] == "new_contract"
+    det = requests.get(f"{U}/rows/{delta['id']}", headers=coord).json()
+    assert "Contract number" not in det["raw"] and det["effective"]["contract_number"] == "MMT-1005"
+    # Duplicates: a decision needs a reason; skipping one releases the other.
+    dups = list(mdb.crm2_mm_rows.find({"upload_id": up["id"], "cls": "duplicate_overlap"}))
+    assert len(dups) == 2
+    assert requests.post(f"{U}/rows/{dups[1]['id']}/decision", headers=coord, json={"action": "skip"}).status_code == 400
+    assert requests.post(f"{U}/rows/{dups[1]['id']}/decision", headers=coord,
+                         json={"action": "skip", "note": "Same agreement entered twice"}).status_code == 200
+    assert mdb.crm2_mm_rows.find_one({"id": dups[0]["id"]})["cls"] == "new_contract"
+    unres = requests.get(f"{U}/rows", headers=coord, params={"unresolved": True}).json()
+    assert all(x["cls"] in ("duplicate_overlap", "missing_information", "requires_review") for x in unres["rows"])
+    requests.post(f"{U}/commit", headers=mgr, json={"create_missing_customers": True})
+    _wait(up["id"], mgr, ("partial", "committed"))
+    d5 = mdb.crm2_contracts.find_one({"mm_record_key": "MAIN-99005"})
+    assert d5["contract_number"] == "MMT-1005" and d5["mm_corrections"]["contract_number"]["reason"] == "Checked signed agreement"
+    assert mdb.crm2_contracts.count_documents({"contract_number": "MMT-1003"}) == 1
+    assert requests.get(f"{U}/report", headers=coord, params={"kind": "unresolved"}).status_code == 200
+
+    # Daily view.
+    alpha = mdb.crm2_contracts.find_one({"contract_number": "MMT-1001"})
+    dv = requests.get(f"{MM}/daily", headers=coord).json()["cards"]
+    assert "MMT-1001" in [i["contract_number"] for i in dv["expiring_soon"]["items"]]
+    assert dv["missing_information"]["count"] >= 1 and "import_exceptions" in dv
+    mine = requests.get(f"{MM}/daily", headers=coord, params={"coordinator": "Casey"}).json()["cards"]
+    assert [i["contract_number"] for i in mine["expiring_soon"]["items"]] == ["MMT-1001"]
+
+    # Scenario I — invoice-run preview (annual, monthly unconfirmed → confirmed, duplicates, already invoiced).
+    beta = mdb.crm2_contracts.find_one({"contract_number": "MMT-1002"})
+    mdb.crm2_afs_billing.insert_one({"organization_id": OP, "contract_id": "mmt_bill", "frequency": "annual", "invoices": [
+        {"due_date": "2026-12-05", "amount": 100.0, "status": "scheduled"},
+        {"due_date": "2026-12-05", "amount": 100.0, "status": "scheduled"},
+        {"due_date": "2026-12-09", "amount": 50.0, "status": "raised", "sage_invoice_ref": "SI-1"}]})
+    try:
+        run = requests.get(f"{MM}/invoice-run", headers=coord, params={"period": "2026-12"}).json()
+        by = {(x["contract_number"], x["contract_id"]): x for x in run["rows"]}
+        a = next(x for x in run["rows"] if x["contract_id"] == alpha["id"])
+        assert a["amount"] == 1600 and a["billing_date"] == "2026-12-01" and a["status"] == "proposed"
+        b = next(x for x in run["rows"] if x["contract_id"] == beta["id"])
+        assert b["amount"] is None and b["status"] == "needs_information" and b["reference_amount"] == 900
+        mine = [x for x in run["rows"] if x["contract_id"] == "mmt_bill"]
+        assert sum(x["duplicate"] for x in mine) == 1 and sum(x["status"] == "already_invoiced" for x in mine) == 1
+        assert run["preview_only"] and not run["posting_enabled"]
+        assert run["totals"]["net"] == round(sum(x["amount"] for x in run["rows"] if x["status"] == "proposed" and not x["duplicate"]), 2)
+        rev = mdb.crm2_contracts.find_one({"id": beta["id"]})["revision"]
+        requests.patch(f"{MM}/contracts/{beta['id']}", headers=coord,
+                       json={"revision": rev, "changes": {"instalment_amount": "75"}, "reason": "Confirmed from DD mandate"})
+        run = requests.get(f"{MM}/invoice-run", headers=coord, params={"period": "2026-12"}).json()
+        b = next(x for x in run["rows"] if x["contract_id"] == beta["id"])
+        assert b["amount"] == 75 and b["amount_basis"] == "confirmed instalment amount"
+        assert requests.get(f"{MM}/invoice-run/export", headers=coord, params={"period": "2026-12"}).status_code == 200
+        assert requests.get(f"{MM}/invoice-run", headers=coord, params={"period": "12-2026"}).status_code == 400
+        assert not mdb.crm2_afs_finance_sync.find_one({"contract_id": {"$in": [alpha["id"], beta["id"]]}})
+    finally:
+        mdb.crm2_afs_billing.delete_many({"contract_id": "mmt_bill"})
+
+    # Scenario J — backup → restore into a scratch DB → verify contract, history, relationships.
+    import json as _json
+    env = {**os.environ, "PYTHONPATH": "/app/backend"}
+    scratch = os.environ["DB_NAME"] + "_cm_restore_test"
+    sdb = MongoClient(os.environ["MONGO_URL"])[scratch]
+    try:
+        subprocess.run(["python", "scripts/cm_backup.py", "backup", "--org", OP, "--out", "/tmp/cm_bk_test"], cwd="/app/backend", env=env, check=True, capture_output=True)
+        assert subprocess.run(["python", "scripts/cm_backup.py", "restore", "--src", "/tmp/cm_bk_test", "--target-db", os.environ["DB_NAME"]],
+                              cwd="/app/backend", env=env, capture_output=True).returncode != 0  # live restore refused
+        subprocess.run(["python", "scripts/cm_backup.py", "restore", "--src", "/tmp/cm_bk_test", "--target-db", scratch], cwd="/app/backend", env=env, check=True, capture_output=True)
+        v = _json.loads(subprocess.run(["python", "scripts/cm_backup.py", "verify", "--src", "/tmp/cm_bk_test", "--target-db", scratch],
+                                       cwd="/app/backend", env=env, check=True, capture_output=True, text=True).stdout)
+        assert v["ok"], v
+        ra = sdb.crm2_contracts.find_one({"id": alpha["id"]})
+        assert ra["annual_value"] == 1600 and ra["company_id"] == "mmt_alpha"
+        assert sdb.crm2_contract_changes.count_documents({"contract_id": alpha["id"]}) == mdb.crm2_contract_changes.count_documents({"contract_id": alpha["id"]})
+    finally:
+        for name in sdb.list_collection_names():
+            sdb[name].delete_many({})
+
+
 SYNC_OK = ("awaiting_sicon_matching", "not_reconciled", "awaiting_customer_mapping")
 
 

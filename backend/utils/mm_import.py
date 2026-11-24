@@ -39,9 +39,9 @@ EDITABLE = ("customer_name", "start_date", "end_date", "contract_term", "contrac
             "payment_notes", "invoice_numbers", "comments", "next_action_date", "next_action", "renewal_status",
             "coordinator_name", "sales_region", "site_account", "invoice_account", "invoice_code",
             "beds_belts_covered", "upholstery_covered", "upholstery_colour", "site_notes",
-            "sicon_contract_id", "sage_account_ref")
+            "sicon_contract_id", "sage_account_ref", "instalment_amount")
 SYNC_STATES = ("not_reconciled", "awaiting_customer_mapping", "awaiting_sicon_matching", "ready_for_sync",
-               "changes_pending", "sync_failed", "synced_verified")
+               "held_for_sicon", "changes_pending", "conflict", "sync_failed", "synced_verified")
 _REC = re.compile(r"^(MAIN|PF|Q\d)-\d+$")
 _REF = re.compile(r"\b[A-Z]{0,2}\d{3,8}[A-Z]?\d*\b")
 
@@ -262,7 +262,9 @@ def sicon_state(contract: dict) -> str:
     s = contract.get("sicon_sync") or {}
     if s.get("state") == "synced_verified" and s.get("last_synced_revision") != contract.get("revision"):
         return "changes_pending"
-    if s.get("state") in ("sync_failed", "synced_verified", "ready_for_sync"):
+    if s.get("state") == "held_for_sicon" and s.get("held_revision") != contract.get("revision"):
+        return "changes_pending"
+    if s.get("state") in ("sync_failed", "synced_verified", "ready_for_sync", "held_for_sicon", "conflict"):
         return s["state"]
     if not contract.get("sage_account_ref"):
         return "awaiting_customer_mapping"
