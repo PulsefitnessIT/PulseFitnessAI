@@ -3102,6 +3102,182 @@ function ComplianceCard({ row, API, headers, c, isDark, onChanged }) {
   );
 }
 
+const PLANNER_BUCKETS = [
+  { id: '', label: 'All' }, { id: 'due', label: 'Due for scheduling' }, { id: 'booked', label: 'Booked' },
+  { id: 'completed', label: 'Completed' }, { id: 'overdue', label: 'Overdue' }, { id: 'review', label: 'Requires review' },
+];
+const BUCKET_TONE = { due: 'warn', booked: 'ok', completed: 'ok', overdue: 'bad', review: 'warn', planned: 'neutral' };
+const REVIEW_LABEL = {
+  partial: 'Not every machine serviced', report_missing: 'Engineer report missing', date_missing: 'No completion date',
+  ambiguous_match: 'Several possible visits', probable_match: 'Possible visit — confirm', linked_case_missing: 'Linked case missing',
+  scope: 'Site scope unclear',
+};
+
+function PlannerBookForm({ API, headers, row, engineers, c, isDark, onDone }) {
+  const [date, setDate] = useState(row.due_date && row.due_date > new Date().toISOString().slice(0, 10) ? row.due_date : '');
+  const [eng, setEng] = useState('');
+  const [busy, setBusy] = useState(false);
+  const st = { background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text };
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/contracts/${row.contract_id}/obligations/${row.obligation_id}/book`,
+        { scheduled_date: date, engineer_id: eng || null }, { headers: headers() });
+      toast.success(r.data.existing ? `Already booked — ${r.data.reference}` : `Service Desk job ${r.data.reference} created`);
+      onDone();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Booking failed'); }
+    setBusy(false);
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2" data-testid={`planner-book-form-${row.obligation_id}`}>
+      <input type="date" value={date} onChange={e => setDate(e.target.value)} data-testid={`planner-book-date-${row.obligation_id}`}
+             className="text-xs px-2 py-1 rounded-md border" style={st} />
+      <select value={eng} onChange={e => setEng(e.target.value)} data-testid={`planner-book-engineer-${row.obligation_id}`}
+              className="text-xs px-2 py-1 rounded-md border max-w-[180px]" style={st}>
+        <option value="">Engineer later (Service Desk)</option>
+        {engineers.map(x => <option key={x.id} value={x.id}>{x.full_name}</option>)}
+      </select>
+      <button disabled={!date || busy} onClick={submit} data-testid={`planner-book-submit-${row.obligation_id}`}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-50"
+              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+        {busy ? <Loader2 size={12} className="animate-spin" /> : <CalendarClock size={12} />} Book in Service Desk
+      </button>
+    </div>
+  );
+}
+
+function PlannerRow({ API, headers, row, engineers, c, isDark, canBook, canReview, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const cell = 'px-3 py-2 align-top';
+  const review = async (action, caseId) => {
+    try {
+      await axios.post(`${API}/crm/v2/aftersales/contracts/${row.contract_id}/obligations/${row.obligation_id}/review`,
+        { action, case_id: caseId, note: 'Reviewed in Service Planner' }, { headers: headers() });
+      toast.success('Review recorded'); onChanged();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Review failed'); }
+  };
+  const bookable = !row.case_id && ['due', 'overdue', 'planned', 'review'].includes(row.bucket);
+  return (
+    <tr data-testid={`planner-row-${row.obligation_id}`} className="border-t" style={{ borderColor: c.border }}>
+      <td className={cell}>
+        <div className="font-semibold" style={{ color: c.text }}>{row.customer}</div>
+        <div className="text-[11px]" style={{ color: c.textDim }}>{row.contract_number} · {row.site}{row.machines ? ` · ${row.machines} machines` : ''}</div>
+      </td>
+      <td className={cell} style={{ color: c.text }} data-testid={`planner-due-${row.obligation_id}`}>{row.due_date}<div className="text-[11px]" style={{ color: c.textDim }}>Year {row.year} · visit {row.visit_no}</div></td>
+      <td className={cell}>
+        <CompliancePill tone={BUCKET_TONE[row.bucket]} testId={`planner-status-${row.obligation_id}`}>
+          {(PLANNER_BUCKETS.find(b => b.id === row.bucket) || {}).label || 'Planned'}
+        </CompliancePill>
+        {row.review_reason && <div className="text-[11px] mt-1" style={{ color: 'var(--color-warning-alt, #F59E0B)' }} data-testid={`planner-review-${row.obligation_id}`}>{REVIEW_LABEL[row.review_reason] || row.review_reason}</div>}
+        {row.cancelled_without_replacement && <div className="text-[11px] mt-1" style={{ color: 'var(--color-danger-alt, #EF4444)' }}>Appointment cancelled — rebook</div>}
+      </td>
+      <td className={cell} style={{ color: c.text }} data-testid={`planner-booking-${row.obligation_id}`}>
+        {row.completed_date ? <>Completed {row.completed_date}</> : row.booking_date || '—'}
+        <div className="text-[11px]" style={{ color: c.textDim }}>{row.engineer || ''}</div>
+      </td>
+      <td className={cell} style={{ color: c.textDim }}>{row.last_completed || '—'}</td>
+      <td className={cell}>
+        {row.case_reference
+          ? <a href={`/service-desk?tab=cases&q=${encodeURIComponent(row.case_reference)}`} data-testid={`planner-case-link-${row.obligation_id}`}
+               className="text-xs font-semibold underline" style={{ color: 'var(--color-brand-cyan)' }}>{row.case_reference}</a>
+          : <span className="text-xs" style={{ color: c.textDim }}>—</span>}
+        {row.action && <div className="text-[11px] mt-1" style={{ color: c.textDim }} title={row.action_owner}>{row.action}</div>}
+      </td>
+      <td className={cell + ' text-right'}>
+        {canBook && bookable && (
+          <button onClick={() => setOpen(o => !o)} data-testid={`planner-book-toggle-${row.obligation_id}`}
+                  className="text-xs font-semibold px-2 py-1 rounded-md border" style={{ borderColor: c.border, color: c.text }}>
+            {open ? 'Close' : 'Book'}
+          </button>
+        )}
+        {open && <PlannerBookForm API={API} headers={headers} row={row} engineers={engineers} c={c} isDark={isDark} onDone={() => { setOpen(false); onChanged(); }} />}
+        {canReview && row.review_candidates?.length > 0 && (
+          <div className="mt-2 space-y-1 text-left" data-testid={`planner-candidates-${row.obligation_id}`}>
+            {row.review_candidates.map(k => (
+              <div key={k.case_id} className="flex items-center justify-end gap-1 text-[11px]" style={{ color: c.textDim }}>
+                {k.reference} · {k.completed_date || (k.scheduled_at || '').slice(0, 10)}
+                <button onClick={() => review('link', k.case_id)} data-testid={`planner-link-${row.obligation_id}-${k.case_id}`}
+                        className="px-1.5 py-0.5 rounded border font-semibold" style={{ borderColor: c.border, color: c.text }}>Link</button>
+                <button onClick={() => review('not_match', k.case_id)} data-testid={`planner-notmatch-${row.obligation_id}-${k.case_id}`}
+                        className="px-1.5 py-0.5 rounded border" style={{ borderColor: c.border, color: c.textDim }}>Not this</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {canReview && row.review_reason === 'scope' && (
+          <button onClick={() => review('accept_scope')} data-testid={`planner-accept-scope-${row.obligation_id}`}
+                  className="mt-2 text-[11px] px-1.5 py-0.5 rounded border" style={{ borderColor: c.border, color: c.text }}>Confirm scope</button>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function ServicePlanner({ API, headers, c, isDark }) {
+  const perms = useCRM().user?.crm_permissions || [];
+  const [bucket, setBucket] = useState('');
+  const [q, setQ] = useState('');
+  const [data, setData] = useState(null);
+  const [engineers, setEngineers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(() => {
+    setLoading(true);
+    axios.get(`${API}/crm/v2/aftersales/service-planner`, { headers: headers(), params: { bucket, q } })
+      .then(r => setData(r.data)).catch(() => setData({ rows: [], totals: {} })).finally(() => setLoading(false));
+  }, [API, headers, bucket, q]);
+  useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [load]);
+  useEffect(() => {
+    axios.get(`${API}/crm/v2/aftersales/service-planner/engineers`, { headers: headers() })
+      .then(r => setEngineers(r.data.engineers || [])).catch(() => setEngineers([]));
+  }, [API, headers]);
+  const totals = data?.totals || {};
+  const panel = { background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' };
+  return (
+    <div data-testid="afs-service-planner" className="mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div>
+          <h2 className="text-lg font-bold" style={{ color: c.text }}>Service planner</h2>
+          <p className="text-xs" style={{ color: c.textDim }}>Contractual visits linked to Service Desk bookings and verified engineer completions.</p>
+        </div>
+        <div className="relative">
+          <Search size={13} className="absolute left-2 top-2" style={{ color: c.textDim }} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Customer, site, contract, case…" data-testid="planner-search"
+                 className="text-xs pl-7 pr-2 py-1.5 rounded-lg border w-56" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-3" data-testid="planner-buckets">
+        {PLANNER_BUCKETS.map(b => (
+          <button key={b.id || 'all'} onClick={() => setBucket(b.id)} data-testid={`planner-bucket-${b.id || 'all'}`}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border"
+                  style={{ borderColor: bucket === b.id ? 'var(--color-brand-cyan)' : c.border, color: bucket === b.id ? 'var(--color-brand-cyan)' : c.textDim }}>
+            {b.label}{b.id ? ` · ${totals[b.id] || 0}` : ''}
+          </button>
+        ))}
+      </div>
+      {loading ? <Spinner /> : (data?.rows || []).length === 0 ? (
+        <div data-testid="planner-empty" className="p-6 rounded-xl border text-center text-sm" style={{ ...panel, color: c.textDim }}>
+          No contractual visits in this view.
+        </div>
+      ) : (
+        <div className="rounded-xl border overflow-x-auto" style={panel}>
+          <table className="w-full text-xs" data-testid="planner-table">
+            <thead><tr style={{ color: c.textDim }}>
+              {['Customer / site', 'Service due', 'Status', 'Booking / engineer', 'Last completed', 'Service case', ''].map(h => (
+                <th key={h} className="px-3 py-2 text-left font-semibold">{h}</th>))}
+            </tr></thead>
+            <tbody>
+              {data.rows.map(r => (
+                <PlannerRow key={r.obligation_id} API={API} headers={headers} row={r} engineers={engineers} c={c} isDark={isDark}
+                            canBook={perms.includes('contracts.manage')} canReview={perms.includes('exceptions.approve')} onChanged={load} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LiveCompliancePanel({ API, headers, c, isDark }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -3163,6 +3339,7 @@ function LiveCompliancePanel({ API, headers, c, isDark }) {
           </div>
         ))}
       </div>
+      <ServicePlanner API={API} headers={headers} c={c} isDark={isDark} />
       {loading ? <Spinner /> : (data?.contracts || []).length === 0 ? (
         <div data-testid="afs-compliance-empty" className="p-6 rounded-xl border text-center text-sm"
              style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textDim }}>

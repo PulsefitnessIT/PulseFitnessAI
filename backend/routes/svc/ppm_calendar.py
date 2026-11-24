@@ -99,6 +99,9 @@ async def ensure_annual_ppm(equipment: dict) -> bool:
     )
     if existing:
         return False
+    from utils.cm_service_link import contract_covering
+    if await contract_covering(equipment):  # contract obligations govern this machine's PPM entitlement
+        return False
     install = _parse_ymd(equipment.get("install_date")) or _parse_ymd(equipment.get("purchase_date"))
     next_pm = (_next_anniversary(install) if install else None)
     now = _now()

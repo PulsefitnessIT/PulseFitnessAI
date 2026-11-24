@@ -137,6 +137,9 @@ async def transition(
         update["reopened_at"] = _now()
 
     await db.svc_cases.update_one({"id": case_id}, {"$set": update})
+    if case.get("contract_obligation_id"):  # contractual PPM — refresh Contract Management
+        from utils.cm_service_link import schedule_case_sync
+        schedule_case_sync(case)
 
     # Append timeline event (best-effort — never blocks).
     try:

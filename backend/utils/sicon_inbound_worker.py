@@ -163,6 +163,9 @@ async def merge_sicon_case(organization_id: str, payload: dict,
         fields["priority"] = priority
     if e.get("ScheduledDateTime"):
         fields["scheduled_at"] = e["ScheduledDateTime"]
+    done_at = e.get("ActualCompletedDateTime") or e.get("CompletedDateTime") or e.get("ActualEndDateTime")
+    if done_at:
+        fields["sicon_completed_at"] = done_at  # Sicon's recorded completion — never the import/created date
     if e.get("EstimatedMinutes"):
         fields["estimated_minutes"] = e["EstimatedMinutes"]
     sub_loc = e.get("SubLocation") or {}
@@ -193,6 +196,9 @@ async def merge_sicon_case(organization_id: str, payload: dict,
     if existing:
         await db.svc_cases.update_one({"id": existing["id"]}, {"$set": fields})
         case = await db.svc_cases.find_one({"id": existing["id"]}, {"_id": 0})
+        if case and case.get("contract_obligation_id"):
+            from utils.cm_service_link import schedule_case_sync
+            schedule_case_sync(case)
     else:
         created = True
         from routes.svc.cases import compute_sla_targets, next_reference

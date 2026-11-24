@@ -149,6 +149,8 @@ async def run_daily_checks(org_id: str, actor: str = "Daily checks") -> dict:
     out["contract_admin"] = await scan_contract_admin(org_id)
     from utils.cm_handover import scan_sales_handovers
     out["sales_handover"] = await scan_sales_handovers(org_id)
+    from utils.cm_service_link import sync_all
+    out["service_obligations"] = await sync_all(org_id)
     ren = await prepare_renewals(org_id, actor=actor, dry_run=False)
     out["renewals"] = ren["totals"]
     return out

@@ -2184,6 +2184,7 @@ class AgreementPatchIn(BaseModel):
     resolve_wording: Optional[bool] = None
     start_date: Optional[str] = None
     visits_per_year: Optional[int] = None
+    service_dates: Optional[List[str]] = None   # agreed contract-specific PPM dates (override the calendar)
 
 
 @router.patch("/agreements/{agreement_id}")
@@ -2194,7 +2195,7 @@ async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depend
         raise HTTPException(404, "Agreement not found")
     patch = {}
     content_change = any(v is not None for v in (body.payment_method, body.serial_exceptions, body.resolve_wording,
-                                                  body.start_date, body.visits_per_year))
+                                                  body.start_date, body.visits_per_year, body.service_dates))
     if content_change and ag.get("status") not in ("draft", "ready"):
         raise HTTPException(400, "This agreement has been issued for signature — its content can no longer change. "
                                  "Revoke the link first if a correction is needed.")
@@ -2216,6 +2217,15 @@ async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depend
         if not 1 <= body.visits_per_year <= 12:
             raise HTTPException(400, "Visits per year must be between 1 and 12")
         patch["visits_per_year"] = body.visits_per_year
+    if body.service_dates is not None:
+        from utils.cm_dates import parse_date
+        start = parse_date(patch.get("start_date") or ag.get("start_date"))
+        end = parse_date(patch.get("end_date") or ag.get("end_date"))
+        bad = [d for d in body.service_dates if not parse_date(d) or (start and parse_date(d) < start)
+               or (end and parse_date(d) > end)]
+        if bad:
+            raise HTTPException(400, f"Service dates must be YYYY-MM-DD within the contract term: {', '.join(bad)}")
+        patch["service_dates"] = sorted(set(body.service_dates))
     if body.payment_method is not None:
         patch["payment_method"] = body.payment_method
         patch["billing_frequency"] = body.payment_method
@@ -2290,13 +2300,6 @@ async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(require_c
 
 class ActivateIn(BaseModel):
     conflict_review_note: Optional[str] = None   # authorised override of a genuine conflict
-
-
-def _merge_visits(existing: list, planned: list) -> list:
-    """Keep every booked/completed/verified visit; only (re)plan the rest."""
-    kept = [v for v in (existing or []) if (v.get("status") or "planned") != "planned"]
-    keys = {(v.get("year"), v.get("visit_no")) for v in kept}
-    return kept + [v for v in planned if (v["year"], v["visit_no"]) not in keys]
 
 
 def _merge_invoices(existing: list, planned: list) -> list:
@@ -2445,13 +2448,17 @@ async def activate_agreement(agreement_id: str, body: Optional[ActivateIn] = Non
             steps.append({"step": "asset_cover", "status": "skipped", "detail": "No priced assets to cover"})
 
         # 3. Contractual PPM obligations (merged — completed visits untouched).
-        planned = _service_schedule(ag.get("start_date"), ag.get("visits_per_year", 2), ag.get("term_years", 1), ag.get("end_date"))
+        from utils.cm_service_link import plan_obligations, merge_obligations
+        planned = plan_obligations(cid, ag, _service_schedule(ag.get("start_date"), ag.get("visits_per_year", 2),
+                                                              ag.get("term_years", 1), ag.get("end_date")))
         prev_svc = await db.crm2_afs_service_schedules.find_one({"contract_id": cid, "organization_id": org_id}, {"_id": 0}) or {}
-        svc = _merge_visits(prev_svc.get("visits"), planned)
+        svc = merge_obligations(cid, prev_svc.get("visits"), planned)
         await db.crm2_afs_service_schedules.update_one(
             {"contract_id": cid, "organization_id": org_id},
             {"$set": {"contract_id": cid, "organization_id": org_id, "agreement_id": agreement_id,
-                      "visits_per_year": ag.get("visits_per_year", 2), "visits": svc, "updated_at": _now()}}, upsert=True)
+                      "linked_organization_id": ag.get("linked_organization_id"),
+                      "visits_per_year": ag.get("visits_per_year", 2), "visits": svc, "updated_at": _now()},
+             "$inc": {"rev": 1}}, upsert=True)
         steps.append({"step": "service_schedule", "status": "ok", "visits": len(svc),
                       "preserved": len(svc) - len([v for v in svc if v.get("status") == "planned"])})
 
@@ -2512,14 +2519,16 @@ async def contract_schedules(contract_id: str, user=Depends(get_crm_user)):
     contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
     if not contract:
         raise HTTPException(404, "Contract not found")
-    svc = await db.crm2_afs_service_schedules.find_one({"contract_id": contract_id, "organization_id": org_id}, _PUBLIC)
-    bill = await db.crm2_afs_billing.find_one({"contract_id": contract_id, "organization_id": org_id}, _PUBLIC)
+    from utils.cm_service_link import sync_contract, obligation_bucket
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    visits = (svc or {}).get("visits", [])
+    visits = (await sync_contract(org_id, contract))["visits"]
+    for v in visits:
+        v["bucket"] = obligation_bucket(v, today)
+    bill = await db.crm2_afs_billing.find_one({"contract_id": contract_id, "organization_id": org_id}, _PUBLIC)
     done = {"completed", "verified", "cancelled", "excluded"}
     outstanding = sorted((v for v in visits if (v.get("status") or "planned") not in done),
                          key=lambda v: v.get("planned_date") or "")
-    overdue = [v for v in outstanding if (v.get("planned_date") or "9999") < today and v.get("status") != "booked"]
+    overdue = [v for v in outstanding if (v.get("planned_date") or "9999") < today and not v.get("case_id")]
     nxt = outstanding[0] if outstanding else None
     return {
         "contract": {"id": contract_id, "contract_number": contract.get("contract_number"),
@@ -2528,7 +2537,7 @@ async def contract_schedules(contract_id: str, user=Depends(get_crm_user)):
                      "sage_sync_status": contract.get("sage_sync_status")},
         "service": {"visits": visits, "required": len(visits),
                     "completed": sum(1 for v in visits if v.get("status") in ("completed", "verified")),
-                    "booked": sum(1 for v in visits if v.get("status") == "booked"),
+                    "booked": sum(1 for v in visits if v.get("status") == "booked" and v.get("case_id")),
                     "cancelled": sum(1 for v in visits if v.get("status") in ("cancelled", "excluded")),
                     "overdue": len(overdue),
                     "next_due": nxt.get("planned_date") if nxt else None,
@@ -2869,14 +2878,16 @@ def _service_compliance(visits, today):
     if not visits:
         return {"has_schedule": False, "required": 0, "completed": 0, "overdue": 0,
                 "next_due": None, "state": "no_schedule"}
-    completed = sum(1 for v in visits if v.get("status") == "completed")
-    overdue = sum(1 for v in visits
-                  if v.get("status") != "completed" and (v.get("planned_date") or "") < today)
-    upcoming = sorted((v.get("planned_date") for v in visits
-                       if v.get("status") != "completed" and (v.get("planned_date") or "") >= today))
+    from utils.cm_service_link import FINAL_VISIT
+    visits = [v for v in visits if v.get("status") not in ("cancelled", "excluded")]
+    completed = sum(1 for v in visits if v.get("status") in ("completed", "verified"))
+    outstanding = sorted((v for v in visits if v.get("status") not in FINAL_VISIT), key=lambda v: v.get("planned_date") or "")
+    overdue = sum(1 for v in outstanding if (v.get("planned_date") or "9999") < today and not v.get("case_id"))
+    nxt = outstanding[0] if outstanding else None  # earliest outstanding — an older missed visit is never hidden
     state = "overdue" if overdue else ("complete" if completed >= len(visits) else "on_track")
     return {"has_schedule": True, "required": len(visits), "completed": completed,
-            "overdue": overdue, "next_due": upcoming[0] if upcoming else None, "state": state}
+            "booked": sum(1 for v in outstanding if v.get("case_id")),
+            "overdue": overdue, "next_due": (nxt or {}).get("planned_date"), "state": state}
 
 
 def _billing_compliance(invoices, today):
@@ -4182,6 +4193,7 @@ class ImportLineDecision(BaseModel):
     line_no: int
     decision: str                       # accepted | excluded
     config_id: Optional[str] = None     # coordinator-chosen machine for unknown / ambiguous lines
+    reuse_equipment_ids: List[str] = []  # coordinator-confirmed: these serial-less units ARE the machines on this line
 
 
 class ImportApplyIn(BaseModel):
@@ -4232,22 +4244,85 @@ async def apply_quote_import(import_id: str, body: ImportApplyIn, user=Depends(r
     ref = (imp.get("extracted") or {}).get("document_ref")
     evidence = {"import_id": import_id, "doc_type": imp["doc_type"], "document_ref": ref,
                 "document_date": (imp.get("extracted") or {}).get("document_date"), "sha256": imp["sha256"]}
-    claimed: set = set()
-    for ln in lines:  # validated above — nothing is written unless every line is decided
+    # One apply at a time per document (a stale lock older than 2 minutes is ignored).
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+    lock = await db.crm2_afs_quote_imports.update_one(
+        {"id": import_id, "$or": [{"applying_at": {"$exists": False}}, {"applying_at": None}, {"applying_at": {"$lt": stale}}]},
+        {"$set": {"applying_at": _now()}})
+    if not lock.modified_count:
+        raise HTTPException(409, "This document is already being applied — refresh in a moment.")
+    try:
+        created, reused, asset_ids, review = await _apply_import_lines(
+            imp, lines, dec, linked, site, stage, ref, evidence)
+    finally:
+        await db.crm2_afs_quote_imports.update_one({"id": import_id}, {"$set": {"applying_at": None}})
+    if review:
+        from utils.cm_actions import raise_action
+        await raise_action(_org(user), f"import:{import_id}:serialless", type_="equipment_verification",
+                           subject=f"Confirm serial-less machines: {ref or imp.get('filename') or 'document'}",
+                           body=f"{co.get('name')}: {len(review)} machine(s) without serial numbers may already be on the "
+                                "register from an earlier document. They were kept as separate provisional records — "
+                                "confirm whether they are the same physical machines before quoting.",
+                           contract={"company_id": co["id"]}, extra={"import_id": import_id, "candidates": review})
+    await db.crm2_afs_quote_imports.update_one({"id": import_id}, {"$set": {
+        "lines": lines, "site_id": site["id"], "asset_ids": asset_ids, "status": "applied", "updated_at": _now()}})
+    return {"import_id": import_id, "company_id": co["id"], "company_name": co.get("name"), "site_ids": [site["id"]],
+            "asset_ids": asset_ids, "equipment_created": created, "equipment_reused": reused,
+            "possible_duplicates": review,
+            "document_ref": (imp.get("extracted") or {}).get("document_ref"), "doc_type": imp["doc_type"]}
+
+
+async def _claim_equipment(key: str, eq: dict) -> dict:
+    """Create the machine once per claim key; a concurrent loser gets the winner's record."""
+    from pymongo.errors import DuplicateKeyError
+    try:
+        await db.crm2_afs_equipment_claims.insert_one({"key": key, "equipment_id": eq["id"], "created_at": _now()})
+    except DuplicateKeyError:
+        won = await db.crm2_afs_equipment_claims.find_one({"key": key}, {"_id": 0})
+        got = await db.equipment.find_one({"id": won["equipment_id"]}, {"_id": 0})
+        if got:
+            return {**got, "_reused": True}
+        await db.crm2_afs_equipment_claims.update_one({"key": key}, {"$set": {"equipment_id": eq["id"]}})
+    await db.equipment.insert_one(dict(eq))
+    return eq
+
+
+async def _apply_import_lines(imp, lines, dec, linked, site, stage, ref, evidence):
+    """Existing serials are reused; serial-less units are only reused for the same
+    document line or when the coordinator confirms them — never merged on model+site."""
+    await db.crm2_afs_equipment_claims.create_index("key", unique=True)
+    import_id = imp["id"]
+    asset_ids, created, reused, review, claimed = [], 0, 0, [], set()
+    for ln in lines:
         if ln["decision"] == "excluded":
             continue
         m = ln["matched"]
+        d = dec.get(ln["line_no"])
+        confirmed = list((d.reuse_equipment_ids if d else []) or [])
         for k in range(ln["quantity"]):
             serial = ln["serials"][k] if k < len(ln["serials"]) else ""
             key = f"{import_id}:{ln['line_no']}:{k}"
             eq = await db.equipment.find_one({"organization_id": linked, "serial_number": serial}, {"_id": 0}) if serial \
                 else await db.equipment.find_one({"organization_id": linked, "source_import_line": key}, {"_id": 0})
-            if not eq and not serial:
-                # Serial-less unit already identified by an earlier document (e.g. invoice → delivery note).
+            if not eq and not serial and confirmed:
                 eq = await db.equipment.find_one(
+                    {"organization_id": linked, "site_id": site["id"], "id": confirmed.pop(0),
+                     "serial_number": {"$in": [None, ""]}, "lifecycle_stage": {"$in": list(PENDING_INSTALL_STAGES)}},
+                    {"_id": 0})
+                if not eq:
+                    raise HTTPException(400, f"Line {ln['line_no']}: the confirmed machine is not an unverified serial-less unit at this site.")
+            if eq and eq["id"] in claimed:
+                raise HTTPException(400, f"Line {ln['line_no']}: the same machine cannot be used twice in one document.")
+            if not eq and not serial:
+                cands = await db.equipment.find(
                     {"organization_id": linked, "site_id": site["id"], "model": m.get("model"),
                      "serial_number": {"$in": [None, ""]}, "lifecycle_stage": {"$in": list(PENDING_INSTALL_STAGES)},
-                     "id": {"$nin": list(claimed)}}, {"_id": 0}, sort=[("created_at", 1)])
+                     "source_import_line": {"$not": {"$regex": f"^{re.escape(import_id)}:"}}},
+                    {"_id": 0, "id": 1, "source_document_ref": 1, "lifecycle_stage": 1}).to_list(50)
+                if cands:
+                    review.append({"line_no": ln["line_no"], "unit": k + 1, "model": m.get("model"),
+                                   "candidates": [c["id"] for c in cands],
+                                   "candidate_documents": sorted({c.get("source_document_ref") or "" for c in cands})})
             if eq:
                 reused += 1
                 upd = {"$addToSet": {"source_evidence": evidence}, "$set": {"updated_at": _now()}}
@@ -4255,20 +4330,19 @@ async def apply_quote_import(import_id: str, body: ImportApplyIn, user=Depends(r
                     upd["$set"]["lifecycle_stage"] = stage       # forward only; verified/active kit untouched
                 await db.equipment.update_one({"id": eq["id"]}, upd)
             else:
-                eq = {"id": _id(), "organization_id": linked, "site_id": site["id"], "location": site["name"],
-                      "name": m.get("model") or ln.get("model"), "model": m.get("model"),
-                      "console_type": m.get("console_type") or "", "manufacturer": ln.get("make") or "",
-                      "serial_number": serial, "status": "pending_installation", "lifecycle_stage": stage,
-                      "install_verified": False, "install_date": None, "warranty_expiry": None,
-                      "source": "quote_import", "source_import_line": key, "source_doc_type": imp["doc_type"],
-                      "source_document_ref": ref, "source_evidence": [evidence],
-                      "item_code": ln.get("item_code"), "created_at": _now(), "updated_at": _now()}
-                await db.equipment.insert_one(dict(eq))
-                created += 1
+                new = {"id": _id(), "organization_id": linked, "site_id": site["id"], "location": site["name"],
+                       "name": m.get("model") or ln.get("model"), "model": m.get("model"),
+                       "console_type": m.get("console_type") or "", "manufacturer": ln.get("make") or "",
+                       "serial_number": serial, "status": "pending_installation", "lifecycle_stage": stage,
+                       "install_verified": False, "install_date": None, "warranty_expiry": None,
+                       "source": "quote_import", "source_import_line": key, "source_doc_type": imp["doc_type"],
+                       "source_document_ref": ref, "source_evidence": [evidence],
+                       "item_code": ln.get("item_code"), "created_at": _now(), "updated_at": _now()}
+                eq = await _claim_equipment(f"{linked}:sn:{serial}" if serial else f"{linked}:line:{key}", new)
+                if eq.pop("_reused", False):
+                    reused += 1
+                else:
+                    created += 1
             claimed.add(eq["id"])
             asset_ids.append(eq["id"])
-    await db.crm2_afs_quote_imports.update_one({"id": import_id}, {"$set": {
-        "lines": lines, "site_id": site["id"], "asset_ids": asset_ids, "status": "applied", "updated_at": _now()}})
-    return {"import_id": import_id, "company_id": co["id"], "company_name": co.get("name"), "site_ids": [site["id"]],
-            "asset_ids": asset_ids, "equipment_created": created, "equipment_reused": reused,
-            "document_ref": (imp.get("extracted") or {}).get("document_ref"), "doc_type": imp["doc_type"]}
+    return created, reused, asset_ids, review
