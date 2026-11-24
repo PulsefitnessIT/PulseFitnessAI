@@ -4222,6 +4222,8 @@ async def apply_quote_import(import_id: str, body: ImportApplyIn, user=Depends(r
             continue
         if "already_covered" in ln.get("flags", []):
             raise HTTPException(400, f"Line {ln['line_no']} is already under an active contract — exclude it.")
+        if "unsupported" in ln.get("flags", []):
+            raise HTTPException(400, f"Line {ln['line_no']} is not eligible for maintenance — exclude it or refer it for a supportability decision.")
         if not ln.get("matched"):
             raise HTTPException(400, f"Line {ln['line_no']} needs a machine chosen before it can be included.")
     stage = IMPORT_STAGE[imp["doc_type"]]

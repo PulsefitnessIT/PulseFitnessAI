@@ -752,9 +752,10 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
     const st = coReq.current;
     clearTimeout(st.timer);
     st.ctrl?.abort();
+    st.seq += 1;  // any in-flight response is now stale
     const term = q.trim();
-    if (term.length < 2) { st.seq += 1; setCoResults(null); setCoLoading(false); return; }
-    setCoLoading(true);
+    if (term.length < 2) { setCoResults(null); setCoLoading(false); return; }
+    setCoResults(null); setCoLoading(true);
     st.timer = setTimeout(async () => {
       const seq = ++st.seq;
       st.ctrl = new AbortController();
@@ -865,7 +866,7 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
                   <td>
                     <select data-testid={`afs-aq-import-decision-${ln.line_no}`} value={state(ln)} onChange={e => setDec(d => ({ ...d, [ln.line_no]: { ...(d[ln.line_no] || {}), decision: e.target.value } }))} className="px-1 py-0.5 rounded text-[11px]" style={inpStyle}>
                       {state(ln) === 'review' && <option value="review">Needs review</option>}
-                      <option value="accepted" disabled={(!ln.matched || (ln.variant_options || []).length > 0) && !dec[ln.line_no]?.config_id}>{ln.auto_accepted ? 'Matched (exact code)' : 'Include'}</option>
+                      <option value="accepted" disabled={ln.flags.includes('already_covered') || ln.flags.includes('unsupported') || ((!ln.matched || (ln.variant_options || []).length > 0) && !dec[ln.line_no]?.config_id)}>{ln.auto_accepted ? 'Matched (exact code)' : 'Include'}</option>
                       <option value="excluded">Exclude</option>
                     </select>
                   </td>
