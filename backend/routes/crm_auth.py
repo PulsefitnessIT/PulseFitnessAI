@@ -78,7 +78,9 @@ async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentia
                 {"email": email_lc},
                 {"_id": 0, "id": 1, "email": 1, "role": 1, "allowed_site_ids": 1,
                  "is_master_admin": 1, "is_pulse_admin": 1, "is_org_owner": 1,
-                 "organization_id": 1, "module_overrides": 1, "crm_workspace_role": 1},
+                 "organization_id": 1, "module_overrides": 1, "crm_workspace_role": 1,
+                 "crm_workspace_extra_permissions": 1, "crm_override_from_workspace": 1,
+                 "department": 1, "full_name": 1},
             )
             if email_lc else None
         ) or {}

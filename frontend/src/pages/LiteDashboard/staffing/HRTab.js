@@ -1627,6 +1627,12 @@ export default function HRTab({ headers, isManager, canGrant = false, scopedView
 
   const active = filtered.find((s) => s.id === activeId) || filtered[0];
   const [showAccess, setShowAccess] = useState(false);
+  const [canAccessAdmin, setCanAccessAdmin] = useState(false);
+  useEffect(() => {
+    if (!isManager) return;
+    axios.get(`${API}/staffing/system-access/can`, { headers }).then((r) => setCanAccessAdmin(!!r.data.allowed)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManager]);
 
   return (
     <div className="space-y-3" data-testid="hr-tab">
@@ -1638,11 +1644,11 @@ export default function HRTab({ headers, isManager, canGrant = false, scopedView
       {isManager && (
         <div className="flex items-center justify-end gap-2 flex-wrap">
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={() => setShowAccess((v) => !v)}
+            {canAccessAdmin && <button type="button" onClick={() => setShowAccess((v) => !v)}
               className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="hr-system-access-btn">
               System Access
-            </button>
+            </button>}
             <button type="button" onClick={reconcileRoles} disabled={reconciling}
               className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}

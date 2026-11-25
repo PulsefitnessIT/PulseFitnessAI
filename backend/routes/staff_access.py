@@ -3,6 +3,8 @@
 Uses the same identity as Staffing & HR (staff_members.user_id → users.id) and the same
 permission sources as the Contracts workspace (crm_workspace_role) and MOD quotations (mod_quote_role).
 """
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from utils.auth import get_current_user
@@ -19,6 +21,11 @@ MOD_ROLES = {"": "MOD Sales (draft only)", "manager": "MOD Sales Manager (approv
 USER_PROJ = {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1, "organization_id": 1, "active": 1, "is_active": 1,
              "disabled": 1, "module_overrides": 1, "crm_workspace_role": 1, "crm_workspace_extra_permissions": 1,
              "mod_quote_role": 1, "is_master_admin": 1, "is_pulse_admin": 1, "department": 1, "last_login": 1}
+
+
+def _owner_level(user: dict) -> bool:
+    role = str(user.get("role") or "").lower()
+    return is_platform_admin(user) or role in ("owner", "org_owner") or bool(user.get("is_org_owner"))
 
 
 async def _admin(user=Depends(get_current_user)) -> dict:
@@ -50,10 +57,21 @@ async def _row(st: dict | None, u: dict | None, op_ids: set, dupes: set) -> dict
     explicit = (u or {}).get("crm_workspace_role")
     mod_ops = has_mod_operations(u) if u else False
     if st and not u:
+        email = (st.get("email") or "").strip()
+        platform = email and await db.users.find_one(
+            {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}, "$or": [{"is_master_admin": True}, {"is_pulse_admin": True}]}, {"_id": 1})
+        if platform:
+            u = None
+            return {**(await _row(None, None, op_ids, dupes)), "staff_id": st.get("id"), "name": st.get("full_name"), "email": email,
+                    "job_title": st.get("primary_role"), "department": st.get("department"), "status": "ok",
+                    "login_active": True, "contracts_role": "admin", "contracts_role_label": "Administrator",
+                    "contracts_role_source": "platform admin", "contracts_access": True, "mod_operations_access": True,
+                    "issues": [], "note": "Signs in with the platform Master Admin account"}
         issues.append("No login account linked")
     if u and not st and not is_platform_admin(u):
         issues.append("Login has no Staffing & HR record")
-    employed = (st or {}).get("status", "active") not in ("archived", "terminated", "left", "inactive")
+    employed = ((st or {}).get("status", "active") not in ("archived", "terminated", "left", "inactive")
+                and (st or {}).get("active", True) is not False and (st or {}).get("lifecycle_stage") != "leaver")
     if u and st and not employed and _login_active(u):
         issues.append("Employee has left but login is still active")
     if u and _login_active(u) and not explicit and role not in (NO_ROLE, "admin") and not is_platform_admin(u):
@@ -90,6 +108,15 @@ async def _row(st: dict | None, u: dict | None, op_ids: set, dupes: set) -> dict
         "mod_operations_access": mod_ops, "mod_quote_role": (u or {}).get("mod_quote_role") or "",
         "issues": issues, "status": status,
     }
+
+
+@router.get("/can")
+async def can_administer(user=Depends(get_current_user)):
+    try:
+        await _admin(user)
+        return {"allowed": True}
+    except HTTPException:
+        return {"allowed": False}
 
 
 @router.get("")
@@ -148,6 +175,10 @@ async def set_access(user_id: str, data: dict, user=Depends(_admin)):
         raise HTTPException(403, "Master Admin access can only be changed by a Master Admin")
     actor = user.get("email") or user.get("id")
     changes = []
+    if not _owner_level(user) and ({"mod_operations", "mod_quote_role"} & set(data) or data.get("contracts_role") == "admin"):
+        raise HTTPException(403, "Only a Master Admin or company owner can grant MOD access or the Administrator role")
+    if "extra_permissions" in data and not isinstance(data["extra_permissions"], list):
+        raise HTTPException(400, "extra_permissions must be a list")
     if "contracts_role" in data:
         role = data["contracts_role"] or None
         if role not in (None, *ASSIGNABLE_ROLES):
@@ -176,13 +207,12 @@ async def set_access(user_id: str, data: dict, user=Depends(_admin)):
     if "mod_operations" in data:
         on = bool(data["mod_operations"])
         if on != has_mod_operations(target):
-            await db.users.update_one({"id": user_id}, {"$set": {"module_overrides.mod_operations": on}})
+            upd = {"module_overrides.mod_operations": on} | ({} if on else {"mod_quote_role": None})
+            await db.users.update_one({"id": user_id}, {"$set": upd})
             await db.crm_workspace_role_audit.insert_one({"user_id": user_id, "email": target.get("email"), "kind": "mod_operations",
                                                          "from": not on, "to": on, "by": actor, "at": _now()})
             changes.append("mod_operations")
-    if changes:
-        # Permissions are re-resolved on every request; force a fresh sign-in so menus refresh too.
-        await db.users.update_one({"id": user_id}, {"$set": {"access_changed_at": _now()}})
+    # Permissions are re-resolved on every request, so changes apply on the person's next page load.
     return {"ok": True, "changed": changes}
 
 

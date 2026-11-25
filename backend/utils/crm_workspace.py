@@ -25,7 +25,7 @@ LEGACY_ROLE = "crm_user"
 NO_ROLE = "none"
 # Sensitive extras granted per person on top of a role (audited), never by job title.
 EXTRA_PERMISSIONS = {"finance.post": "Post financial transactions", "billing.reconcile": "Reconcile financial records"}
-_SALES_HINTS = ("sales",)
+_SALES_PLATFORM_ROLES = ("sales", "sales_rep", "sales_user")
 
 ALL_PERMISSIONS = {
     "workspace.crm", "workspace.contract_management",
@@ -103,7 +103,9 @@ def derive_role(platform_user: dict) -> str:
     dept = str(platform_user.get("department") or "").lower()
     mo = platform_user.get("module_overrides") if isinstance(platform_user.get("module_overrides"), dict) else {}
     crm_granted = mo.get("crm") is True and not platform_user.get("crm_override_from_workspace")
-    if crm_granted or any(h in role for h in _SALES_HINTS) or dept in ("sales", "sales admin"):
+    # Default CRM sales access only follows an explicit CRM module grant, a sales login role or
+    # membership of the Sales departments — never a job title.
+    if crm_granted or role in _SALES_PLATFORM_ROLES or dept in ("sales", "sales admin"):
         return "sales_manager"
     return NO_ROLE
 
@@ -134,7 +136,7 @@ async def set_explicit_role(platform_user: dict, role: Optional[str], actor: str
     updates: dict = {"crm_workspace_role": role, "crm_workspace_role_updated_at": _now()}
     overrides = platform_user.get("module_overrides") if isinstance(platform_user.get("module_overrides"), dict) else {}
     granted_by_ws = bool(platform_user.get("crm_override_from_workspace"))
-    if role in CM_ROLES and overrides.get("crm") is not True:
+    if (role in CM_ROLES or role == "sales_manager") and overrides.get("crm") is not True:
         updates["module_overrides.crm"] = True
         updates["crm_override_from_workspace"] = True
         granted_by_ws = True
@@ -172,8 +174,7 @@ async def resolve_workspace_role(platform_user: Optional[dict], op_ids: Optional
     if not platform_user.get("department"):
         staff = await linked_staff(platform_user)
         if staff:
-            platform_user = {**platform_user, "department": staff.get("department"),
-                             "role": f"{platform_user.get('role') or ''} {staff.get('primary_role') or ''}".strip()}
+            platform_user = {**platform_user, "department": staff.get("department")}
     return derive_role(platform_user)
 
 
@@ -312,8 +313,8 @@ async def release_departing_staff(platform_user: dict, actor: str) -> dict:
     now = _now()
     if platform_user.get("crm_workspace_role"):
         await set_explicit_role(platform_user, None, actor=f"offboarding:{actor}")
-    if platform_user.get("mod_quote_role"):
-        await db.users.update_one({"id": uid}, {"$set": {"mod_quote_role": None}})
+    if platform_user.get("mod_quote_role") or (platform_user.get("module_overrides") or {}).get("mod_operations"):
+        await db.users.update_one({"id": uid}, {"$set": {"mod_quote_role": None, "module_overrides.mod_operations": False}})
         await db.crm_workspace_role_audit.insert_one({"user_id": uid, "email": platform_user.get("email"), "kind": "mod_quote_role",
                                                      "from": platform_user.get("mod_quote_role"), "to": None,
                                                      "by": f"offboarding:{actor}", "at": now})

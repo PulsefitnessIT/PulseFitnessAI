@@ -1,0 +1,46 @@
+{
+  "summary": "Tested Staffing & HR <-> Contract Management / MOD permissions sprint (preview only, fictional *.test users only, all reverted). Backend: 30 new tests (HTTP + in-process) -> 28 pass, 2 real bugs found. Also fixed 1 bug: extra permissions such as finance.post never reached the CRM/Contracts session. derive_role fix confirmed (vc.driver -> none / empty / both workspaces false; cm.sales -> sales_manager with CRM). The role matrix for coordinator, aftersales, finance and admin is correct. System Access list, summary, filters and authz work (master admin 200, cm.admin 200, cm.coordinator 403 on GET and PUT). The PUT changes for contracts_role, extra_permissions and mod_operations/mod_quote_role all work and are audited. Unknown role -> 400. The job-role catalogue has all the new titles. Offboarding release_departing_staff was verified on synthetic docs: role and MOD role cleared with audit rows, open activity -> system with owner_history, completed activity untouched, portfolio coordinator cleared with history. /mod-commitments returns 200 for the coordinator and 403 for noaccess, with items=[]. Frontend: System Access panel (summary, 3 filters, rows, select with confirm, MOD ops checkbox, History drawer) works for master admin. The change and revert were done only on the cm.noaccess row. Contract Management as cm.coordinator shows all 9 nav items, the Contracts section renders, and Settings has no Workspace roles panel. MOD regression: the Schedule of Rates shows the mq-sor-ready banner with no Source column. The iter318 suite (draft->submit->approve with Year 4 rates) passes.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "utils/crm_workspace.py derive_role (affects /auth/me, /crm/workspace/me, all require_crm_perm routes)", "issue": "The job title alone grants privileged CRM access. _SALES_HINTS=('sales',) is matched as a substring of the combined 'platform role + staff primary_role'. So the new job title 'service_aftersales_manager' (afterSALES) resolves to sales_manager with no explicit assignment: workspace.crm, quotes.mod, renewals.approve, pricing.commercial. Reproduced in-process with a synthetic user (test_job_title_grants_nothing[service_aftersales_manager]). This breaks the requirement that a job title never grants privileged access. Also note: the job title 'sales_manager' still grants sales_manager by default (by design per code comment, but it is still job-title based).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "PUT /api/staffing/system-access/{id} contracts_role='sales_manager'", "issue": "An explicit Sales Manager assignment to a user whose CRM module is off (cm.noaccess) gives crm_workspace_role=sales_manager but crm_workspaces.crm=false, because set_explicit_role only auto-enables module_overrides.crm for CM_ROLES. The admin sees the role as 'Configured correctly' but the person can't reach CRM. Either enable CRM for sales_manager too, or flag it as needs_review."},
+      {"endpoint": "GET /api/crm/auth/* get_crm_user (routes/crm_auth.py)", "issue": "FIXED by testing agent. The primary-user projection omitted crm_workspace_extra_permissions, so an extra finance.post grant from System Access never showed in /crm/workspace/me or CM endpoints. Added crm_workspace_extra_permissions, crm_override_from_workspace, department and full_name to the projection."},
+      {"endpoint": "PUT /api/staffing/system-access", "issue": "A Contracts Administrator (permissions.admin) can also grant MOD Operations and MOD pricing_admin roles, and can grant Administrator to anyone, including themselves. That lets access cross from the CM domain into MOD. Consider limiting MOD fields to master admin or org owner."},
+      {"endpoint": "staff_access.py set_access", "issue": "Sets access_changed_at and the comment says 'force a fresh sign-in', but nothing reads access_changed_at. No session is invalidated (permissions are re-resolved per request, so this is only cosmetic/misleading). The body is a raw dict with no Pydantic validation: a string extra_permissions value would be iterated by character."},
+      {"endpoint": "staffing_hr complete offboarding", "issue": "release_departing_staff only runs when staff.user_id is linked, not when the login is matched by email. module_overrides.mod_operations is not revoked, only mod_quote_role. staff_members.status is not set to archived/left, so the System Access 'employee left but login active' check depends on the status field that offboarding never sets."},
+      {"endpoint": "tests/test_mod_quote_chase_iter319.py", "issue": "Stale test: 2 failures (KeyError 'version'). /rates/current now intentionally hides live_price_list.version from non-master-admin staff. Update the test, not the code."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Contract Management as cm.coordinator", "issue": "One 401 'Failed to load resource' console error on load. Not user-visible. ModCommitments falls back to the platform token, which get_crm_user rejects if crm_token is missing.", "affected_selectors": ["cm-mod-commitments"]}
+    ],
+    "design_issues": [
+      {"screen": "System Access panel", "issues": ["The History drawer (sa-audit) lists up to 100 entries inline with no max-height/scroll and pushes the table far down. Cap the height or paginate.", "The 'Master Admin' staff record shows 'No login account linked' because the master-admin login lives in the platform org. That's misleading on the admin view.", "Unticking MOD Operations leaves any mod_quote_role in place, so the row then shows the 'Has a MOD quotation role but no MOD Operations access' review issue. Consider clearing both together.", "The hr-system-access-btn shows for any isManager, but the API allows only owner, master admin or permissions.admin. A plain manager sees the error panel."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_system_access_iter320.py", "/app/backend/tests/test_staff_access_inprocess_iter320.py", "/app/backend/tests/test_system_access_sales_probe_iter320.py", "/app/test_reports/pytest/iter320_system_access.xml", "/app/test_reports/pytest/iter320_mod_regression.xml"],
+  "action_items": [
+    "HIGH: make derive_role sales detection exact (for example token match on 'sales'/'sales_manager', explicitly excluding 'aftersales'/'service_aftersales_manager'). Better still, remove the job-title default entirely so that only an explicit crm module grant or department gives sales access.",
+    "Auto-enable the CRM module, or flag needs_review, when contracts_role 'sales_manager' is explicitly assigned to a user whose CRM module is off.",
+    "Restrict MOD fields (mod_operations / mod_quote_role) in System Access PUT to master admin or org owner, not Contracts Administrators.",
+    "Offboarding: also revoke module_overrides.mod_operations, set the staff status to a leaver value, and fall back to email-linked logins.",
+    "Update tests/test_mod_quote_chase_iter319.py for the hidden live_price_list.version.",
+    "Cap the height of the sa-audit drawer."
+  ],
+  "critical_code_review_comments": [
+    "derive_role uses substring matching on free-text roles ('sales' in role). This is fragile and matches 'aftersales'.",
+    "staff_access.set_access accepts a raw dict with no Pydantic model.",
+    "access_changed_at is written but never enforced.",
+    "get_crm_user swallows every exception (bare except: pass) around the workspace context and site scope. A failure there silently leaves the user without workspace context or site scope."
+  ],
+  "updated_files": ["/app/backend/routes/crm_auth.py (projection fix)", "/app/backend/tests/test_system_access_iter320.py", "/app/backend/tests/test_staff_access_inprocess_iter320.py", "/app/backend/tests/test_system_access_sales_probe_iter320.py", "/app/backend/tests/_snapshot_cm_test_users.py", "/app/backend/tests/_restore_cm_test_users_iter320.py"],
+  "success_rate": {"backend": "93% (28/30 new; 2 failures are real bugs); MOD regression 23/25 (2 stale-test failures)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None persisted. Synthetic TEST_synth_* users, staff, companies and activities were created in-process and deleted (0 leftovers verified). cm.* test users were snapshotted before and after: identical.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_system_access_iter320.py tests/test_staff_access_inprocess_iter320.py tests/test_system_access_sales_probe_iter320.py -p no:xdist. Then run python tests/_restore_cm_test_users_iter320.py and diff against python tests/_snapshot_cm_test_users.py. The UI path is /dashboard?tab=staffing -> staffing-tab-people -> staffing-subtab-hr -> hr-system-access-btn. Use click(force) rather than check() on sa-mod-ops: it is a controlled checkbox that updates after reload. CM coordinator: log in at /login?next=/contract-management. Nav testids are crm-nav-{id}. Master admin MFA is currently not enforced at login (a token is returned directly)."
+}

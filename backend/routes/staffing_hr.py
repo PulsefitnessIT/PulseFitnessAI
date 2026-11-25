@@ -46,6 +46,7 @@ see the whole org; staff see only their own records.
 """
 from __future__ import annotations
 
+import re
 import logging
 from uuid import uuid4
 
@@ -652,16 +653,19 @@ async def complete_offboarding(staff_id: str, user: dict = Depends(get_current_u
             {"$set": {"active": False, "tokens_revoked_before": int(_now().timestamp()),
                       "updated_at": _now().isoformat()}})
     released = {}
-    if uid:
-        from utils.crm_workspace import release_departing_staff
-        leaver = await db.users.find_one({"id": uid}, {"_id": 0})
+    leaver = await db.users.find_one({"id": uid}, {"_id": 0}) if uid else None
+    if not leaver and (staff.get("email") or "").strip():
+        leaver = await db.users.find_one({"organization_id": org_id, "email": {"$regex": f"^{re.escape(staff['email'].strip())}$", "$options": "i"}}, {"_id": 0})
         if leaver:
-            released = await release_departing_staff(leaver, user.get("email") or user.get("id"))
+            await db.users.update_one({"id": leaver["id"]}, {"$set": {"active": False, "tokens_revoked_before": int(_now().timestamp())}})
+    if leaver:
+        from utils.crm_workspace import release_departing_staff
+        released = await release_departing_staff(leaver, user.get("email") or user.get("id"))
     await db.staff_offboarding_cases.update_one(
         {"id": case["id"]},
         {"$set": {"status": "complete", "completed_at": _now().isoformat(),
-                  "completed_by": user.get("full_name"), "access_revoked": bool(uid), "work_released": released}})
-    return {"ok": True, "access_revoked": bool(uid), "termination_date": lwd, "work_released": released}
+                  "completed_by": user.get("full_name"), "access_revoked": bool(leaver), "work_released": released}})
+    return {"ok": True, "access_revoked": bool(leaver), "termination_date": lwd, "work_released": released}
 
 
 # ═════════════════ Full Employee File export (PDF / Excel) ═════════════════

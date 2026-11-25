@@ -82,7 +82,7 @@ def _published_group(rep, mgr, key_suffix):
 def test_rates_current_year4_live(mgr):
     d = mgr.get(f"{MQ}/rates/current").json()
     assert d["customer_ready"] is True, d["summary"]
-    assert d["live_price_list"]["version"] == LIVE_VERSION
+    assert "version" not in d["live_price_list"]  # provenance is Master Admin only
     assert d["live_price_list"]["effective_from"] == "2026-11-25"
     by = {}
     for r in d["rows"]:
@@ -92,7 +92,7 @@ def test_rates_current_year4_live(mgr):
     assert by["Call Out Charge (Type B / UK Only)"]["a"]["status"] == "n/a"
     assert by["Spinning Bikes"]["a"]["price"] == 56.73
     assert by["Rowing Machine"]["a"]["price"] == 72.56
-    assert by["Radiant/Freedom Trainer"]["a"]["price"] == 145.12
+    assert by["Radiant Trainer"]["a"]["price"] == 145.12 and by["Freedom Trainer"]["a"]["price"] == 145.12
     assert by["Multigym, 4 Station"]["a"]["price"] == 145.12
     for lbl, a in (("Multigym, 5 Station", 207.5), ("Multigym, 7 Station", 207.5), ("Multigym, 8 Station", 257.5),
                    ("Multigym, 9 Station", 257.5), ("Multigym, 10 Station", 257.5), ("Multigym, 12 Station", 257.5)):
@@ -223,4 +223,4 @@ def test_synthetic_guard(mgr):
 
 def test_live_list_unchanged(mgr):
     d = mgr.get(f"{MQ}/rates/current").json()
-    assert d["live_price_list"]["version"] == LIVE_VERSION and d["customer_ready"] is True
+    assert d["customer_ready"] is True

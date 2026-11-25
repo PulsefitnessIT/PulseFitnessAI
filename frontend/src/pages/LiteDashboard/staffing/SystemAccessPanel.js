@@ -29,7 +29,7 @@ function AuditDrawer({ row, headers, onClose }) {
       <div className="flex justify-between font-semibold mb-2"><span>Access history — {row.name}</span>
         <button type="button" onClick={onClose} aria-label="Close history" data-testid="sa-audit-close"><X size={14} /></button></div>
       {!items ? <Loader2 size={14} className="animate-spin" /> : !items.length ? <div style={{ color: 'var(--theme-text-muted)' }}>No access changes recorded.</div> : (
-        <ul className="space-y-1">{items.map((h, i) => (
+        <ul className="space-y-1 max-h-48 overflow-y-auto">{items.map((h, i) => (
           <li key={`${h.at}-${i}`}>{new Date(h.at).toLocaleString('en-GB')} · {title(h.kind || 'contracts_role')}: {JSON.stringify(h.from ?? h.from_role ?? null)} → {JSON.stringify(h.to ?? h.to_role ?? null)} · by {h.by || h.actor}</li>
         ))}</ul>
       )}

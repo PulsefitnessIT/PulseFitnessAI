@@ -11,8 +11,9 @@ export default function ModCommitments() {
   const [items, setItems] = useState(null);
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    const tok = localStorage.getItem('crm_token') || localStorage.getItem('token');
-    axios.get(API, { headers: tok ? { Authorization: `Bearer ${tok}` } : {}, withCredentials: true })
+    const tok = localStorage.getItem('crm_token');
+    if (!tok) { setItems([]); return; }
+    axios.get(API, { headers: { Authorization: `Bearer ${tok}` }, withCredentials: true })
       .then((r) => setItems(r.data.items)).catch(() => setItems([]));
   }, []);
   if (!items || !items.length) return null;
