@@ -9,7 +9,7 @@ import pytest
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 TEST_TAG = f"TESTONB{uuid.uuid4().hex[:6]}"
 

@@ -22,7 +22,7 @@ if not BASE_URL:
                 BASE_URL = line.split("=", 1)[1].strip().rstrip("/")
 
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 OWNER_EMAIL = "owner@isodemo.com"
 OWNER_PASSWORD = "IsoDemo123!"
 

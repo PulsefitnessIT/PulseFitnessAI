@@ -89,6 +89,8 @@ def _role(user: dict) -> str:
 
 async def _require_bfpo(user=Depends(get_current_user)) -> dict:
     role = _role(user)
+    if user.get("is_active") is False or user.get("active") is False:
+        raise HTTPException(403, "Account disabled")
     if not role:
         raise HTTPException(403, "Not a MOD / BFPO portal user")
     return user
@@ -781,9 +783,13 @@ async def bfpo_sites(user=Depends(_require_bfpo)):
     ids = await _visible_site_ids(user)
     if ids is not None:
         q["id"] = {"$in": ids}
-    sites = await db.sites.find(q, {"_id": 0}).sort("name", 1).to_list(500)
-    if ids is not None:
-        sites += await db.organizations.find({"account_type": "mod_site", "id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1, "country": 1, "city": 1, "address": 1, "postcode": 1}).sort("name", 1).to_list(500)
+    sites = [{**s, "kind": "bfpo_site"} for s in await db.sites.find(q, {"_id": 0}).sort("name", 1).to_list(500)]
+    # MOD establishment records are allocatable sites too (Master Admin → External Service Providers).
+    # Staff resolve every establishment (for allocation); engineers only their own; leads keep the BFPO estate view.
+    if ids is not None or _role(user) == "staff":
+        oq = {"account_type": "mod_site"} if ids is None else {"account_type": "mod_site", "id": {"$in": ids}}
+        sites += [{**o, "kind": "mod_site"} for o in await db.organizations.find(
+            oq, {"_id": 0, "id": 1, "name": 1, "country": 1, "city": 1, "address": 1, "postcode": 1}).sort("name", 1).to_list(1000)]
     can_sensitive = _role(user) in ("lead", "staff")
     for s in sites:
         if not can_sensitive:
@@ -1006,9 +1012,24 @@ async def staff_job_detail(case_id: str, user=Depends(_require_staff)):
 async def staff_engineers(user=Depends(_require_staff)):
     rows = await db.users.find(
         {"organization_id": BFPO_ORG_ID, "bfpo_role": {"$in": ["engineer", "lead"]}},
-        {"_id": 0, "id": 1, "full_name": 1, "email": 1, "bfpo_role": 1, "bfpo_territory_ids": 1},
+        {"_id": 0, "id": 1, "full_name": 1, "email": 1, "bfpo_role": 1, "bfpo_territory_ids": 1, "bfpo_site_ids": 1,
+         "is_active": 1},
     ).to_list(200)
     return {"engineers": rows}
+
+
+@router.get("/staff/jobs/{case_id}/coverage")
+async def staff_job_coverage(case_id: str, user=Depends(_require_staff)):
+    """Which engineers normally cover this job — used to warn before allocating outside coverage."""
+    from utils.bfpo_coverage import covers_case
+    case = await db.svc_cases.find_one({"id": case_id, **(await _ops_org_filter())}, {"_id": 0})
+    if not case:
+        raise HTTPException(404, "Job not found")
+    out = {}
+    async for e in db.users.find({"organization_id": BFPO_ORG_ID, "bfpo_role": {"$in": ["engineer", "lead"]}},
+                                 {"_id": 0, "id": 1, "bfpo_role": 1, "bfpo_territory_ids": 1, "bfpo_site_ids": 1, "is_active": 1}):
+        out[e["id"]] = {"covers": await covers_case(e, case), "active": e.get("is_active") is not False}
+    return {"engineers": out}
 
 
 @router.post("/staff/jobs/{case_id}/allocate")
@@ -1020,6 +1041,15 @@ async def staff_allocate(case_id: str, data: dict = Body(...), user=Depends(_req
     eng = await db.users.find_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
     if not eng:
         raise HTTPException(404, "Engineer not found")
+    if eng.get("is_active") is False:
+        raise HTTPException(409, "This engineer is deactivated — choose an active engineer")
+    from utils.bfpo_coverage import covers_case
+    override = (data.get("override_reason") or "").strip()
+    outside = not await covers_case(eng, case)
+    if outside and not override:
+        raise HTTPException(409, {"code": "outside_coverage",
+                                  "message": f"{eng.get('full_name') or 'This engineer'} does not normally cover this job's site. "
+                                             "Give a reason to allocate anyway."})
     handover = (data.get("handover") or "").strip()
     previous = case.get("assigned_engineer_name")
     await db.svc_cases.update_one(
@@ -1037,8 +1067,11 @@ async def staff_allocate(case_id: str, data: dict = Body(...), user=Depends(_req
     body = f"Allocated to {eng.get('full_name') or eng.get('email')}"
     if previous:
         body = f"Reallocated from {previous} to {eng.get('full_name') or eng.get('email')}"
+    if outside:
+        body += f" — outside normal coverage: {override}"
     await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="allocation",
-                       actor=user, body=body, extra={"engineer_id": eng_id, "handover": handover})
+                       actor=user, body=body, extra={"engineer_id": eng_id, "handover": handover,
+                                                     "coverage_override": override if outside else None})
     if handover:
         await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="note",
                            actor=user, body=handover, extra={"kind": "handover"})
@@ -1120,6 +1153,7 @@ def _public_member(u: dict) -> dict:
         "is_active": u.get("is_active", True),
         "invite_pending": bool(u.get("invite_pending")),
         "must_change_password": bool(u.get("must_change_password")),
+        "last_login": u.get("last_login"),
         "created_at": u.get("created_at"),
     }
 
@@ -1182,7 +1216,9 @@ async def staff_team(user=Depends(_require_staff)):
         {"_id": 0},
     ).to_list(500)
     rows.sort(key=lambda r: (r.get("bfpo_role") != "staff", (r.get("full_name") or "").lower()))
-    return {"members": [_public_member(r) for r in rows]}
+    from utils.bfpo_coverage import lookup, describe
+    terrs, sites = await lookup()
+    return {"members": [{**_public_member(r), **({"coverage": describe(r, terrs, sites)} if r.get("bfpo_role") != "staff" else {})} for r in rows]}
 
 
 @router.post("/staff/engineers")
@@ -1202,8 +1238,8 @@ async def create_engineer(data: dict = Body(...), user=Depends(_require_staff)):
     mode = (data.get("password_mode") or "invite").lower()
     if mode not in ("invite", "temp"):
         mode = "invite"
-    territory_ids = [t for t in (data.get("bfpo_territory_ids") or []) if t]
-    site_ids = [s for s in (data.get("bfpo_site_ids") or []) if s]
+    from utils.bfpo_coverage import validate_allocation
+    territory_ids, site_ids = await validate_allocation(data.get("bfpo_territory_ids"), data.get("bfpo_site_ids"))
     phone = (data.get("phone") or "").strip()
     uid = str(uuid.uuid4())
 
@@ -1265,10 +1301,12 @@ async def update_engineer(eng_id: str, data: dict = Body(...), user=Depends(_req
         updates["full_name"] = fn
     if "phone" in data:
         updates["phone"] = (data.get("phone") or "").strip()
-    if "bfpo_territory_ids" in data:
-        updates["bfpo_territory_ids"] = [t for t in (data.get("bfpo_territory_ids") or []) if t]
-    if "bfpo_site_ids" in data:
-        updates["bfpo_site_ids"] = [s for s in (data.get("bfpo_site_ids") or []) if s]
+    if "bfpo_territory_ids" in data or "bfpo_site_ids" in data:
+        from utils.bfpo_coverage import validate_allocation
+        t_ids, s_ids = await validate_allocation(
+            data["bfpo_territory_ids"] if "bfpo_territory_ids" in data else u.get("bfpo_territory_ids"),
+            data["bfpo_site_ids"] if "bfpo_site_ids" in data else u.get("bfpo_site_ids"))
+        updates["bfpo_territory_ids"], updates["bfpo_site_ids"] = t_ids, s_ids
     if "bfpo_role" in data:
         role = (data.get("bfpo_role") or "").lower()
         if role not in ("engineer", "lead", "staff"):
@@ -1294,11 +1332,51 @@ async def resend_invite(eng_id: str, user=Depends(_require_staff)):
     u = await db.users.find_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
     if not u:
         raise HTTPException(404, "Engineer not found")
-    await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID},
-                              {"$set": {"invite_pending": True, "is_active": True}})
+    if u.get("is_active") is False or u.get("active") is False:
+        raise HTTPException(409, "This engineer is deactivated — reactivate them first if they should have access")
+    await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": {"invite_pending": True}})
     u["invite_pending"] = True
     invite_url = await _issue_invite(u)
     return {"success": True, "invite_url": invite_url}
+
+
+async def _apply_job_decisions(jobs: list, decisions: dict, leaver: dict, user: dict):
+    """Reassign / return to queue / keep with a manager — every decision needs a reason and is logged."""
+    for j in jobs:
+        d = decisions[j["id"]]
+        action, reason = d.get("action"), (d.get("reason") or "").strip()
+        if action not in ("reassign", "unassign", "keep") or not reason:
+            raise HTTPException(422, f"Job {j.get('reference') or j['id']}: choose reassign, return to queue or keep, with a reason")
+        if action == "reassign":
+            new = await db.users.find_one({"id": d.get("engineer_id"), "organization_id": BFPO_ORG_ID,
+                                           "bfpo_role": {"$in": ["engineer", "lead"]}}, {"_id": 0})
+            if not new or new.get("is_active") is False or new["id"] == leaver["id"]:
+                raise HTTPException(422, f"Job {j.get('reference') or j['id']}: choose another active engineer")
+    for j in jobs:
+        d = decisions[j["id"]]
+        action, reason = d["action"], d["reason"].strip()
+        org = await _case_org(j["id"])
+        if action == "reassign":
+            new = await db.users.find_one({"id": d["engineer_id"]}, {"_id": 0, "id": 1, "full_name": 1, "email": 1})
+            name = new.get("full_name") or new.get("email")
+            await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"assigned_engineer_id": new["id"], "assigned_engineer_name": name, "updated_at": _now()}})
+            body = f"Reallocated from {leaver.get('full_name')} to {name} (engineer deactivated): {reason}"
+        elif action == "unassign":
+            await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"assigned_engineer_id": None, "assigned_engineer_name": None, "updated_at": _now()}})
+            body = f"Returned to the unassigned queue (engineer {leaver.get('full_name')} deactivated): {reason}"
+        else:
+            body = f"Kept with management while {leaver.get('full_name')} is deactivated: {reason}"
+            await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"deactivated_engineer_hold": True, "updated_at": _now()}})
+        await append_event(case_id=j["id"], organization_id=org, event_type="allocation", actor=user, body=body,
+                           extra={"deactivation_decision": action, "engineer_id": d.get("engineer_id")})
+
+
+@router.get("/staff/engineers/{eng_id}/open-jobs")
+async def engineer_open_jobs(eng_id: str, user=Depends(_require_staff)):
+    jobs = await db.svc_cases.find(
+        {"assigned_engineer_id": eng_id, "status": {"$in": list(OPEN_STATES)}},
+        {"_id": 0, "id": 1, "reference": 1, "title": 1, "status": 1, "site_name": 1}).to_list(500)
+    return {"jobs": jobs}
 
 
 @router.post("/staff/engineers/{eng_id}/status")
@@ -1307,8 +1385,17 @@ async def set_engineer_status(eng_id: str, data: dict = Body(...), user=Depends(
     u = await db.users.find_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
     if not u:
         raise HTTPException(404, "Engineer not found")
-    updates = {"is_active": active, "updated_at": _now()}
+    updates = {"is_active": active, "active": active, "updated_at": _now()}
     if not active:
+        open_jobs = await db.svc_cases.find(
+            {"assigned_engineer_id": eng_id, "status": {"$in": list(OPEN_STATES)}},
+            {"_id": 0, "id": 1, "reference": 1, "title": 1, "status": 1, "site_name": 1, "organization_id": 1}).to_list(500)
+        decisions = {d.get("case_id"): d for d in (data.get("job_decisions") or []) if isinstance(d, dict)}
+        missing = [j for j in open_jobs if j["id"] not in decisions]
+        if missing:
+            raise HTTPException(409, {"code": "open_jobs", "message": f"{len(missing)} open job(s) need a decision before deactivation",
+                                      "jobs": missing})
+        await _apply_job_decisions(open_jobs, decisions, u, user)
         # Kill any live sessions for a deactivated engineer.
         updates["tokens_revoked_before"] = int(datetime.now(timezone.utc).timestamp())
     await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})

@@ -8,7 +8,7 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 CHUNK_SIZE = int(1.5 * 1024 * 1024)  # 1.5 MB
 PDF_PATH = "/tmp/cars.pdf"

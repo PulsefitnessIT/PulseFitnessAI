@@ -8,7 +8,7 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL
 
 CREDS = {
     "owner":    ("owner@isodemo.com",           "IsoDemo123!"),
-    "admin":    ("admin@pulsefitness.com",      "C2s9yJ3YAhydB4d34-Bykg"),
+    "admin":    ("admin@pulsefitness.com",      os.environ["MASTER_ADMIN_PASSWORD"]),
     "dealer":   ("portal2@fitline.test",        "DealerDemo123!"),
     "logistics":("logi1@isodemo.com",           "LogiPass123!"),
     "staff":    ("portal.staff@pulsedemo.test", "Staff123!"),

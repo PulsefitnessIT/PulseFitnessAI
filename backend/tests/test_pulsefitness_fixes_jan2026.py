@@ -27,7 +27,7 @@ BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 # Make backend package importable for direct unit test of the PDF builder.
 sys.path.insert(0, REPO + "/backend")

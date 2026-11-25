@@ -26,7 +26,7 @@ def _read_frontend_env():
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _read_frontend_env() or "").rstrip("/")
 assert BASE_URL, "REACT_APP_BACKEND_URL not configured"
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 @pytest.fixture(scope="module")

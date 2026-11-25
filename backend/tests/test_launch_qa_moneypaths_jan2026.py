@@ -35,7 +35,7 @@ if not BASE_URL:
     pytest.skip("REACT_APP_BACKEND_URL not set", allow_module_level=True)
 
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+MASTER_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 OWNER_EMAIL = "owner@isodemo.com"
 OWNER_PASSWORD = "IsoDemo123!"
 MANAGER_EMAIL = "manager@isodemo.com"

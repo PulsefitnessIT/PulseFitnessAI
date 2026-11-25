@@ -7,7 +7,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+MASTER_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 NON_ADMIN_EMAIL = "owner@isodemo.com"
 NON_ADMIN_PASSWORD = "IsoDemo123!"
 

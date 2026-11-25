@@ -33,7 +33,7 @@ BASE = _get_base()
 API = f"{BASE}/api"
 
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PW = "C2s9yJ3YAhydB4d34-Bykg"
+MASTER_PW = os.environ["MASTER_ADMIN_PASSWORD"]
 CRM_EMAIL = "owner@isodemo.com"
 CRM_PW = "IsoDemo123!"
 MOD_ORG_ID = "abfdabd9-ae11-4877-a44d-a36fea7f1f4e"

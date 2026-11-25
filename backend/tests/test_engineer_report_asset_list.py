@@ -17,7 +17,7 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 BYPASS = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 mdb = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
-ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+ADMIN = ("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 OWNER = ("owner@isodemo.com", "IsoDemo123!")
 ADMIN_ORG = "d19de469-645a-4b66-93b1-52455a643f5b"
 ADMIN_ID = "1fedcc01-1f53-408a-bc48-017375348536"

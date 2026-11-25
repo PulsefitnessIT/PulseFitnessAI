@@ -22,7 +22,7 @@ def _read_env():
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _read_env()).rstrip("/")
 
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+MASTER_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 CRAIG_EMAIL = "craig.henshall@pulsefitness.com"
 CRAIG_PASSWORD = "PulseMOD123!"

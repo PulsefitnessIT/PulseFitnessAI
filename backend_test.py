@@ -3,6 +3,7 @@
 Pulse Fitness AI - Production Readiness Smoke Test
 Founder-level test of critical end-to-end paths for customer onboarding
 """
+import os
 import requests
 import sys
 import json
@@ -23,7 +24,7 @@ class PulseFitnessProductionTest:
         
         # Master admin credentials from test_credentials.md
         self.master_admin_email = "admin@pulsefitness.com"
-        self.master_admin_password = "C2s9yJ3YAhydB4d34-Bykg"
+        self.master_admin_password = os.environ["MASTER_ADMIN_PASSWORD"]
         
         # Test data cleanup tracking
         self.created_org_id = None

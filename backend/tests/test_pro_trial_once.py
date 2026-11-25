@@ -10,7 +10,7 @@ sys.path.insert(0, REPO + "/backend")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 ORG_ID = "12cba6ed-6f87-40a6-be51-e19d0ba60c2d"
 LITE = {"email": "lite.suptest@pulsedemo.test", "password": "LiteSup123!"}
-MASTER = {"email": "admin@pulsefitness.com", "password": "C2s9yJ3YAhydB4d34-Bykg"}
+MASTER = {"email": "admin@pulsefitness.com", "password": os.environ["MASTER_ADMIN_PASSWORD"]}
 
 
 def _db(coro_fn):

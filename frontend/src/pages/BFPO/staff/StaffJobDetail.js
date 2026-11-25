@@ -10,10 +10,12 @@ export default function StaffJobDetail({ jobId, onBack }) {
   const [handover, setHandover] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [cov, setCov] = useState({});
+  const [override, setOverride] = useState('');
 
   const load = useCallback(async () => {
-    const [j, e] = await Promise.all([bfpo.get(`/staff/jobs/${jobId}`), bfpo.get('/staff/engineers')]);
-    setJob(j.data); setEngineers(e.data.engineers);
+    const [j, e, c] = await Promise.all([bfpo.get(`/staff/jobs/${jobId}`), bfpo.get('/staff/engineers'), bfpo.get(`/staff/jobs/${jobId}/coverage`)]);
+    setJob(j.data); setEngineers(e.data.engineers); setCov(c.data.engineers);
     setEngId(j.data.assigned_engineer_id || '');
   }, [jobId]);
   useEffect(() => { load(); }, [load]);
@@ -21,12 +23,13 @@ export default function StaffJobDetail({ jobId, onBack }) {
   const allocate = async () => {
     setBusy(true); setMsg('');
     try {
-      await bfpo.post(`/staff/jobs/${jobId}/allocate`, { engineer_id: engId, handover });
-      setHandover(''); await load(); setMsg('Allocation saved');
-    } catch (e) { setMsg(e?.response?.data?.detail || 'Could not allocate'); }
+      await bfpo.post(`/staff/jobs/${jobId}/allocate`, { engineer_id: engId, handover, override_reason: outside ? override : '' });
+      setHandover(''); setOverride(''); await load(); setMsg('Allocation saved');
+    } catch (e) { const d = e?.response?.data?.detail; setMsg(typeof d === 'string' ? d : d?.message || 'Could not allocate'); }
     finally { setBusy(false); }
   };
 
+  const outside = !!engId && cov[engId] && !cov[engId].covers;
   if (!job) return <Spinner />;
 
   return (
@@ -56,13 +59,19 @@ export default function StaffJobDetail({ jobId, onBack }) {
           <Field label="Assign to engineer">
             <select className={inputCls} value={engId} onChange={(e) => setEngId(e.target.value)} data-testid="staff-allocate-engineer">
               <option value="">— choose —</option>
-              {engineers.map((e) => <option key={e.id} value={e.id}>{e.full_name} ({e.bfpo_role})</option>)}
+              {engineers.filter((e) => e.is_active !== false).map((e) => <option key={e.id} value={e.id}>{e.full_name} ({e.bfpo_role}){cov[e.id] && !cov[e.id].covers ? ' — outside normal coverage' : ''}</option>)}
             </select>
           </Field>
           <Field label="Handover note (optional)"><input className={inputCls} value={handover} onChange={(e) => setHandover(e.target.value)} placeholder="Context for the next engineer" data-testid="staff-allocate-handover" /></Field>
         </div>
+        {outside && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3" data-testid="staff-allocate-outside">
+            <p className="text-sm text-amber-800 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> This engineer does not normally cover this site. Allocating gives them access to this job — record why.</p>
+            <input className={`${inputCls} mt-2`} value={override} onChange={(e) => setOverride(e.target.value)} placeholder="Reason for allocating outside coverage (required)" data-testid="staff-allocate-override" />
+          </div>
+        )}
         <div className="flex items-center gap-3 mt-3">
-          <Btn variant="primary" disabled={busy || !engId} onClick={allocate} data-testid="staff-allocate-submit">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Save allocation</Btn>
+          <Btn variant="primary" disabled={busy || !engId || (outside && !override.trim())} onClick={allocate} data-testid="staff-allocate-submit">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Save allocation</Btn>
           {msg && <span className="text-sm text-slate-500" data-testid="staff-allocate-msg">{msg}</span>}
         </div>
       </Card>

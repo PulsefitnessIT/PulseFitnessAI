@@ -479,7 +479,7 @@ async def _mirror_crm_user_to_users(crm_user: dict, plaintext_password: str) -> 
 def _enforce_account_status(user: dict) -> None:
     """Refuse logins for disabled accounts or expired temp passwords. Raises
     ``HTTPException`` on failure; returns ``None`` when the account is good."""
-    if user.get("active") is False:
+    if user.get("active") is False or user.get("is_active") is False:
         # Provisioned-but-revoked accounts (e.g. removed Pulse Master Admins)
         # must not log in even if they still know their password.
         raise HTTPException(status_code=403, detail="Account disabled")

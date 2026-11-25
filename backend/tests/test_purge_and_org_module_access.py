@@ -21,7 +21,7 @@ if not _ENV:
         pass
 BASE_URL = (_ENV or "").rstrip("/")
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+MASTER_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 MASTER_ORG_ID = "d19de469-645a-4b66-93b1-52455a643f5b"
 
 

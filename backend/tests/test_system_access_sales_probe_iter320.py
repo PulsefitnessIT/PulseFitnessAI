@@ -13,7 +13,7 @@ def _clear():
 
 def test_sales_manager_assignment_reaches_crm():
     _clear()
-    t = requests.post(f"{BASE}/auth/login", json={"email": "admin@pulsefitness.com", "password": "C2s9yJ3YAhydB4d34-Bykg"}).json()["token"]
+    t = requests.post(f"{BASE}/auth/login", json={"email": "admin@pulsefitness.com", "password": os.environ["MASTER_ADMIN_PASSWORD"]}).json()["token"]
     h = {"Authorization": f"Bearer {t}"}
     try:
         assert requests.put(f"{BASE}/staffing/system-access/cm-test-none", json={"contracts_role": "sales_manager"}, headers=h).status_code == 200

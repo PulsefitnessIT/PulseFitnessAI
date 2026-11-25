@@ -10,7 +10,7 @@ import requests
 
 BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") + "/api"
 PW = "CmTest2026!"
-ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+ADMIN = ("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 
 
 def _clear():

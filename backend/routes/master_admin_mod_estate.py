@@ -1865,6 +1865,13 @@ async def _allocatable_sites() -> list:
     return out
 
 
+async def _validate_engineer_coverage(engineers: list) -> None:
+    """Dedupe + reject unknown territory/site ids for every engineer before any login is created."""
+    from utils.bfpo_coverage import validate_allocation
+    for e in engineers:
+        e["territory_ids"], e["site_ids"] = await validate_allocation(e.get("territory_ids"), e.get("site_ids"))
+
+
 async def _provision_provider_engineer(e: dict, supplier_id: str, provider_name: str,
                                        default_mod: bool, actor_id: str) -> dict:
     """Create ONE external-provider engineer as a /bfpo portal login, linked to
@@ -1881,8 +1888,8 @@ async def _provision_provider_engineer(e: dict, supplier_id: str, provider_name:
         "id": uid, "organization_id": BFPO_ORG_ID, "email": email, "username": email,
         "full_name": full_name, "phone": (e.get("phone") or "").strip(),
         "role": "engineer", "bfpo_role": "engineer",
-        "bfpo_territory_ids": [t for t in (e.get("territory_ids") or []) if t] if is_mod else [],
-        "bfpo_site_ids": [s for s in (e.get("site_ids") or []) if s] if is_mod else [],
+        "bfpo_territory_ids": (e.get("territory_ids") or []) if is_mod else [],
+        "bfpo_site_ids": (e.get("site_ids") or []) if is_mod else [],
         "module_overrides": {},
         "account_type": "mod_site", "is_mod_user": True, "is_active": True,
         "is_mod_bfpo": is_mod,
@@ -2114,6 +2121,7 @@ async def create_external_provider(data: dict = Body(...),
     await db.mod_estate_suppliers.insert_one({**supplier})
     supplier.pop("_id", None)
 
+    await _validate_engineer_coverage(engineers)
     results = []
     for e in engineers:
         results.append(await _provision_provider_engineer(e, supplier["id"], name, default_mod, actor_id))
@@ -2152,6 +2160,7 @@ async def update_external_provider(supplier_id: str, data: dict = Body(...),
     for e in new_engineers:
         if await _email_taken(e["email"]):
             raise HTTPException(400, f"Email {e['email']} is already in use")
+    await _validate_engineer_coverage(new_engineers)
     results = []
     provider_name = fields.get("name") or sup.get("name")
     for e in new_engineers:
@@ -2190,10 +2199,11 @@ async def update_provider_engineer(supplier_id: str, engineer_id: str, data: dic
         fields["bfpo_territory_ids"] = []
         fields["bfpo_site_ids"] = []
     else:
-        if "territory_ids" in data:
-            fields["bfpo_territory_ids"] = [t for t in (data.get("territory_ids") or []) if t]
-        if "site_ids" in data:
-            fields["bfpo_site_ids"] = [s for s in (data.get("site_ids") or []) if s]
+        if "territory_ids" in data or "site_ids" in data:
+            from utils.bfpo_coverage import validate_allocation
+            fields["bfpo_territory_ids"], fields["bfpo_site_ids"] = await validate_allocation(
+                data["territory_ids"] if "territory_ids" in data else eng.get("bfpo_territory_ids"),
+                data["site_ids"] if "site_ids" in data else eng.get("bfpo_site_ids"))
 
     if fields:
         await db.users.update_one({"id": engineer_id}, {"$set": fields})

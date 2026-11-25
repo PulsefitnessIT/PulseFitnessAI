@@ -16,7 +16,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", os.environ.get("RATE_LIMIT_BYPASS_SECRET", ""))
 
-MASTER = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+MASTER = ("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 OWNER = ("owner@isodemo.com", "IsoDemo123!")
 
 

@@ -287,7 +287,7 @@ class TestDealer:
 class TestMasterAdmin:
     def test_login_and_endpoints(self):
         tok = _login(f"{API}/auth/login", "admin@pulsefitness.com",
-                     "C2s9yJ3YAhydB4d34-Bykg", "master_admin")
+                     os.environ["MASTER_ADMIN_PASSWORD"], "master_admin")
         r = requests.get(f"{API}/master-admin/orgs", headers=H(tok), timeout=20)
         record("master-admin list orgs", r.status_code == 200, r.status_code, r.text[:150])
 

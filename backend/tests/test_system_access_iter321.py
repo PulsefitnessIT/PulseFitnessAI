@@ -17,7 +17,7 @@ from utils.database import db
 
 BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") + "/api"
 PW = "CmTest2026!"
-ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+ADMIN = ("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 OWNER = ("portal@pulsefitness.ltd", "PulseFleet123!")
 OP_ORG = "3ece2d0c-57ea-4acd-a6b4-d748478ed117"
 NOACCESS = "cm-test-none"

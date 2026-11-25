@@ -25,6 +25,11 @@ if (config.enableHealthCheck) {
 
 let webpackConfig = {
   eslint: {
+    // Lint is enforced by `yarn eslint --max-warnings 0` with the full flat config
+    // (eslint.config.js: react-hooks, unused-imports and the gymaxis rules). CRA's
+    // webpack ESLint plugin only loads a partial legacy config and fails on those
+    // rule definitions, so the build does not run a second, divergent lint pass.
+    enable: false,
     configure: {
       extends: ["plugin:react-hooks/recommended"],
       rules: {

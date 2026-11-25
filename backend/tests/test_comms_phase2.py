@@ -10,7 +10,7 @@ if not BASE_URL:
     BASE_URL = "http://localhost:8001"
 
 EMAIL = os.environ.get("MASTER_ADMIN_EMAIL", "admin@pulsefitness.com")
-PASSWORD = os.environ.get("MASTER_ADMIN_PASSWORD", "C2s9yJ3YAhydB4d34-Bykg")
+PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 @pytest.fixture(scope="module")

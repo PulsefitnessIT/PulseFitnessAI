@@ -24,7 +24,7 @@ if not BASE:
 OWNER_EMAIL = "owner@isodemo.com"
 OWNER_PW = "IsoDemo123!"
 MA_EMAIL = "admin@pulsefitness.com"
-MA_PW = "C2s9yJ3YAhydB4d34-Bykg"
+MA_PW = os.environ["MASTER_ADMIN_PASSWORD"]
 
 created_staff_ids: list[str] = []
 created_user_emails: list[str] = []

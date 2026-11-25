@@ -16,7 +16,7 @@ HDRS = {"X-RateLimit-Bypass": BYPASS, "Content-Type": "application/json"}
 CRM_EMAIL = "crmonly.manager@pulsedemo.test"
 CRM_PASS = "CrmOnly123!"
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PASS = os.environ.get("MASTER_ADMIN_PASSWORD", "C2s9yJ3YAhydB4d34-Bykg")
+MASTER_PASS = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 def _post(path, payload, headers=None):

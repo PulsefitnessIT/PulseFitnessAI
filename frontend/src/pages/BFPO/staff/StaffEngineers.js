@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Card, Btn, Spinner, Empty, Badge, inputCls, Field, ROLE_LABEL } from '../ui';
 import { Users, Plus, Loader2, Mail, KeyRound, X, Pencil, Power, Copy, Check, RefreshCw } from 'lucide-react';
+import { CoverageBadge, EngineerCoverage, loginStatus } from './engineers/EngineerCoverage';
+import DeactivateEngineerModal from './engineers/DeactivateEngineerModal';
 
 const ROLE_OPTS = [
   { value: 'engineer', label: 'Engineer' },
@@ -58,6 +60,8 @@ export default function StaffEngineers() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState(null); // { name, invite_url, temp_password }
+  const [deact, setDeact] = useState(null); // { engineer, jobs }
+  const [rowErr, setRowErr] = useState('');
 
   const load = useCallback(async () => {
     const [m, t, s] = await Promise.all([
@@ -107,20 +111,36 @@ export default function StaffEngineers() {
       }
       await load();
     } catch (e) {
-      setErr(e?.response?.data?.detail || 'Something went wrong');
+      const d = e?.response?.data?.detail;
+      setErr(typeof d === 'string' ? d : d?.message || 'Something went wrong');
     } finally { setBusy(false); }
   };
 
   const resend = async (m) => {
-    const r = await bfpo.post(`/staff/engineers/${m.id}/resend-invite`);
-    setResult({ name: m.full_name, invite_url: r.data.invite_url, temp_password: null });
-    load();
+    setRowErr('');
+    try {
+      const r = await bfpo.post(`/staff/engineers/${m.id}/resend-invite`);
+      setResult({ name: m.full_name, invite_url: r.data.invite_url, temp_password: null });
+      load();
+    } catch (e) { setRowErr(e?.response?.data?.detail || 'Could not resend the invite'); }
   };
-  const toggleActive = async (m) => { await bfpo.post(`/staff/engineers/${m.id}/status`, { active: !m.is_active }); load(); };
+  const toggleActive = async (m) => {
+    setRowErr('');
+    if (m.is_active) {
+      const r = await bfpo.get(`/staff/engineers/${m.id}/open-jobs`);
+      if (r.data.jobs.length) { setDeact({ engineer: m, jobs: r.data.jobs }); return; }
+      if (!window.confirm(`Deactivate ${m.full_name}? They will be signed out and cannot sign in.`)) return;
+    }
+    try { await bfpo.post(`/staff/engineers/${m.id}/status`, { active: !m.is_active }); load(); } catch (e) {
+      const d = e?.response?.data?.detail;
+      if (d?.code === 'open_jobs') setDeact({ engineer: m, jobs: d.jobs }); else setRowErr(typeof d === 'string' ? d : 'Could not change status');
+    }
+  };
 
   if (loading) return <Spinner />;
   const terrOpts = territories.map((t) => ({ id: t.id, name: t.name }));
-  const siteOpts = sites.map((s) => ({ id: s.id, name: s.name }));
+  const terrName = Object.fromEntries(territories.map((t) => [t.id, t.name]));
+  const siteOpts = sites.map((s) => ({ id: s.id, name: `${s.name}${s.kind === 'mod_site' ? ' (MOD establishment)' : s.territory_id ? ` · ${terrName[s.territory_id] || ''}` : ''}` }));
 
   return (
     <div className="p-6 max-w-5xl mx-auto" data-testid="staff-engineers">
@@ -145,11 +165,11 @@ export default function StaffEngineers() {
         </Card>
       )}
 
+      {rowErr && <p className="text-sm text-red-600 mb-3" data-testid="engineer-row-error">{rowErr}</p>}
       {members.length === 0 ? <Empty icon={Users} title="No engineers yet" sub="Invite your first engineer to get started." testid="engineers-empty" /> : (
         <div className="space-y-2">
           {members.map((m) => {
-            const terrNames = (m.bfpo_territory_ids || []).map((id) => (territories.find((t) => t.id === id) || {}).name).filter(Boolean);
-            const siteNames = (m.bfpo_site_ids || []).map((id) => (sites.find((s) => s.id === id) || {}).name).filter(Boolean);
+            const [loginLabel, loginCls] = loginStatus(m);
             return (
               <Card key={m.id} className="p-4" data-testid={`engineer-row-${m.id}`}>
                 <div className="flex items-start gap-3 flex-wrap">
@@ -157,24 +177,18 @@ export default function StaffEngineers() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-900">{m.full_name}</p>
                       <Badge className="bg-slate-100 text-slate-600 border-slate-200">{ROLE_LABEL[m.bfpo_role] || m.bfpo_role}</Badge>
-                      {!m.is_active && <Badge className="bg-slate-200 text-slate-600 border-slate-300">Deactivated</Badge>}
-                      {m.invite_pending && <Badge className="bg-amber-50 text-amber-700 border-amber-200">Invite pending</Badge>}
-                      {m.must_change_password && <Badge className="bg-blue-50 text-blue-700 border-blue-200">Temp password</Badge>}
+                      <Badge className={loginCls} data-testid={`engineer-login-${m.id}`}>{loginLabel}</Badge>
+                      {m.bfpo_role !== 'staff' && <CoverageBadge coverage={m.coverage} testid={`engineer-coverage-status-${m.id}`} />}
                     </div>
                     <p className="text-sm text-slate-500 mt-0.5">{m.email}{m.phone ? ` · ${m.phone}` : ''}</p>
-                    {m.bfpo_role !== 'staff' && (
-                      <p className="text-xs text-slate-400 mt-1">
-                        {terrNames.length ? `Territories: ${terrNames.join(', ')}` : 'No territories'}
-                        {siteNames.length ? ` · Sites: ${siteNames.join(', ')}` : ''}
-                      </p>
-                    )}
+                    {m.bfpo_role !== 'staff' && <EngineerCoverage m={m} />}
                   </div>
                   <div className="flex items-center gap-1">
-                    {(m.invite_pending || m.bfpo_role) && (
-                      <button onClick={() => resend(m)} title="Resend invite" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" data-testid={`engineer-resend-${m.id}`}><RefreshCw className="w-4 h-4" /></button>
+                    {m.is_active && (
+                      <button onClick={() => resend(m)} title="Resend invite" aria-label={`Resend invite to ${m.full_name}`} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" data-testid={`engineer-resend-${m.id}`}><RefreshCw className="w-4 h-4" /></button>
                     )}
-                    <button onClick={() => openEdit(m)} title="Edit" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" data-testid={`engineer-edit-${m.id}`}><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => toggleActive(m)} title={m.is_active ? 'Deactivate' : 'Reactivate'} className={`p-2 rounded-lg hover:bg-slate-100 ${m.is_active ? 'text-red-500' : 'text-emerald-600'}`} data-testid={`engineer-toggle-${m.id}`}><Power className="w-4 h-4" /></button>
+                    <button onClick={() => openEdit(m)} title="Edit details and coverage" aria-label={`Edit ${m.full_name}`} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" data-testid={`engineer-edit-${m.id}`}><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => toggleActive(m)} title={m.is_active ? 'Deactivate' : 'Reactivate'} aria-label={`${m.is_active ? 'Deactivate' : 'Reactivate'} ${m.full_name}`} className={`p-2 rounded-lg hover:bg-slate-100 ${m.is_active ? 'text-red-500' : 'text-emerald-600'}`} data-testid={`engineer-toggle-${m.id}`}><Power className="w-4 h-4" /></button>
                   </div>
                 </div>
               </Card>
@@ -183,6 +197,8 @@ export default function StaffEngineers() {
         </div>
       )}
 
+      {deact && <DeactivateEngineerModal engineer={deact.engineer} jobs={deact.jobs} engineers={members}
+        onClose={() => setDeact(null)} onDone={() => { setDeact(null); load(); }} />}
       {modal && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" data-testid="engineer-modal" onMouseDown={() => setModal(null)}>
           <div className="bg-white rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onMouseDown={(e) => e.stopPropagation()}>

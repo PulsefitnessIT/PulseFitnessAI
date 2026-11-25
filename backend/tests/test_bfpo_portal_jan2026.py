@@ -357,7 +357,8 @@ class TestStaffOversight:
         r = requests.post(
             f"{BASE_URL}/api/bfpo/staff/jobs/{cid}/allocate",
             headers=_h(tok),
-            json={"engineer_id": eng_id, "handover": "please prioritise, MOD urgent"},
+            json={"engineer_id": eng_id, "handover": "please prioritise, MOD urgent",
+                  "override_reason": "TEST cover while the usual engineer is away"},
         )
         assert r.status_code == 200, r.text
         # Verify timeline has allocation + handover

@@ -14,7 +14,7 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PW = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PW = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 def _decode_jwt_payload(token: str) -> dict:

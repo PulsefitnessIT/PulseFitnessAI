@@ -231,7 +231,7 @@ def test_step5_pulse_close_out_and_signed_report_emails():
 
 def test_step5_case_visible_in_service_desk():
     r = requests.post(f"{API}/auth/login", json={"email": "admin@pulsefitness.com",
-                                                 "password": "C2s9yJ3YAhydB4d34-Bykg"}, timeout=30)
+                                                 "password": os.environ["MASTER_ADMIN_PASSWORD"]}, timeout=30)
     tok = r.json().get("token")
     if not tok:
         pytest.skip(f"master admin login needs MFA: {list(r.json())}")

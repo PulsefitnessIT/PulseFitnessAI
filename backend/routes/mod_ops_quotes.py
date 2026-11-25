@@ -782,17 +782,82 @@ async def delete_group(gid: str, user=Depends(_sales)):
     g = await _group(gid)
     if g["status"] in ("accepted", "handed_over"):
         raise HTTPException(409, "Accepted quotations cannot be deleted — they back a service contract")
-    quotes = await db.crm2_quotes.find({"mod_group_id": gid}, {"_id": 0, "id": 1, "quote_number": 1}).to_list(500)
-    await db.mod_quote_deletions.insert_one({
-        "group_id": gid, "status": g["status"], "customer": (g.get("customer") or {}).get("name"),
+    if g["status"] in ("published", "customer_review", "authorisation_submitted"):
+        raise HTTPException(409, "This quotation has been issued to the customer — recall it first, then delete")
+    quotes = await db.crm2_quotes.find({"mod_group_id": gid}, {"_id": 0}).to_list(500)
+    issued = bool(g.get("published_at") or any(q.get("customer_visible") or q.get("published_at") for q in quotes)
+                  or g["status"] == "withdrawn")
+    # Commercial record kept in full: group, every quote version (PDFs re-render from these lines),
+    # approval/notification history, customer authorisations and follow-ups.
+    archive = {
+        "group_id": gid, "status": g["status"], "issued": issued, "customer": (g.get("customer") or {}).get("name"),
         "quote_numbers": [q.get("quote_number") for q in quotes], "deleted_by": user.get("id"),
-        "deleted_by_name": user.get("full_name") or user.get("email"), "deleted_at": _now()})
+        "deleted_by_name": user.get("full_name") or user.get("email"), "deleted_at": _now(),
+        "snapshot": {
+            "group": g, "quotes": quotes,
+            "events": await db.mod_quote_events.find({"group_id": gid}, {"_id": 0}).to_list(2000),
+            "authorisations": await db.mod_quote_authorisations.find({"group_id": gid}, {"_id": 0}).to_list(200),
+            "followups": await db.mod_quote_followups.find({"group_id": gid}, {"_id": 0}).to_list(200),
+        },
+    }
+    await db.mod_quote_deletions.insert_one(archive)
     await db.crm2_quotes.delete_many({"mod_group_id": gid})
     for coll in (db.mod_quote_followups, db.mod_quote_authorisations, db.mod_quote_events):
         await coll.delete_many({"group_id": gid})
-    await db.crm2_activities.delete_many({"mod_group_id": gid})
     await db.mod_quote_groups.delete_one({"id": gid})
-    return {"ok": True, "deleted_quotes": len(quotes)}
+    return {"ok": True, "deleted_quotes": len(quotes), "archived": True}
+
+
+class FollowupEmailsIn(BaseModel):
+    templates: dict[str, dict[str, str]]
+
+
+@router.get("/followup-emails")
+async def followup_emails(user=Depends(_sales)):
+    from utils.mod_quote_followup_emails import PLACEHOLDERS, get_settings
+    out = await get_settings()
+    return {**out, "placeholders": list(PLACEHOLDERS), "can_edit": _can(user, PERM_APPROVE), "can_approve": _is_owner(user),
+            "live_switch_on": os.environ.get("MOD_QUOTE_NOTIFY_LIVE", "").lower() == "true"}
+
+
+@router.put("/followup-emails")
+async def save_followup_emails(body: FollowupEmailsIn, user=Depends(_sales)):
+    _need(user, PERM_APPROVE)
+    from utils.mod_quote_followup_emails import SETTINGS_ID
+    tpl = {}
+    for n in ("1", "2", "3"):
+        t = body.templates.get(n) or {}
+        subject, text = (t.get("subject") or "").strip(), (t.get("body") or "").strip()
+        if not subject or not text or len(subject) > 200 or len(text) > 5000:
+            raise HTTPException(422, f"Follow-up {n}: subject and message are required (subject ≤ 200, message ≤ 5000 characters)")
+        tpl[n] = {"subject": subject, "body": text}
+    # Any change to the wording needs a fresh owner approval before customers are emailed.
+    await db.mod_quote_settings.update_one({"id": SETTINGS_ID}, {"$set": {
+        "templates": tpl, "approved": False, "approved_by_name": None, "approved_at": None,
+        "updated_by": user.get("id"), "updated_by_name": user.get("full_name") or user.get("email"), "updated_at": _now()}}, upsert=True)
+    await db.mod_quote_settings_audit.insert_one({"kind": "followup_emails_edited", "by": user.get("id"), "at": _now(), "templates": tpl})
+    return {"ok": True, "approved": False}
+
+
+@router.post("/followup-emails/approve")
+async def approve_followup_emails(user=Depends(_sales)):
+    if not _is_owner(user):
+        raise HTTPException(403, "Only owners can approve the customer follow-up wording")
+    from utils.mod_quote_followup_emails import SETTINGS_ID, get_settings
+    cur = await get_settings()
+    await db.mod_quote_settings.update_one({"id": SETTINGS_ID}, {"$set": {
+        "templates": cur["templates"], "approved": True, "approved_by": user.get("id"),
+        "approved_by_name": user.get("full_name") or user.get("email"), "approved_at": _now()}}, upsert=True)
+    await db.mod_quote_settings_audit.insert_one({"kind": "followup_emails_approved", "by": user.get("id"), "at": _now(), "templates": cur["templates"]})
+    return {"ok": True, "approved": True}
+
+
+@router.get("/deleted")
+async def deleted_groups(user=Depends(_sales)):
+    if not _is_owner(user):
+        raise HTTPException(403, "Only owners can view deleted quotations")
+    rows = await db.mod_quote_deletions.find({}, {"_id": 0, "snapshot": 0}).sort("deleted_at", -1).to_list(200)
+    return {"deleted": rows}
 
 
 @router.get("/quotes/{qid}/pdf")

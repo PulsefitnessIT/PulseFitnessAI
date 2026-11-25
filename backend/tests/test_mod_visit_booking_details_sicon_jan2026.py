@@ -15,7 +15,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+MASTER_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 MOD_EMAIL = "test@army.mod.test"
 MOD_PASSWORD = "ModTest123!"
 

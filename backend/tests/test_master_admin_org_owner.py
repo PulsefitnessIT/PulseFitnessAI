@@ -12,7 +12,7 @@ if not BASE_URL:
                 BASE_URL = line.split("=", 1)[1].strip().rstrip("/")
 
 MA_EMAIL = "admin@pulsefitness.com"
-MA_PASS = "C2s9yJ3YAhydB4d34-Bykg"
+MA_PASS = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 def _login():

@@ -5,7 +5,7 @@ import pytest
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 EMAIL = "admin@pulsefitness.com"
-PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 CSV_PATH = "/tmp/nyati.csv"
 XLSX_PATH = "/tmp/kitlist.xlsx"
 TARGET_SITE_NAME = "British Army Training Unit Kenya"

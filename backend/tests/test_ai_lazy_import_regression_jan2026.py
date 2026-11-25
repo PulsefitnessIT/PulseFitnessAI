@@ -24,7 +24,7 @@ def _load_env():
 _load_env()
 BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASS = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASS = os.environ["MASTER_ADMIN_PASSWORD"]
 OPER_EMAIL = "owner@isodemo.com"
 OPER_PASS = "IsoDemo123!"
 

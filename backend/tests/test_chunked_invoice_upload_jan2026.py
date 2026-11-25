@@ -35,7 +35,7 @@ def _load_backend_url():
 
 BASE_URL = _load_backend_url()
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 CHUNK_SIZE = int(1.5 * 1024 * 1024)  # 1.5MB
 

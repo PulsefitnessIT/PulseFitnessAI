@@ -33,7 +33,7 @@ BASE_URL = _load_backend_url()
 assert BASE_URL, "REACT_APP_BACKEND_URL must be set"
 
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 ANALYTICS_ENDPOINTS = [
     "/api/master-admin/analytics/dashboard",

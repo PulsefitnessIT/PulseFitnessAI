@@ -21,7 +21,7 @@ SAMPLE_ROWS = """Item,Machine,Qty,Notes
 def crm_token():
     r = requests.post(CRM_LOGIN, json={
         "email": "admin@pulsefitness.com",
-        "password": "C2s9yJ3YAhydB4d34-Bykg",
+        "password": os.environ["MASTER_ADMIN_PASSWORD"],
     }, timeout=30)
     assert r.status_code == 200, f"CRM login failed: {r.status_code} {r.text}"
     tok = r.json().get("token") or r.json().get("access_token")

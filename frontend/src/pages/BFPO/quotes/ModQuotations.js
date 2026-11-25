@@ -5,6 +5,7 @@ import { mq, errText, gbp, downloadBlob, TYPE_LABEL } from './modQuotesApi';
 import { Btn, StatusChip, Banner, Empty, Skeleton, Field } from './MqUi';
 import ModQuoteWizard from './ModQuoteWizard';
 import ModQuoteGroup from './ModQuoteGroup';
+import FollowupEmailWording from './FollowupEmailWording';
 
 const FILTERS = [
   ['', 'All'], ['draft', 'Drafts'], ['pending_approval', 'Awaiting approval'], ['approved', 'Approved'],
@@ -259,6 +260,7 @@ function Followups({ caps, onOpen }) {
   };
   return (
     <div className="space-y-3" data-testid="mq-followups">
+      <FollowupEmailWording />
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex-1" />
         {caps.manager && (

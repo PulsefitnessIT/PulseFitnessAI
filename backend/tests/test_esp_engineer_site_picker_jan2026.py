@@ -23,7 +23,7 @@ if not BASE_URL:
 API = f"{BASE_URL}/api"
 BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 
-ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+ADMIN = ("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 GIB = ("engineer.gib@bfpo.pulsefitness.test", "BfpoEng123!")
 LEAD = ("lead@bfpo.pulsefitness.test", "Bfpo123!")
 

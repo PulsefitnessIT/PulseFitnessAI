@@ -30,7 +30,7 @@ MOD_PASSWORD = "AserQA123!"
 MOD_SITE_ID = "abfdabd9-ae11-4877-a44d-a36fea7f1f4e"
 
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 def _login(email, password, retries=3):

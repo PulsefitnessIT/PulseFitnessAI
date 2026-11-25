@@ -26,7 +26,7 @@ if not BASE_URL:
     pytest.skip("REACT_APP_BACKEND_URL not set", allow_module_level=True)
 
 EMAIL = "admin@pulsefitness.com"
-PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
+PASSWORD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 def _mfa_code() -> str:

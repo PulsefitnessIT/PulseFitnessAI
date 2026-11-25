@@ -29,7 +29,7 @@ def _login(email, pw, portal=None):
 
 @pytest.fixture(scope="module")
 def admin_h():
-    return _login("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+    return _login("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 
 
 @pytest.fixture(scope="module")

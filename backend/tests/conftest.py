@@ -23,6 +23,12 @@ import asyncio
 import os
 import pytest
 import requests
+from dotenv import dotenv_values
+
+# Credentials (e.g. MASTER_ADMIN_PASSWORD) come from backend/.env, never from test source.
+for _k, _v in dotenv_values(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")).items():
+    if _v is not None:
+        os.environ.setdefault(_k, _v)
 
 
 def drive_async(coro):

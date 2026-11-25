@@ -18,24 +18,12 @@ def chase_schedule(published_on: date) -> list[dict]:
             for i, w in enumerate(CHASE_WEEKS)]
 
 
-def _customer_html(g: dict, qs: list[dict], n: int) -> str:
-    rows = "".join(f"<li>{q.get('sage_quote_number') or q['quote_number']} — £{q['total']:,.2f} inc. VAT, valid until "
-                   f"{q.get('valid_until')}</li>" for q in qs)
-    portal = os.environ.get("MOD_PORTAL_URL", "").rstrip("/")
-    portal_line = (f"<p>If your unit uses MODService you can also review and authorise the quotation at "
-                   f"<a href=\"{portal}\">{portal}</a>.</p>") if portal else ""
-    return (f"<p>Dear {g['customer'].get('contact_name') or 'Customer'},</p>"
-            f"<p>We are following up on the Pulse Fitness maintenance quotation(s) we sent for {g['customer']['name']}. "
-            f"A copy is attached for convenience.</p><ul>{rows}</ul>{portal_line}"
-            f"<p>To proceed, please reply with your purchase order or authorisation, or let us know if you have any "
-            f"questions.</p><p>Kind regards,<br/>Pulse Fitness MOD Sales</p>"
-            f"<p style=\"color:#666;font-size:12px\">Follow-up {n} of {len(CHASE_WEEKS)}</p>")
-
-
-async def _process(g: dict, item: dict, live: bool) -> dict:
+async def _process(g: dict, item: dict, live: bool, templates: dict | None = None) -> dict:
     from routes.mod_ops_quotes import _event, _quotes, pdf_filename, quote_pdf_bytes
     from utils.email import send_email
+    from utils.mod_quote_followup_emails import DEFAULTS, render
     qs = [q for q in await _quotes(g["id"]) if q.get("customer_visible")]
+    owner = await db.users.find_one({"id": g.get("created_by")}, {"_id": 0, "id": 1, "email": 1, "full_name": 1}) or {}
     to = (g.get("notified_to") or g["customer"].get("contact_email") or "").strip()
     outcome = {"customer_email": "not_sent", "to": to or None}
     if not qs:
@@ -46,11 +34,10 @@ async def _process(g: dict, item: dict, live: bool) -> dict:
         outcome["customer_email"] = "dry_run"
     else:
         atts = [{"filename": pdf_filename(q, g), "content": base64.b64encode(await quote_pdf_bytes(q, g)).decode()} for q in qs]
-        await send_email(to, f"Following up: your Pulse Fitness quotation — {g['customer']['name']}",
-                         _customer_html(g, qs, item["n"]), atts, organization_id=g["organization_id"], kind="mod_quote_chase")
+        subject, body = render((templates or DEFAULTS)[str(item["n"])], g, qs, owner.get("full_name") or g.get("created_by_name"))
+        await send_email(to, subject, body, atts, organization_id=g["organization_id"], kind="mod_quote_chase")
         outcome["customer_email"] = "sent"
         outcome["attachments"] = len(atts)
-    owner = await db.users.find_one({"id": g.get("created_by")}, {"_id": 0, "id": 1, "email": 1, "full_name": 1}) or {}
     await db.mod_quote_followups.insert_one({
         "id": str(uuid.uuid4()), "group_id": g["id"], "organization_id": g["organization_id"], "chase_no": item["n"],
         "weeks": item["weeks"], "due": item["due"], "assigned_to": g.get("created_by"),
@@ -72,7 +59,10 @@ async def _process(g: dict, item: dict, live: bool) -> dict:
 async def run_chases(today: date | None = None) -> dict:
     """Process every chase that is due. Safe to run repeatedly: each chase is claimed atomically."""
     today_s = (today or date.today()).isoformat()
-    live = os.environ.get("MOD_QUOTE_NOTIFY_LIVE", "").lower() == "true"
+    from utils.mod_quote_followup_emails import get_settings
+    wording = await get_settings()
+    # Customers are only emailed when the switch is on AND an owner has approved the current wording.
+    live = os.environ.get("MOD_QUOTE_NOTIFY_LIVE", "").lower() == "true" and wording["approved"]
     done, cancelled = 0, 0
     async for g in db.mod_quote_groups.find({"chase_schedule": {"$elemMatch": {"status": "pending", "due": {"$lte": today_s}}}},
                                             {"_id": 0}):
@@ -94,7 +84,7 @@ async def run_chases(today: date | None = None) -> dict:
                 cancelled += 1
                 continue
             try:
-                out = await _process(g, item, live)
+                out = await _process(g, item, live, wording["templates"])
                 await db.mod_quote_groups.update_one({"id": g["id"], "chase_schedule.n": item["n"]},
                                                      {"$set": {"chase_schedule.$.status": "done",
                                                                "chase_schedule.$.processed_on": today_s,
@@ -104,4 +94,4 @@ async def run_chases(today: date | None = None) -> dict:
                 log.exception("[mod-chase] group %s chase %s failed", g["id"], item["n"])
                 await db.mod_quote_groups.update_one({"id": g["id"], "chase_schedule.n": item["n"]},
                                                      {"$set": {"chase_schedule.$.status": "pending"}})
-    return {"processed": done, "cancelled": cancelled, "live_email": live}
+    return {"processed": done, "cancelled": cancelled, "live_email": live, "wording_approved": wording["approved"]}

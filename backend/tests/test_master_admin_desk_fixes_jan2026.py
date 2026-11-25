@@ -15,7 +15,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or \
     (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")
 ADMIN_EMAIL = "admin@pulsefitness.com"
-ADMIN_PWD = "C2s9yJ3YAhydB4d34-Bykg"
+ADMIN_PWD = os.environ["MASTER_ADMIN_PASSWORD"]
 
 
 @pytest.fixture(scope="module")

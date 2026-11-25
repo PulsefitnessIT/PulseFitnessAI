@@ -26,7 +26,7 @@ from tests.conftest import _test_backend_url
 
 BASE_URL = _test_backend_url()
 
-MASTER_ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+MASTER_ADMIN = ("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 ENGINEER = ("engineer.smoke@gymaxisai.com", "EngTest123!")
 
 HUB_ORG = "9fa701ef-5cc2-4db6-8795-bbfd2c85179d"

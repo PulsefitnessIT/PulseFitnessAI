@@ -10,7 +10,7 @@ import openpyxl
 from pymongo import MongoClient
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
-ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
+ADMIN = ("admin@pulsefitness.com", os.environ["MASTER_ADMIN_PASSWORD"])
 ENGINEER = ("engineer.gib@bfpo.pulsefitness.test", "BfpoEng123!")
 OWNER = ("manager@isodemo.com", "IsoDemo123!")  # owner@isodemo.com has is_service_desk=True (=staff)
 

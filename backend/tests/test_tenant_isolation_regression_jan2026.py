@@ -24,7 +24,7 @@ PRO_EMAIL, PRO_PASS = "owner@isodemo.com", "IsoDemo123!"          # account_type
 LITE_EMAIL, LITE_PASS = "lite.suptest@pulsedemo.test", "LiteSup123!"
 # Operator / platform admin (password may rotate — positive check is best-effort)
 MASTER_EMAIL = "admin@pulsefitness.com"
-MASTER_PASS = os.environ.get("MASTER_ADMIN_PASSWORD", "C2s9yJ3YAhydB4d34-Bykg")
+MASTER_PASS = os.environ["MASTER_ADMIN_PASSWORD"]
 
 MOD_QUOTE_ENDPOINTS = ["mod-sites", "equipment?site_id=x", "rate-card", "contracts"]
 
