@@ -39547,3 +39547,14 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Maintenance Master: the 12.11 workbook was reconciled in preview (ready, not committed): 8067 new, 11 duplicate/overlap, 1127 missing info, 1 requires review, 200 MOD held. Prod has no uploads. Cutover is BLOCKED and Excel stays the fallback.
 - Local `make regression` (against preview): 2443 pass, 159 fail, 41 errors, 26 skipped. Most failures are auth/test-env (lockouts, invalid legacy creds, 429), MagicMock fixtures or outdated source-string assertions. The renewal autopilot tests are outdated (the design is now approval-first).
 - Tests: iteration_324 and 325, test_release_cert_iter324.py, test_mod_schedule_b_bootstrap_race.py.
+
+## Aftersales large-document sprint (2026-11-25)
+- Root cause of the 2 MiB error: the app's own body_size_guard (utils/security_plus.py, MAX_REQUEST_BYTES default 2 MB) applies to /api/crm/*. The Build Quote import posted the whole PDF there. The limit was NOT raised.
+- Uploads now use the existing chunked protocol (/api/files/upload/chunks, 1 MB pieces, sha256 verified on complete, complete is idempotent, resume and cancel supported) via AfsDocumentUploader.js. Max 50 MB (AFS_IMPORT_MAX_MB).
+- Reading runs as background jobs (crm2_afs_doc_jobs): POST build-quote/imports/from-file and POST extract-pricing-jobs?file_id=, then poll GET build-quote/jobs/{id}. Synchronous calls over ~60 s were cut off by the gateway.
+- utils/afs_doc_sections.py replaces the 60k-character truncation. It reads PDF by page (scanned pages by vision, max 60, the rest reported), xlsx by sheet/row, CSV with encoding fallback and malformed-row count, and docx with tables under their headings. Every part is processed and results merged deterministically: conflicting prices are flagged, and tabular sources get a priced-row completeness check. A coverage report goes to the UI.
+- Import review: 50 rows per page, search, status filter (exact/suggested/review/unmatched/excluded/registered), source page per line, bulk-exclude.
+- Renewal emails: CM_RENEWAL_EMAIL_LIVE gate. Approval queues the email (awaiting_dispatch); the daily cron dispatch_queued_renewals sends them once the switch is on; cancel-email needs renewals.approve and a reason.
+- Maintenance Master: SUBSTANTIVE_FIELDS edits require a reason of at least 5 characters (422).
+- MOD dispatch re-checks expiry, recipient and revision. Chase chips separate "task created", "emailed" and "contacted".
+- Verified on the preview gateway: 2.4/13.6/33.8/50.8 MB PDFs read all lines and quantities exactly (400/300/360/480). xlsx tender 210/210 rates exact, CSV 700/700. Tests: tests/test_afs_large_doc_uploads_jan2026.py (22 pass); iteration_326.

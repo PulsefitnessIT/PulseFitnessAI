@@ -8,6 +8,7 @@ const TONE = {
   approved_not_delivered: 'var(--color-danger)', declined: 'var(--color-danger)', expired: 'var(--color-danger)',
   awaiting_price_approval: 'var(--color-accent-amber)', pending_approval: 'var(--color-accent-amber)',
   delivered: 'var(--color-info-ios)', accepted: 'var(--color-success-alt)',
+  awaiting_dispatch: 'var(--color-accent-amber)', email_cancelled: 'var(--color-danger)',
 };
 
 /** Renewals in progress — recoverable accept link + truthful delivery status. */
@@ -19,9 +20,9 @@ export default function RenewalsInProgress() {
       .then((r) => setRows(r.data.renewals || [])).catch(() => setRows([]));
   }, [API, headers]);
   useEffect(() => { load(); }, [load]);
-  const act = async (id, path, okMsg) => {
+  const act = async (id, path, okMsg, body = {}) => {
     try {
-      const r = await axios.post(`${API}/crm/workspace/renewals/${id}/${path}`, {}, { headers: headers() });
+      const r = await axios.post(`${API}/crm/workspace/renewals/${id}/${path}`, body, { headers: headers() });
       if (path === 'resend' && !r.data.email_delivered) toast.warning('Email still not delivered — copy the link and send it yourself');
       else toast.success(okMsg);
       load();
@@ -47,6 +48,10 @@ export default function RenewalsInProgress() {
                   {r.renewal_accept_link && ['approved_not_delivered', 'delivered', 'expired'].includes(r.comms_status) && (
                     <button onClick={() => copyAcceptLink(r.renewal_accept_link)}
                       className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-copy-${r.id}`}>Copy link</button>
+                  )}
+                  {r.comms_status === 'awaiting_dispatch' && (
+                    <button onClick={() => { const reason = window.prompt('Why should this customer email not be sent?'); if (reason?.trim()) act(r.id, 'cancel-email', 'Customer email cancelled', { reason }); }}
+                      className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-cancel-email-${r.id}`}>Cancel customer email</button>
                   )}
                   {['approved_not_delivered', 'delivered'].includes(r.comms_status) && (
                     <>

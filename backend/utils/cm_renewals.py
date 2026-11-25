@@ -365,7 +365,7 @@ async def list_renewals(org_id: str) -> list:
             {"organization_id": org_id, "previous_contract_id": {"$nin": [None, ""]},
              "status": {"$in": ["renewal_pending_approval", "renewal_sending", "sent", "active", "signed", "declined", "rejected"]}},
             {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1, "status": 1, "start_date": 1, "end_date": 1,
-             "annual_value": 1, "renewal_uplift_percent": 1, "renewal_price_request": 1, "renewal_email_delivered": 1,
+             "annual_value": 1, "renewal_uplift_percent": 1, "renewal_price_request": 1, "renewal_email_delivered": 1, "renewal_email_state": 1,
              "renewal_accept_link": 1, "renewal_sent_to": 1, "renewal_approved_by": 1, "approval_evidence": 1,
              "previous_contract_id": 1}).sort("updated_at", -1).limit(300):
         prev = await db.crm2_contracts.find_one({"id": r["previous_contract_id"]}, {"_id": 0, "end_date": 1}) or {}

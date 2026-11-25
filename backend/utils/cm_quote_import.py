@@ -25,7 +25,8 @@ _PROMPT = """Extract this {label} for gym / fitness equipment as JSON:
  "site_address": str|null, "document_ref": str|null, "document_date": "YYYY-MM-DD"|null,
  "lines": [{{"item_code": str|null, "make": str|null, "model": str|null, "description": str|null,
              "quantity": int, "serials": [str], "amount": number|null}}]}}
-Rules: copy codes, models and serial numbers EXACTLY as printed; never invent values (use null / []).
+Rules: copy codes, models, serial numbers and QUANTITIES EXACTLY as printed; never change a quantity to match the
+number of serials; never invent values (use null / []).
 "account_ref" is the customer's account number on the document (e.g. Sage A/C). "postcode" is the
 customer's delivery/site postcode. One line per product row; include parts and accessories as their
 own lines (do not drop them). Exclude carriage, VAT, subtotal and total rows. Return ONLY JSON.

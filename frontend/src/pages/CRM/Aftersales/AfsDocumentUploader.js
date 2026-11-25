@@ -17,6 +17,7 @@ export function friendlyError(e, fallback) {
   const st = e?.response?.status;
   const d = e?.response?.data?.detail;
   if (e?.code === 'cancelled' || e?.name === 'CanceledError') return 'Upload cancelled.';
+  if (st === 401) return 'Your session has expired — sign in again, then Retry.';
   if (st === 413) return typeof d === 'string' ? d : 'The file is larger than the maximum allowed.';
   if (st === 415) return 'This file type is not supported.';
   if (!e?.response) return 'Upload interrupted — check your connection, then Resume or Retry.';
@@ -56,6 +57,7 @@ export default function AfsDocumentUploader({ c, accept, typesLabel, maxMb = 50,
     try {
       setStage('upload'); setPct(0);
       const tok = localStorage.getItem('token');
+      if (!tok) throw Object.assign(new Error('no session'), { response: { status: 401 } });
       const doc = await chunkedUpload({
         baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`, file: f, category: 'contracts',
         authHeaders: tok ? { Authorization: `Bearer ${tok}` } : {}, threshold: CHUNK_FROM,

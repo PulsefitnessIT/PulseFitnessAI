@@ -1289,7 +1289,8 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
         '"travel":[{"location":"Barnstaple","price":60.0}],'
         '"summary":{"headline":"one-line description of the contract","term":"e.g. 3 years","ppm_visits":"e.g. 2 per year",'
         '"sla":"e.g. 48h response","key_points":["notable clause","min charge","etc"]}}. '
-        "Use the machine type words as written (Treadmill, Bike, Rower, Cross Trainer, Power Rack, Free Weights, Ski Erg, etc). "
+        "Use the machine type / location text EXACTLY as written in its row (keep codes and numbers; never shorten or generalise), "
+        "and return one entry per priced row. "
         "Never invent values. If a section is absent in this part, use an empty array; if unknown, use an empty string."
     )
     from emergentintegrations.llm.chat import ImageContent, LlmChat, UserMessage
@@ -1318,7 +1319,27 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
 
     jobs = [_ask(s["label"], s["text"]) for s in doc["sections"]]
     jobs += [_ask(f"scanned pages {b[0]}–{b[-1]}", images=page_images(data, b)) for b in doc["vision_batches"]]
-    parts = await asyncio.gather(*jobs)
+    parts = list(await asyncio.gather(*jobs))
+    short_notes = []
+    if doc["kind"] in ("xlsx", "csv"):
+        # Tabular sources: every row carrying a price cell must come back as an item. A short reply is
+        # re-read in halves once; anything still missing is reported, never silently dropped.
+        import re as _re
+        priced = _re.compile(r"\|\s*£?\s*\d[\d,]*\.\d{1,2}\s*(?:\||$)")
+        n_items = lambda p: sum(len(p.get(k) or []) for k in ("machine_services", "repairs", "travel"))  # noqa: E731
+        for i, sec in enumerate(doc["sections"]):
+            rows = [ln for ln in sec["text"].split("\n") if priced.search(ln)]
+            if not rows or n_items(parts[i]) >= len(rows):
+                continue
+            lines = sec["text"].split("\n")
+            half = len(lines) // 2
+            a, b = await asyncio.gather(_ask(sec["label"] + " (a)", "\n".join(lines[:half])), _ask(sec["label"] + " (b)", "\n".join(lines[half:])))
+            merged = {"_label": sec["label"], **{k: (a.get(k) or []) + (b.get(k) or []) for k in ("machine_services", "repairs", "travel")},
+                      "summary": a.get("summary") or b.get("summary"), "currency": a.get("currency") or b.get("currency")}
+            if n_items(merged) >= n_items(parts[i]):
+                parts[i] = merged
+            if n_items(parts[i]) < len(rows):
+                short_notes.append(f"{sec['label']}: {len(rows)} priced row(s) but {n_items(parts[i])} item(s) extracted — check this part")
     failed = [p["_label"] for p in parts if p.get("_failed") or p.get("_unparsed")]
     if failed and len(failed) == len(parts):
         raise HTTPException(503, "AI is temporarily unavailable — please try again")
@@ -1350,6 +1371,12 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
     machine_services = _merge("machine_services", "type", "service_price")
     repairs = _merge("repairs", "type", "hourly_rate")
     travel = _merge("travel", "location", "price")
+    if doc["kind"] in ("xlsx", "csv"):
+        total_priced = sum(sum(1 for ln in sec["text"].split("\n") if priced.search(ln)) for sec in doc["sections"])
+        total_items = len(machine_services) + len(repairs) + len(travel)
+        if total_items < total_priced:
+            short_notes.append(f"{total_priced} priced row(s) in the document but {total_items} distinct item(s) extracted — "
+                               "some rows may share a name or be missing; check against the source")
     summaries = [p["summary"] for p in parts if isinstance(p.get("summary"), dict)]
     first = next((s for s in summaries if s.get("headline")), summaries[0] if summaries else {})
     points: list = []
@@ -1364,7 +1391,8 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
     }
     cov = doc["coverage"]
     coverage = {**cov, "parts_total": len(parts), "parts_read": len(parts) - len(failed), "parts_failed": failed,
-                "complete": not failed and not cov.get("unread"),
+                "notes": (cov.get("notes") or []) + short_notes,
+                "complete": not failed and not cov.get("unread") and not short_notes,
                 "chars_read": sum(len(s["text"]) for s in doc["sections"])}
     return {
         "currency": next((p.get("currency") for p in parts if p.get("currency")), "GBP"),
@@ -4177,10 +4205,12 @@ async def create_quote_import_from_file(body: ImportFromFileIn, user=Depends(req
 async def start_pricing_extraction(file_id: str = Query(...), user=Depends(require_crm_perm("quotes.maintenance"))):
     """Background version of /extract-pricing-document for large tenders — poll GET /build-quote/jobs/{job_id}."""
     fdoc = await _org_file(file_id, user)
+    if (fdoc.get("size") or 0) > AFS_IMPORT_MAX_BYTES:
+        raise HTTPException(413, f"The document is larger than {AFS_IMPORT_MAX_BYTES // (1024 * 1024)} MB.")
 
     async def work():
         return await extract_pricing_document(file=None, file_id=file_id, user=user)
-    return await _start_job(user, "pricing", f"{fdoc.get('content_hash')}:pricing:{_id()}", work)
+    return await _start_job(user, "pricing", f"{fdoc.get('content_hash')}:pricing", work)
 
 
 @router.get("/build-quote/jobs/{job_id}")

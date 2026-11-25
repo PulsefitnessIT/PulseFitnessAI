@@ -11,6 +11,7 @@ import io
 from fastapi import HTTPException
 
 SECTION_CHARS = 30000
+TABLE_SECTION_CHARS = 15000   # row-dense sheets/CSVs: smaller parts so every priced row comes back
 MAX_VISION_PAGES = 60          # scanned pages read with vision; any beyond are reported, never hidden
 VISION_BATCH = 10
 
@@ -96,7 +97,7 @@ def read_document(filename: str, data: bytes, max_chars: int = SECTION_CHARS) ->
                         rows += 1
                         blocks.append((f"{ws.title}!row {r}", f"[{ws.title} row {r}] " + " | ".join(cells)))
             cov.update(sheets=[ws.title for ws in wb.worksheets], rows=rows)
-            return {"kind": "xlsx", "sections": _pack(blocks, max_chars), "vision_batches": [], "coverage": cov}
+            return {"kind": "xlsx", "sections": _pack(blocks, min(max_chars, TABLE_SECTION_CHARS)), "vision_batches": [], "coverage": cov}
         if name.endswith(".csv") or name.endswith(".txt"):
             text = _decode(data)
             blocks, bad = [], 0
@@ -114,7 +115,7 @@ def read_document(filename: str, data: bytes, max_chars: int = SECTION_CHARS) ->
             cov.update(rows=len(blocks), malformed_rows=bad, header=header or [])
             if bad:
                 cov["notes"].append(f"{bad} row(s) have a different number of columns from the header — check them")
-            return {"kind": "csv", "sections": _pack(blocks, max_chars), "vision_batches": [], "coverage": cov}
+            return {"kind": "csv", "sections": _pack(blocks, min(max_chars, TABLE_SECTION_CHARS)), "vision_batches": [], "coverage": cov}
         if name.endswith(".docx"):
             from docx import Document
             from docx.table import Table
