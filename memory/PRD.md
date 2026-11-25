@@ -39495,3 +39495,10 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - UI (scoped `.mq-scope` / `MqUi.js` / `modOps.css`): quotation list, wizard stepper + sticky footer, group detail action hierarchy + comparison cards, authorisation cards, handover detail, Schedule of Rates table with approval banner. Front of House: header from lg, mobile drawer prefs, hero CTAs, sign-in dialog a11y.
 - Tests: iteration_318 backend 11/11; frontend flows pass; follow-up fixes applied (tablet header, qty width, n/a call-out, approve disabled until exceptions).
 - Open: preview has NO approved live Schedule B (18 test-data rates, 35 unapproved) → customer publication blocked; make-regression legacy suite 2378 pass / 211 fail / 51 errors (seeded accounts, object storage key, lockouts).
+
+## 2026-11-25 (pm) — Approved MOD Year 4 Schedule B + 365-day validity + 2/4/6-week chases
+- Parser supports the LSLDC0186 "Pricing Schedule" layout (latest "Year N Price" column = Year 4). Rows match the rate card by equipment name, then Sage code; 6 new Multigym entries (5/7/8/9/10/12 station) created. Imported & approved in PREVIEW as SOR-2026-11-25-b498fc (65 verified rates, customer_ready=true). Source workbook kept in /app/restricted/ (git-ignored). PRODUCTION still needs the same import by a MOD Sales Manager.
+- Validity default 365 days, approved (provisional saved values ignored).
+- Chases: publish sets chase_schedule (+14/+28/+42 days, UTC). run_chases() runs inside the weekday 7am cm-daily-checks cron (5-cron limit) and via manager button. Each due chase: follow-up for the quote creator (mod_quote_followups), customer email WITH PDFs attached, internal reminder email to creator — emails only when MOD_QUOTE_NOTIFY_LIVE=true (dry-run in preview). Cancelled once authorised/accepted/withdrawn/expired. Follow-ups tab in MOD Operations → Quotations.
+- Notify email no longer assumes MODService; PDFs attached by default. Import previews can be discarded (DELETE /rates/{pid}).
+- Tests: backend/tests/test_mod_quote_chase.py (4), iteration_319 13/13 backend + all UI flows pass.

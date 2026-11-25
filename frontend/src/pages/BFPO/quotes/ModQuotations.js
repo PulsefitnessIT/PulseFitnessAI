@@ -255,7 +255,7 @@ function Followups({ caps, onOpen }) {
   useEffect(() => { load(); }, [load]);
   const runNow = async () => {
     setRunning(true);
-    try { const r = await mq.post('/followups/run'); notify.success(`${r.data.processed} follow-up(s) raised${r.data.live_email ? '' : ' — customer emails are switched off'}`); load(); } catch (e) { notify.error(errText(e)); } finally { setRunning(false); }
+    try { const r = await mq.post('/followups/run'); notify.success(`${r.data.processed} follow-up(s) raised${r.data.live_email ? '' : ' — customer emails are switched off'}`); if (r.data.processed) setEveryone(true); load(); } catch (e) { notify.error(errText(e)); } finally { setRunning(false); }
   };
   return (
     <div className="space-y-3" data-testid="mq-followups">
@@ -369,7 +369,7 @@ function Pricing() {
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-sm"><span className="mq-label block mb-1">Effective from</span>
               <input type="date" value={eff} onChange={(e) => setEff(e.target.value)} className="mq-input h-10 px-3" data-testid="mq-sor-effective" /></label>
-            <Btn variant="ghost" onClick={() => setPreview(null)} data-testid="mq-sor-discard">Discard</Btn>
+            <Btn variant="ghost" onClick={() => mq.delete(`/rates/${preview.price_list_id}`).catch(() => {}).finally(() => setPreview(null))} data-testid="mq-sor-discard">Discard</Btn>
             <Btn variant="primary" loading={busy} disabled={preview.synthetic} onClick={approve} data-testid="mq-sor-approve">Approve &amp; make live</Btn>
           </div>
         </div>

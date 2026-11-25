@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the Year 4 Schedule of Rates (SOR), 365-day quote validity, the full quote journey (rep wizard -> submit -> manager approve with no exceptions -> publish), the 2/4/6-week chase schedule, chase processing and dedupe, follow-up visibility by role, Record & close, cancelling chases on inactive groups, the dry-run customer notify (attach box ticked by default) and the synthetic-workbook guard. Backend: 13/13 new pytest pass, plus the 4 existing tests in test_mod_quote_chase.py. UI checked end to end with Playwright as manager and rep. Every requested feature works. The live list SOR-2026-11-25-b498fc is still live and unchanged. No real emails were sent (MOD_QUOTE_NOTIFY_LIVE is off).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/mod-ops/quotes/rates/import-preview", "issue": "The UI Discard button only clears client state. The preview record stays in mod_sor_price_lists with status 'preview' forever. Add a DELETE endpoint or expire previews."},
+      {"endpoint": "POST /api/mod-ops/quotes/groups/{gid}/publish", "issue": "valid_until uses the UTC date (datetime.now(timezone.utc)), but chase_schedule uses date.today() in server-local time. Around midnight these can differ by a day. Use one clock for both."},
+      {"endpoint": "rate card data", "issue": "mod_sor_rate_card has two 'Radiant/Freedom Trainer' entries (sor-26 and sor-27), both at A £145.12 / B £24.00. The duplicate row shows in the Schedule of Rates table and the wizard SOR dropdown."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Group detail -> History", "issues": ["System event 'Follow Up Due' shows an empty actor ('Follow Up Due · · date'). Show 'System' instead."]},
+      {"screen": "Notify customer (dry run)", "issues": ["Two toasts appear together: info 'Test mode: no email was sent' and green success 'Notification processed'. The green one is misleading when nothing was sent."]},
+      {"screen": "Schedule of Rates import preview", "issues": ["The 'Effective from' field uses the browser's native date input, not the shadcn calendar."]},
+      {"screen": "Follow-ups tab (manager)", "issues": ["After 'Check for due follow-ups now', the manager's default list says 'No follow-ups due' even when follow-ups were just raised for reps. They only appear after toggling 'Everyone's follow-ups'. Consider switching the toggle on automatically after a run, or pointing to it in the toast."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_quote_chase_iter319.py", "/app/test_reports/pytest/iter319_chase.xml", "/app/backend/tests/test_mod_quote_chase.py"],
+  "action_items": [
+    "Optional: delete or expire SOR import previews when Discard is clicked.",
+    "Optional: use the same clock (UTC) for valid_until and chase_schedule in publish.",
+    "Optional: remove or merge the duplicate Radiant/Freedom Trainer rate card entry (sor-26 / sor-27).",
+    "Optional: show 'System' as the actor on follow_up_due events, and drop the green success toast on dry-run notify.",
+    "Update backend/tests/test_mod_quotes_release_iter318.py::test_rates_current_manager. It still asserts customer_ready is False, but the live Year 4 list now makes it True."
+  ],
+  "critical_code_review_comments": [
+    "mod_ops_quotes.py is 1113 lines. Split the rates, follow-ups and handover sections into their own modules.",
+    "run_chases claims each chase atomically with status 'processing'. If the process crashes between the claim and the except block, the item is stuck in 'processing' and is never retried. Consider a processing_at timestamp with a stale-claim sweep.",
+    "list_followups for a manager with everyone=true is scoped to the manager's organisation, but followup_done does not check organization_id before a manager closes a follow-up. Low risk because there is only one operator org.",
+    "On a cancelled chase only the due item is marked cancelled; later items stay pending until they fall due and are then cancelled. This works, but the group card keeps showing them as 'scheduled' for a withdrawn group."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_quote_chase_iter319.py"],
+  "success_rate": {"backend": "100% (13/13 new + 4/4 existing chase unit tests)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Created 5 TEST quotation groups for MOD Test Site: 4 via API (contact TEST_Officer) and 1 via the UI wizard (contact TEST_UI Officer, group 28cd4a42-7302-4d71-a9f1-896eb4d02277). All are withdrawn and their pending chases set to cancelled. 2 follow-up records were created (one API, one UI) and both are closed. Synthetic preview price lists were deleted by id. The live list and mod_sor_rate_card were not modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_mod_quote_chase_iter319.py -v. The suite cleans up after itself (withdraws groups, cancels pending chases, deletes preview). Its cancellation test sets group status in Mongo directly. /api/auth/login is rate-limited: wait about 20s between UI logins. After the wizard's Generate step the URL stays at /bfpo, so get the group id from mod_quote_groups by customer.contact_name. The rep cannot see the Schedule of Rates tab, the run button or the Everyone toggle.",
+  "rca of the issue": "N/A - no functional bugs found."
+}

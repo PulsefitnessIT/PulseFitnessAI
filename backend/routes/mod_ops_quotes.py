@@ -494,7 +494,9 @@ async def approve_group(gid: str, body: ApproveIn, user=Depends(require_operator
 
 
 async def _validity() -> dict:
-    return await db.mod_quote_settings.find_one({"id": "validity"}, {"_id": 0}) or dict(DEFAULT_VALIDITY)
+    doc = await db.mod_quote_settings.find_one({"id": "validity"}, {"_id": 0})
+    # An unapproved provisional value never overrides the approved 365-day default.
+    return doc if doc and doc.get("status") == "approved" else dict(DEFAULT_VALIDITY)
 
 
 @router.get("/settings")
@@ -633,7 +635,7 @@ async def publish(gid: str, body: PublishIn, user=Depends(_sales)):
     await db.crm2_quotes.update_many({"mod_group_id": gid, "status": "approved", "id": {"$nin": body.quote_ids}},
                                      {"$set": {"status": "approved_not_published"}})
     await db.mod_quote_groups.update_one({"id": gid}, {"$set": {"status": "published", "published_at": _now(), "updated_at": _now(),
-                                                                "chase_schedule": chase_schedule(date.today())}})
+                                                                "chase_schedule": chase_schedule(datetime.now(timezone.utc).date())}})
     await _crm_activity(g, "MOD quotations published to MODService", ", ".join(q["quote_number"] for q in qs), user)
     return await get_group(gid, user)
 
@@ -962,12 +964,12 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
             card.append(new)
             hits = [new]
         for c in hits:
-            await _apply_rate(c, e, pl, pid, eff, exp, version, user)
+            await _apply_rate(c, e, pl, pid, eff, exp, version, user, keep_label=len(hits) > 1)
     await _finish_approve(pid, eff, version, user)
     return {"ok": True, "version": version, "created_entries": len(created)}
 
 
-async def _apply_rate(c, e, pl, pid, eff, exp, version, user):
+async def _apply_rate(c, e, pl, pid, eff, exp, version, user, keep_label=False):
     await db.mod_sor_rate_card_history.insert_one({"id": str(uuid.uuid4()), "rate_card_id": c["id"], "before": c,
                                                    "price_list_id": pid, "changed_by": user.get("id"), "at": _now()})
     approval = {"source": f"Schedule B import {pl['filename']} (sha256 {pl['sha256'][:12]})", "effective_from": eff,
@@ -975,8 +977,10 @@ async def _apply_rate(c, e, pl, pid, eff, exp, version, user):
                 "approved_at": _now(), "version": version, "synthetic": bool(pl.get("synthetic"))}
     if approval["synthetic"]:
         approval["source"] = "SYNTHETIC TEST DATA — " + approval["source"]
-    await db.mod_sor_rate_card.update_one({"id": c["id"]}, {"$set": {
-        **apply_entry(c, e, approval), "price_list_version": version, "updated_at": _now()}})
+    upd = apply_entry(c, e, approval)
+    if keep_label:
+        upd.pop("label", None)
+    await db.mod_sor_rate_card.update_one({"id": c["id"]}, {"$set": {**upd, "price_list_version": version, "updated_at": _now()}})
 
 
 async def _finish_approve(pid, eff, version, user):
@@ -984,6 +988,16 @@ async def _finish_approve(pid, eff, version, user):
     await db.mod_sor_price_lists.update_one({"id": pid}, {"$set": {"status": "live", "version": version,
                                                                    "effective_from": eff,
                                                                    "approved_by": user.get("full_name") or user.get("email"), "approved_at": _now()}})
+
+
+@router.delete("/rates/{pid}")
+async def rates_discard(pid: str, user=Depends(require_operator_crm_user)):
+    _need(user, PERM_PRICING)
+    res = await db.mod_sor_price_lists.update_one({"id": pid, "status": "preview"}, {"$set": {
+        "status": "discarded", "discarded_by": user.get("full_name") or user.get("email"), "discarded_at": _now()}})
+    if not res.modified_count:
+        raise HTTPException(409, "Only an import preview can be discarded")
+    return {"ok": True}
 
 
 @router.get("/rates/price-lists")

@@ -23,7 +23,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
 
   const act = async (fn, ok) => {
     setBusy(true);
-    try { await fn(); notify.success(ok); await load(); } catch (e) { notify.error(errText(e)); } finally { setBusy(false); }
+    try { const msg = await fn(); if (msg !== false) notify.success(ok); await load(); } catch (e) { notify.error(errText(e)); } finally { setBusy(false); }
   };
   const unverified = g.quotes.flatMap((q) => (q.unverified_rate_lines || []).map((ln) => ({ ...ln, quote_id: q.id, quote_number: q.quote_number })));
   const excKey = (ln) => `${ln.quote_id}:${ln.line_no}`;
@@ -39,8 +39,9 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
   const sendNotify = () => act(async () => {
     const r = await mq.post(`/groups/${g.id}/notify`, { ...notifyForm, resend: g.notified_revision === g.revision });
     setNotifyOpen(false);
-    if (r.data.dry_run) notify.info?.('Test mode: no email was sent — notification recorded in history');
-  }, 'Notification processed');
+    if (r.data.dry_run) { notify.info?.('Test mode: no email was sent — notification recorded in history'); return false; }
+    return true;
+  }, 'Notification sent');
   const c = g.customer;
 
   const closed = ['accepted', 'handed_over', 'withdrawn'].includes(g.status);
@@ -167,7 +168,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
         <div className="mq-card p-5" data-testid="mq-history">
           <div className="font-semibold mb-3 flex items-center gap-2"><FileText size={15} /> History</div>
           <ul className="text-sm space-y-2 max-h-72 overflow-y-auto">
-            {g.events.map((e) => <li key={e.id}><span className="font-medium capitalize">{e.kind.replace(/_/g, ' ')}{e.detail?.option ? ` — ${e.detail.option} ${e.detail.ref}` : ''}</span> <span className="mq-muted">· {e.user_name} · {new Date(e.at).toLocaleString('en-GB')}{e.version ? ` · v${e.version}` : ''}</span></li>)}
+            {g.events.map((e) => <li key={e.id}><span className="font-medium capitalize">{e.kind.replace(/_/g, ' ')}{e.detail?.option ? ` — ${e.detail.option} ${e.detail.ref}` : ''}</span> <span className="mq-muted">· {e.user_name || 'System'} · {new Date(e.at).toLocaleString('en-GB')}{e.version ? ` · v${e.version}` : ''}</span></li>)}
           </ul>
         </div>
       </div>
