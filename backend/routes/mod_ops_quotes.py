@@ -203,7 +203,7 @@ class Customer(BaseModel):
 
 class Row(BaseModel):
     row_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    description: str
+    description: str = ""
     qty: int = Field(1, ge=0, le=100000)
     rate_card_id: str | None = None
     label: str = ""
@@ -253,7 +253,7 @@ async def _check_equipment_ownership(site_id: str, rows: list[dict]):
     if not ids:
         return
     owned = {e["id"] async for e in db.equipment.find({"id": {"$in": ids}, "organization_id": site_id}, {"_id": 0, "id": 1})}
-    foreign = [r["description"] for r in rows if r.get("equipment_id") and r["equipment_id"] not in owned]
+    foreign = [r.get("description") or r.get("serial") or "item" for r in rows if r.get("equipment_id") and r["equipment_id"] not in owned]
     if foreign:
         raise HTTPException(422, f"These items are not on this site's equipment register: {', '.join(foreign[:5])}")
 
@@ -767,6 +767,29 @@ async def withdraw(gid: str, body: StatusIn, user=Depends(_sales)):
     return {"ok": True}
 
 
+def _is_owner(user: dict) -> bool:
+    return bool(user.get("is_master_admin") or user.get("is_pulse_admin") or (user.get("role") or "").lower() == "owner")
+
+
+@router.delete("/groups/{gid}")
+async def delete_group(gid: str, user=Depends(_sales)):
+    if not _is_owner(user):
+        raise HTTPException(403, "Only owners can delete quotations")
+    g = await _group(gid)
+    if g["status"] in ("accepted", "handed_over"):
+        raise HTTPException(409, "Accepted quotations cannot be deleted — they back a service contract")
+    quotes = await db.crm2_quotes.find({"mod_group_id": gid}, {"_id": 0, "id": 1, "quote_number": 1}).to_list(500)
+    await db.mod_quote_deletions.insert_one({
+        "group_id": gid, "status": g["status"], "customer": (g.get("customer") or {}).get("name"),
+        "quote_numbers": [q.get("quote_number") for q in quotes], "deleted_by": user.get("id"),
+        "deleted_by_name": user.get("full_name") or user.get("email"), "deleted_at": _now()})
+    await db.crm2_quotes.delete_many({"mod_group_id": gid})
+    for coll in (db.mod_quote_followups, db.mod_quote_authorisations, db.mod_quote_events):
+        await coll.delete_many({"group_id": gid})
+    await db.mod_quote_groups.delete_one({"id": gid})
+    return {"ok": True, "deleted_quotes": len(quotes)}
+
+
 @router.get("/quotes/{qid}/pdf")
 async def quote_pdf(qid: str, user=Depends(_sales)):
     q = await db.crm2_quotes.find_one({"id": qid, "quote_kind": "mod_sor"}, {"_id": 0})
@@ -1073,7 +1096,7 @@ async def my_capabilities(user=Depends(_sales)):
         except HTTPException:
             return False
     return {"sales": True, "manager": can(PERM_APPROVE), "pricing": can(PERM_PRICING),
-            "master": bool(user.get("is_master_admin")), "name": user.get("full_name") or user.get("email")}
+            "master": bool(user.get("is_master_admin")), "owner": _is_owner(user), "name": user.get("full_name") or user.get("email")}
 
 
 # ── MOD Service Operations handover queue ──────────────────────────────

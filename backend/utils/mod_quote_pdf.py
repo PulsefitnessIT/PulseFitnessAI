@@ -93,7 +93,7 @@ def render_mod_quote_pdf(q: dict) -> bytes:
     _header(c, q)
     top = _table_header(c)
     for i, ln in enumerate(lines):
-        wrapped = simpleSplit(str(ln.get("description") or ""), "Helvetica", 8, DESC_W)
+        wrapped = simpleSplit(str(ln.get("description") or "").lstrip(" -"), "Helvetica", 8, DESC_W)
         h = max(1, len(wrapped)) * 9 + 2
         if top + h > CONT_BOTTOM_LIMIT:
             _txt(c, 553, 805, f"Page {page} — continued", right=True, size=7)
@@ -103,7 +103,7 @@ def render_mod_quote_pdf(q: dict) -> bytes:
             _header(c, q)
             top = _table_header(c)
         _txt(c, 24, top, ln.get("line_no", i + 1))
-        _txt(c, 44, top, ln.get("item_code", ""))
+        _txt(c, 44, top, "MOD-CALLOUT" if ln.get("kind") == "call_out" and ln.get("item_code") == "1B" else ln.get("item_code", ""))
         for k, w in enumerate(wrapped):
             _txt(c, 145, top + k * 9, w)
         _txt(c, 345, top, ln.get("qty", ""))

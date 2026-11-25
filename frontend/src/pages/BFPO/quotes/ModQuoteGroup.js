@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Download, FileText, Send, CheckCircle2, Globe2, Mail, Pencil, XCircle, Archive, CalendarPlus, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Send, CheckCircle2, Globe2, Mail, Pencil, XCircle, Archive, CalendarPlus, AlertTriangle, Trash2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { mq, errText, gbp, downloadBlob, TYPE_LABEL, TYPE_DESC, muted } from './modQuotesApi';
 import { Btn, StatusChip, Banner, Field } from './MqUi';
@@ -94,6 +94,11 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
             <Btn icon={Pencil} disabled={busy} onClick={onEdit} data-testid="mq-edit">{g.status === 'draft' || g.status === 'pending_approval' ? 'Edit draft' : 'Create revision'}</Btn>}
           <Btn icon={Archive} data-testid="mq-download-all" onClick={() => downloadBlob(`/groups/${g.id}/pdfs.zip`, `MOD-Quotations-${c.name}.zip`).catch((e) => notify.error(errText(e)))}>Download all PDFs</Btn>
           {caps.manager && ['published', 'customer_review', 'authorisation_submitted'].includes(g.status) && <Btn icon={CalendarPlus} disabled={busy} data-testid="mq-extend" onClick={extend}>Extend validity</Btn>}
+          {caps.owner && !['accepted', 'handed_over'].includes(g.status) && <Btn icon={Trash2} variant="danger" disabled={busy} data-testid="mq-delete"
+            onClick={async () => {
+              if (!window.confirm(`Delete these quotations for ${c.name}? This cannot be undone.`)) return;
+              try { await mq.delete(`/groups/${g.id}`); notify.success('Quotations deleted'); onBack(); } catch (e) { notify.error(errText(e)); }
+            }}>Delete</Btn>}
           {!closed && <Btn icon={XCircle} variant="danger" disabled={busy} className="sm:ml-auto" data-testid="mq-withdraw"
             onClick={() => window.confirm('Withdraw these quotations? Customers will no longer see them.') && act(() => mq.post(`/groups/${g.id}/withdraw`, { reason }), 'Withdrawn')}>Withdraw</Btn>}
         </div>

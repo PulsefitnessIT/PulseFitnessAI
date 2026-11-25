@@ -279,12 +279,13 @@ def _row_line(row: dict, entry: dict, t: str, on_date: str) -> tuple[dict | None
     price = entry.get(f"type_{key}_price")
     if entry.get(f"poa_{key}") or (entry.get("is_poa") and price is None) or price is None:
         return None, f"{row.get('description') or entry.get('label')}: Type {t} is price-on-application — no quotable rate"
-    desc = entry.get(f"printed_desc_{key}") or f"{entry.get(f'tl_ref_{key}') or ''} - {entry.get('label')} - Type {t} Service"
+    desc = entry.get(f"printed_desc_{key}") or " - ".join(
+        p for p in (entry.get(f"tl_ref_{key}"), entry.get("label"), f"Type {t} Service") if p)
     if row.get("label"):
         desc = f"{desc} ({row['label']})"
     qty = int(row.get("qty") or 0)
     return {
-        "item_code": entry.get(f"sage_code_{key}") or entry.get(f"code_{key}"),
+        "item_code": entry.get(f"sage_code_{key}") or ("MOD-CALLOUT" if entry.get("kind") == "call_out" else entry.get(f"code_{key}")),
         "description": desc, "qty": qty, "unit": entry.get("uom") or "Each",
         "unit_price": float(money(price)), "total": float(money(price) * qty),
         "coverage": t, "rate_card_id": entry["id"], "row_id": row.get("row_id"),
@@ -323,19 +324,20 @@ def build_quote(rows: list[dict], qtype: str, card_by_id: dict, callout_qty: int
                 lines.append({**line, "kind": "call_out"})
     for row in rows:
         qty = row.get("qty")
+        entry = card_by_id.get(row.get("rate_card_id"))
+        name = row.get("description") or (entry or {}).get("label") or "Unselected item"
         if not isinstance(qty, int) or isinstance(qty, bool) or qty < 0:
-            issues.append(f"{row.get('description')}: quantity must be a whole number of 0 or more")
+            issues.append(f"{name}: quantity must be a whole number of 0 or more")
             continue
         if qty == 0:
-            excluded.append(row.get("description") or "(blank row)")
+            excluded.append(name)
             continue
-        entry = card_by_id.get(row.get("rate_card_id"))
         if not entry:
-            issues.append(f"{row.get('description')}: not matched to a Schedule of Rates entry")
+            issues.append(f"{name}: not matched to a Schedule of Rates entry")
             continue
         t = qtype if qtype in ("A", "B") else (row.get("coverage") or "").upper()
         if t not in ("A", "B"):
-            issues.append(f"{row.get('description')}: choose Type A or Type B coverage")
+            issues.append(f"{name}: choose Type A or Type B coverage")
             continue
         line, err = _row_line(row, entry, t, on_date)
         if err:

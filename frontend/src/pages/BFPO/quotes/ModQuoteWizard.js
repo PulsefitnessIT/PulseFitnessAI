@@ -4,7 +4,7 @@ import { notify } from '@/components/notifications';
 import { mq, errText, gbp, TYPE_LABEL, TYPE_DESC, card, muted, inputStyle } from './modQuotesApi';
 import { Btn, Banner } from './MqUi';
 
-const STAGES = ['Customer & site', 'Equipment list', 'Quotation options', 'Review & generate'];
+const STAGES = ['Customer & site', 'Equipment & options', 'Review & generate'];
 
 function Stepper({ stage }) {
   return (
@@ -98,11 +98,6 @@ function RowEditor({ row, catalogue, onChange, onRemove, showCoverage }) {
   const services = catalogue.filter((e) => e.kind === 'service');
   return (
     <tr className="border-t align-top" style={{ borderColor: 'var(--theme-border)' }} data-testid={`mq-row-${row.row_id}`}>
-      <td className="p-2 min-w-[180px]">
-        <input value={row.description} onChange={(e) => onChange({ ...row, description: e.target.value })}
-          className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-desc" />
-        {row.serial && <div className="text-xs mt-1" style={muted}>S/N {row.serial}</div>}
-      </td>
       <td className="p-2 w-20 min-w-[76px]">
         <input type="number" min={0} aria-label="Quantity" value={row.qty} onChange={(e) => onChange({ ...row, qty: Math.max(0, parseInt(e.target.value || '0', 10)) })}
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-qty" />
@@ -110,13 +105,14 @@ function RowEditor({ row, catalogue, onChange, onRemove, showCoverage }) {
       <td className="p-2 min-w-[220px]">
         <select value={row.rate_card_id || ''} onChange={(e) => onChange({ ...row, rate_card_id: e.target.value || null, needs_review: false })}
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-sor">
-          <option value="">— choose SOR category —</option>
-          {services.map((e) => <option key={e.id} value={e.id}>{`${e.code_a?.replace('A', '') || ''} · ${e.label}${e.sage_code_a ? ` (${e.sage_code_a.replace(/-A$/, '')})` : ''}`}</option>)}
+          <option value="">— choose item code —</option>
+          {services.map((e) => <option key={e.id} value={e.id}>{`${e.label}${e.sage_code_a ? ` (${e.sage_code_a.replace(/-A$/, '')})` : ''}`}</option>)}
         </select>
-        {row.needs_review && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }} data-testid="mq-row-review">Check this match{row.match_confidence ? ` (${Math.round(row.match_confidence * 100)}%)` : ''}</div>}
+        {row.needs_review && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }} data-testid="mq-row-review">Check this match{row.description ? ` for "${row.description}"` : ''}{row.match_confidence ? ` (${Math.round(row.match_confidence * 100)}%)` : ''}</div>}
+        {row.serial && <div className="text-xs mt-1" style={muted}>S/N {row.serial}</div>}
       </td>
       <td className="p-2 min-w-[120px]">
-        <input value={row.label} placeholder="e.g. Ski-Ergs" onChange={(e) => onChange({ ...row, label: e.target.value })}
+        <input value={row.label} placeholder="Optional" onChange={(e) => onChange({ ...row, label: e.target.value })}
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-label" />
       </td>
       <td className="p-2 min-w-[110px]">
@@ -140,7 +136,7 @@ function RowEditor({ row, catalogue, onChange, onRemove, showCoverage }) {
   );
 }
 
-function EquipmentStage({ customer, rows, setRows, catalogue, options }) {
+function EquipmentStage({ customer, rows, setRows, catalogue, options, children }) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const showCov = options.includes('AB');
@@ -174,6 +170,7 @@ function EquipmentStage({ customer, rows, setRows, catalogue, options }) {
         <input ref={fileRef} type="file" accept=".xlsx,.csv,.xlsm" className="hidden" onChange={(e) => upload(e.target.files?.[0])} data-testid="mq-upload-input" />
         <Btn icon={Plus} onClick={addManual} data-testid="mq-add-row">Add item</Btn>
       </div>
+      {children}
       {showCov && rows.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="mq-bulk-coverage">
           <span style={muted}>Mixed quote coverage:</span>
@@ -183,19 +180,19 @@ function EquipmentStage({ customer, rows, setRows, catalogue, options }) {
           <span className="text-xs" style={muted}>Suggestions are a starting point — confirm each row.</span>
         </div>
       )}
-      {reviewCount > 0 && <Banner testid="mq-review-count">{reviewCount} row(s) need a confirmed SOR category before you continue.</Banner>}
+      {reviewCount > 0 && <Banner testid="mq-review-count">{reviewCount} row(s) need a confirmed item code before you continue.</Banner>}
       <div className="mq-card overflow-x-auto">
         <table className="mq-table mq-table--dense">
           <thead><tr>
-            <th className="p-2">Description</th><th className="p-2">Qty</th><th className="p-2">SOR category</th>
-            <th className="p-2">Name on quote</th><th className="p-2">Location</th>{showCov && <th className="p-2">A/B</th>}<th />
+            <th className="p-2">Qty</th><th className="p-2">Item Code</th>
+            <th className="p-2">Notes</th><th className="p-2">Location</th>{showCov && <th className="p-2">A/B</th>}<th />
           </tr></thead>
           <tbody>
             {rows.map((r, i) => (
               <RowEditor key={r.row_id} row={r} catalogue={catalogue} showCoverage={showCov}
                 onChange={(nr) => setRows(rows.map((x, j) => (j === i ? nr : x)))} onRemove={() => setRows(rows.filter((_, j) => j !== i))} />
             ))}
-            {!rows.length && <tr><td colSpan={7} className="p-8 text-center" style={muted}>Load the register, upload a list or add items manually.</td></tr>}
+            {!rows.length && <tr><td colSpan={6} className="p-8 text-center" style={muted}>Load the register, upload a list or add items manually.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -279,7 +276,7 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
   }, [payload, customer, rows.length, options.length]);
 
   const unmapped = rows.filter((r) => r.qty > 0 && !r.rate_card_id).length;
-  const canNext = [!!customer?.site_id, rows.some((r) => r.qty > 0) && !unmapped, options.length > 0, true][stage];
+  const canNext = [!!customer?.site_id, rows.some((r) => r.qty > 0) && !unmapped && options.length > 0, true][stage];
   const toggle = (t) => setOptions(options.includes(t) ? options.filter((o) => o !== t) : [...options, t]);
   const save = async () => {
     setSaving(true);
@@ -296,10 +293,9 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
       <h2 className="text-2xl font-semibold pulse-font-heading mb-4" style={{ color: 'var(--theme-text)' }}>{group ? `Revise quotation group` : 'New MOD quotation'}</h2>
       <Stepper stage={stage} />
       {stage === 0 && <CustomerStage customer={customer} setCustomer={setCustomer} />}
-      {stage === 1 && <EquipmentStage customer={customer} rows={rows} setRows={setRows} catalogue={catalogue} options={options} />}
-      {stage === 2 && (
-        <div className="space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">{['A', 'B', 'AB'].map((t) => <OptionCard key={t} t={t} on={options.includes(t)} toggle={() => toggle(t)} preview={preview?.[t]} />)}</div>
+      {stage === 1 && (
+        <EquipmentStage customer={customer} rows={rows} setRows={setRows} catalogue={catalogue} options={options}>
+          <div className="grid md:grid-cols-3 gap-4" data-testid="mq-options">{['A', 'B', 'AB'].map((t) => <OptionCard key={t} t={t} on={options.includes(t)} toggle={() => toggle(t)} preview={preview?.[t]} />)}</div>
           {options.includes('B') && (
             <label className="inline-flex items-center gap-2 text-sm">
               <span style={muted}>Type B call-outs</span>
@@ -307,17 +303,16 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
                 className="w-16 rounded px-2 py-1" style={inputStyle} data-testid="mq-callout-qty" />
             </label>
           )}
-          {options.includes('AB') && <EquipmentStage customer={customer} rows={rows} setRows={setRows} catalogue={catalogue} options={options} />}
-        </div>
+        </EquipmentStage>
       )}
-      {stage === 3 && <ReviewStage preview={preview} />}
+      {stage === 2 && <ReviewStage preview={preview} />}
       <div className="mq-footer flex flex-wrap items-center justify-between gap-3" data-testid="mq-wizard-footer">
         <Btn icon={ArrowLeft} disabled={stage === 0} onClick={() => setStage(stage - 1)} data-testid="mq-wizard-back">Back</Btn>
         <div className="text-xs mq-muted text-center flex-1 min-w-0 hidden sm:block" data-testid="mq-wizard-summary">
           {customer?.name || 'No site selected'} · {rows.length} item(s) · {options.map((o) => TYPE_LABEL[o]).join(', ') || 'no options'}
-          {stage < 3 && !canNext ? <span style={{ color: 'var(--color-warning)' }}> · {['Select a MOD site', 'Add equipment and confirm every SOR category', 'Choose at least one option'][stage]}</span> : null}
+          {stage < 2 && !canNext ? <span style={{ color: 'var(--color-warning)' }}> · {['Select a MOD site', !options.length ? 'Choose at least one quote type' : 'Add equipment and confirm every item code'][stage]}</span> : null}
         </div>
-        {stage < 3 ? (
+        {stage < 2 ? (
           <Btn variant="primary" disabled={!canNext} onClick={() => setStage(stage + 1)} data-testid="mq-wizard-next">Next <ArrowRight size={15} /></Btn>
         ) : (
           <Btn icon={Save} variant="primary" loading={saving} onClick={save} data-testid="mq-generate">{group ? 'Save revision' : 'Generate quotations (saved as drafts)'}</Btn>
