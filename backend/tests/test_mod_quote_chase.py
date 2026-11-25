@@ -82,7 +82,7 @@ async def test_due_chase_raises_one_followup_and_is_idempotent(monkeypatch):
         fus = await db.mod_quote_followups.find({"group_id": gid}, {"_id": 0}).to_list(10)
         assert len(fus) == 1 and fus[0]["chase_no"] == 1 and fus[0]["assigned_to"] == "chase-test-user"
         g = await db.mod_quote_groups.find_one({"id": gid}, {"_id": 0})
-        assert [c["status"] for c in g["chase_schedule"]] == ["done", "pending"]
+        assert [c["status"] for c in g["chase_schedule"]] == ["task_created", "pending"]
     finally:
         await _cleanup(gid)
 

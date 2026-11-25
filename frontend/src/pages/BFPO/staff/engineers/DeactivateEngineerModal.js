@@ -3,12 +3,13 @@ import { X } from 'lucide-react';
 import { bfpo } from '../../bfpoApi';
 import { Btn, inputCls } from '../../ui';
 
-const ACTIONS = [['reassign', 'Reassign to another engineer'], ['unassign', 'Return to the unassigned queue'], ['keep', 'Keep with management']];
+const ACTIONS = [['reassign', 'Reassign to another engineer'], ['unassign', 'Return to the unassigned queue'], ['keep', 'Hold for management review']];
 
 export default function DeactivateEngineerModal({ engineer, jobs, engineers, onClose, onDone }) {
-  const [dec, setDec] = useState(() => Object.fromEntries(jobs.map((j) => [j.id, { action: 'unassign', engineer_id: '', reason: '' }])));
+  const [dec, setDec] = useState(() => Object.fromEntries(jobs.map((j) => [j.id, { action: 'unassign', engineer_id: '', reason: '', override_reason: '' }])));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [needsOverride, setNeedsOverride] = useState([]);
   const others = engineers.filter((e) => e.id !== engineer.id && e.is_active !== false && e.bfpo_role !== 'staff');
   const set = (id, patch) => setDec((d) => ({ ...d, [id]: { ...d[id], ...patch } }));
   const ready = jobs.every((j) => dec[j.id].reason.trim() && (dec[j.id].action !== 'reassign' || dec[j.id].engineer_id));
@@ -19,6 +20,7 @@ export default function DeactivateEngineerModal({ engineer, jobs, engineers, onC
       onDone();
     } catch (e) {
       const d = e?.response?.data?.detail;
+      if (d?.code === 'outside_coverage') setNeedsOverride((n) => [...new Set([...n, d.case_id])]);
       setErr(typeof d === 'string' ? d : d?.message || 'Could not deactivate');
     } finally { setBusy(false); }
   };
@@ -48,6 +50,10 @@ export default function DeactivateEngineerModal({ engineer, jobs, engineers, onC
                   </select>
                 )}
               </div>
+              {dec[j.id].action === 'reassign' && needsOverride.includes(j.id) && (
+                <input className={inputCls} placeholder="Engineer is outside normal coverage — override reason (required)" value={dec[j.id].override_reason}
+                  onChange={(e) => set(j.id, { override_reason: e.target.value })} data-testid={`deactivate-override-${j.id}`} />
+              )}
               <input className={inputCls} placeholder="Reason (required)" value={dec[j.id].reason}
                 onChange={(e) => set(j.id, { reason: e.target.value })} data-testid={`deactivate-reason-${j.id}`} />
             </div>

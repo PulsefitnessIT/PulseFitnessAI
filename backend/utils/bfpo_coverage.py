@@ -30,12 +30,13 @@ def _dedupe(ids) -> list[str]:
     return out
 
 
-async def validate_allocation(territory_ids, site_ids) -> tuple[list[str], list[str]]:
-    """Dedupe and reject unknown territory/site references (422) before anything is saved."""
+async def validate_allocation(territory_ids, site_ids, existing_t=(), existing_s=()) -> tuple[list[str], list[str]]:
+    """Dedupe and reject NEWLY submitted unknown territory/site ids (422). References already on the
+    record are kept (and flagged by describe()) so unrelated edits are never blocked by stale data."""
     terrs, sites = await lookup()
     t_ids, s_ids = _dedupe(territory_ids), _dedupe(site_ids)
-    bad_t = [t for t in t_ids if t not in terrs]
-    bad_s = [s for s in s_ids if s not in sites]
+    bad_t = [t for t in t_ids if t not in terrs and t not in (existing_t or ())]
+    bad_s = [s for s in s_ids if s not in sites and s not in (existing_s or ())]
     if bad_t or bad_s:
         parts = ([f"unknown territory {', '.join(bad_t)}"] if bad_t else []) + (
             [f"unknown site {', '.join(bad_s)}"] if bad_s else [])

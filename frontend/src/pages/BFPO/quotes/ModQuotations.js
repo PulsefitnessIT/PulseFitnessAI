@@ -210,14 +210,20 @@ function Handovers({ caps, onOpen }) {
 }
 
 const EMAIL_STATE = {
-  sent: ['ok', 'Chase email sent with PDFs'], dry_run: ['warn', 'Email not sent — customer emails are switched off'],
-  no_customer_email: ['bad', 'No customer email held'], no_published_quotes: ['neutral', 'No published quotations'],
+  sent: ['ok', 'Customer email sent with PDFs'], awaiting_approval: ['warn', 'Customer email not sent — held for manager review'],
+  ready: ['warn', 'Customer email queued to send'], sending: ['warn', 'Customer email sending'],
+  failed: ['bad', 'Customer email failed'], not_applicable: ['neutral', 'No customer email for this follow-up'],
+  cancelled: ['neutral', 'Customer email cancelled'],
 };
 
-function FollowupCard({ f, onOpen, onDone }) {
+function FollowupCard({ f, caps, onOpen, onDone }) {
   const [outcome, setOutcome] = useState('');
   const [busy, setBusy] = useState(false);
-  const [tone, label] = EMAIL_STATE[f.customer_email] || ['neutral', f.customer_email];
+  const [tone, label] = EMAIL_STATE[f.email_status] || ['neutral', f.email_status || '—'];
+  const decide = async (action) => {
+    setBusy(true);
+    try { await mq.post(`/followups/${f.id}/email`, { action }); notify.success(action === 'release' ? 'Customer email released for sending' : 'Customer email cancelled'); onDone(); } catch (e) { notify.error(errText(e)); } finally { setBusy(false); }
+  };
   const overdue = f.due < new Date().toISOString().slice(0, 10);
   const save = async () => {
     setBusy(true);
@@ -238,7 +244,17 @@ function FollowupCard({ f, onOpen, onDone }) {
         <Field label="Email">{f.contact_email || '—'}</Field>
         <Field label="Owner">{f.assigned_name || '—'}</Field>
       </div>
-      <div className="mt-3"><StatusChip status={tone === 'ok' ? 'accepted' : tone === 'bad' ? 'declined' : tone === 'warn' ? 'pending_approval' : 'draft'} label={label} /></div>
+      <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="mq-followup-email-status">
+        <StatusChip status={tone === 'ok' ? 'accepted' : tone === 'bad' ? 'declined' : tone === 'warn' ? 'pending_approval' : 'draft'} label={label} />
+        {f.email_sent_at && <span className="text-xs mq-muted">sent {new Date(f.email_sent_at).toLocaleString('en-GB')} to {f.contact_email}</span>}
+        {f.email_reason && f.email_status !== 'sent' && <span className="text-xs mq-muted">{f.email_reason}</span>}
+        {caps?.manager && ['awaiting_approval', 'failed'].includes(f.email_status) && (
+          <>
+            <Btn size="sm" disabled={busy} onClick={() => decide('release')} data-testid="mq-followup-release">Release email</Btn>
+            <Btn size="sm" variant="ghost" disabled={busy} onClick={() => decide('cancel')} data-testid="mq-followup-cancel-email">Don't send</Btn>
+          </>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t" style={{ borderColor: 'var(--theme-border)' }}>
         <input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="What happened? e.g. Spoke to Sgt Smith — PO expected next week" aria-label="Chase outcome"
           className="mq-input flex-1 min-w-[220px] h-10 px-3 text-sm" data-testid="mq-followup-outcome" />
@@ -256,7 +272,7 @@ function Followups({ caps, onOpen }) {
   useEffect(() => { load(); }, [load]);
   const runNow = async () => {
     setRunning(true);
-    try { const r = await mq.post('/followups/run'); notify.success(`${r.data.processed} follow-up(s) raised${r.data.live_email ? '' : ' — customer emails are switched off'}`); if (r.data.processed) setEveryone(true); load(); } catch (e) { notify.error(errText(e)); } finally { setRunning(false); }
+    try { const r = await mq.post('/followups/run'); notify.success(`${r.data.processed} follow-up(s) raised${r.data.live_email ? ` · ${r.data.emails_sent} customer email(s) sent` : ' — customer emails are switched off, nothing was sent'}`); if (r.data.processed) setEveryone(true); load(); } catch (e) { notify.error(errText(e)); } finally { setRunning(false); }
   };
   return (
     <div className="space-y-3" data-testid="mq-followups">
@@ -270,7 +286,7 @@ function Followups({ caps, onOpen }) {
           </>
         )}
       </div>
-      {!items ? <Skeleton /> : items.map((f) => <FollowupCard key={f.id} f={f} onOpen={onOpen} onDone={load} />)}
+      {!items ? <Skeleton /> : items.map((f) => <FollowupCard key={f.id} f={f} caps={caps} onOpen={onOpen} onDone={load} />)}
       {items && !items.length && <Empty icon={Mail} testid="mq-followups-empty" title="No follow-ups due" sub="Follow-ups appear here 2, 4 and 6 weeks after a quotation is published, until it is authorised, accepted or withdrawn." />}
     </div>
   );

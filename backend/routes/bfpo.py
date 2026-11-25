@@ -1056,7 +1056,8 @@ async def staff_allocate(case_id: str, data: dict = Body(...), user=Depends(_req
         {"id": case_id},
         {"$set": {"assigned_engineer_id": eng_id,
                   "assigned_engineer_name": eng.get("full_name") or eng.get("email"),
-                  "updated_at": _now()}},
+                  "updated_at": _now()},
+         "$unset": {"management_hold": "", "held_from_engineer_id": ""}},
     )
     if case.get("status") in (NEW, "triaged"):
         try:
@@ -1305,7 +1306,8 @@ async def update_engineer(eng_id: str, data: dict = Body(...), user=Depends(_req
         from utils.bfpo_coverage import validate_allocation
         t_ids, s_ids = await validate_allocation(
             data["bfpo_territory_ids"] if "bfpo_territory_ids" in data else u.get("bfpo_territory_ids"),
-            data["bfpo_site_ids"] if "bfpo_site_ids" in data else u.get("bfpo_site_ids"))
+            data["bfpo_site_ids"] if "bfpo_site_ids" in data else u.get("bfpo_site_ids"),
+            u.get("bfpo_territory_ids") or [], u.get("bfpo_site_ids") or [])
         updates["bfpo_territory_ids"], updates["bfpo_site_ids"] = t_ids, s_ids
     if "bfpo_role" in data:
         role = (data.get("bfpo_role") or "").lower()
@@ -1352,6 +1354,12 @@ async def _apply_job_decisions(jobs: list, decisions: dict, leaver: dict, user: 
                                            "bfpo_role": {"$in": ["engineer", "lead"]}}, {"_id": 0})
             if not new or new.get("is_active") is False or new["id"] == leaver["id"]:
                 raise HTTPException(422, f"Job {j.get('reference') or j['id']}: choose another active engineer")
+            from utils.bfpo_coverage import covers_case
+            case = await db.svc_cases.find_one({"id": j["id"]}, {"_id": 0})
+            d["_outside"] = not await covers_case(new, case)
+            if d["_outside"] and not (d.get("override_reason") or "").strip():
+                raise HTTPException(422, {"code": "outside_coverage", "case_id": j["id"],
+                                          "message": f"Job {j.get('reference') or j['id']}: {new.get('full_name')} does not normally cover this site — give an override reason"})
     for j in jobs:
         d = decisions[j["id"]]
         action, reason = d["action"], d["reason"].strip()
@@ -1361,18 +1369,19 @@ async def _apply_job_decisions(jobs: list, decisions: dict, leaver: dict, user: 
                                                                     "bfpo_territory_ids": 1, "bfpo_site_ids": 1})
             name = new.get("full_name") or new.get("email")
             await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"assigned_engineer_id": new["id"], "assigned_engineer_name": name, "updated_at": _now()}})
-            from utils.bfpo_coverage import covers_case
-            case = await db.svc_cases.find_one({"id": j["id"]}, {"_id": 0})
-            outside = "" if await covers_case(new, case) else " — outside normal coverage"
-            body = f"Reallocated from {leaver.get('full_name')} to {name} (engineer deactivated){outside}: {reason}"
+            outside = f" — outside normal coverage: {d['override_reason'].strip()}" if d.get("_outside") else ""
+            body = f"Reallocated from {leaver.get('full_name')} to {name} (engineer deactivated): {reason}{outside}"
         elif action == "unassign":
             await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"assigned_engineer_id": None, "assigned_engineer_name": None, "updated_at": _now()}})
             body = f"Returned to the unassigned queue (engineer {leaver.get('full_name')} deactivated): {reason}"
         else:
-            body = f"Kept with management while {leaver.get('full_name')} is deactivated: {reason}"
-            await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"deactivated_engineer_hold": True, "updated_at": _now()}})
+            body = f"Held for management review ({leaver.get('full_name')} deactivated): {reason}"
+            await db.svc_cases.update_one({"id": j["id"]}, {"$set": {
+                "assigned_engineer_id": None, "assigned_engineer_name": None, "management_hold": True,
+                "held_from_engineer_id": leaver["id"], "updated_at": _now()}})
         await append_event(case_id=j["id"], organization_id=org, event_type="allocation", actor=user, body=body,
-                           extra={"deactivation_decision": action, "engineer_id": d.get("engineer_id")})
+                           extra={"deactivation_decision": action, "engineer_id": d.get("engineer_id"),
+                                  "coverage_override": (d.get("override_reason") or "").strip() if d.get("_outside") else None})
 
 
 @router.get("/staff/engineers/{eng_id}/open-jobs")
@@ -1405,8 +1414,9 @@ async def set_engineer_status(eng_id: str, data: dict = Body(...), user=Depends(
         updates["tokens_revoked_before"] = int(datetime.now(timezone.utc).timestamp())
     await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})
     if active:
-        await db.svc_cases.update_many({"assigned_engineer_id": eng_id, "deactivated_engineer_hold": True},
-                                       {"$unset": {"deactivated_engineer_hold": ""}})
+        # Holds stay for management to decide; only holds already resolved by a new assignment are cleared.
+        await db.svc_cases.update_many({"held_from_engineer_id": eng_id, "assigned_engineer_id": {"$nin": [None, ""]}},
+                                       {"$unset": {"management_hold": "", "held_from_engineer_id": ""}})
     if u.get("bfpo_role") in ("engineer", "lead"):
         await db.svc_engineers.update_one(
             {"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": {"active": active}})

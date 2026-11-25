@@ -131,6 +131,10 @@ jobs:
       MONGO_URL: mongodb://localhost:27017
       DB_NAME: pulse_ci_regression
       JWT_SECRET: ci-only-jwt-secret-${{ github.run_id }}-not-for-production
+      # Synthetic, per-run Master Admin for the throwaway CI database only — never a real credential.
+      MASTER_ADMIN_EMAIL: admin@pulsefitness.com
+      MASTER_ADMIN_PASSWORD: ci-only-Master-${{ github.run_id }}-Aa9
+      MASTER_ADMIN_RESET_ON_BOOT: "true"
     steps:
       - uses: actions/checkout@v4
 

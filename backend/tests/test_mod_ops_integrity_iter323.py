@@ -273,7 +273,8 @@ class TestDeactivation:
         assert r.status_code == 200, r.text
         assert DB.svc_cases.find_one({"id": c1})["assigned_engineer_id"] == ENG["both"]["id"]
         assert DB.svc_cases.find_one({"id": c2})["assigned_engineer_id"] is None
-        assert DB.svc_cases.find_one({"id": c3})["deactivated_engineer_hold"] is True
+        held = DB.svc_cases.find_one({"id": c3})
+        assert held["management_hold"] is True and held["assigned_engineer_id"] is None and held["held_from_engineer_id"] == eid
         assert "TEST_queue" in str(mgr.get(f"{B}/staff/jobs/{c2}").json())
 
     def test_deactivated_access(self, mgr):

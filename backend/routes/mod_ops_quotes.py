@@ -682,6 +682,38 @@ async def followup_done(fid: str, body: FollowupDoneIn, user=Depends(_sales)):
     return {"ok": True}
 
 
+class FollowupEmailDecisionIn(BaseModel):
+    action: str = Field(..., pattern="^(release|cancel)$")
+    note: str = Field("", max_length=300)
+
+
+@router.post("/followups/{fid}/email")
+async def followup_email_decision(fid: str, body: FollowupEmailDecisionIn, user=Depends(_sales)):
+    """Manager review of a held (backlog) or failed customer email: release it for sending, or cancel it."""
+    _need(user, PERM_APPROVE)
+    f = await db.mod_quote_followups.find_one({"id": fid}, {"_id": 0})
+    if not f:
+        raise HTTPException(404, "Follow-up not found")
+    if body.action == "release":
+        from utils.mod_quote_followup_emails import get_settings
+        if not (os.environ.get("MOD_QUOTE_NOTIFY_LIVE", "").lower() == "true" and (await get_settings())["approved"]):
+            raise HTTPException(409, "Customer emails are switched off or the wording is not approved — nothing can be released yet")
+        g = await db.mod_quote_groups.find_one({"id": f["group_id"]}, {"_id": 0, "status": 1, "revision": 1})
+        if not g or g["status"] not in ("published", "customer_review") or (g.get("revision") or 1) != f.get("revision", 1):
+            raise HTTPException(409, "This quotation is closed or has been revised — the follow-up no longer applies")
+        res = await db.mod_quote_followups.update_one({"id": fid, "email_status": {"$in": ["awaiting_approval", "failed"]}}, {"$set": {
+            "email_status": "ready", "email_retry": False, "email_attempts": 0, "released_by": user.get("full_name") or user.get("email"),
+            "released_at": _now()}})
+    else:
+        res = await db.mod_quote_followups.update_one({"id": fid, "email_status": {"$in": ["awaiting_approval", "failed", "ready"]}}, {"$set": {
+            "email_status": "cancelled", "email_reason": body.note.strip() or "Cancelled by a manager",
+            "cancelled_by": user.get("full_name") or user.get("email"), "cancelled_at": _now()}})
+    if not res.modified_count:
+        raise HTTPException(409, "This customer email can no longer be changed")
+    await _event(f["group_id"], f"follow_up_email_{body.action}", user, detail={"chase": f["chase_no"], "note": body.note.strip()})
+    return {"ok": True}
+
+
 @router.post("/followups/run")
 async def followups_run(user=Depends(_sales)):
     _need(user, PERM_APPROVE)

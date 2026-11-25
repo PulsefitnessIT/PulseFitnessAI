@@ -17,7 +17,7 @@ def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
 
 
-USER = {"id": "u-1", "organization_id": "org-1", "full_name": "Sam"}
+USER = {"id": "u-1", "organization_id": "org-1", "full_name": "Sam", "crm_workspace_role": "aftersales_manager", "crm_permissions": ["renewals.review"]}  # explicit grant (least-privilege default)
 
 
 def _today_plus(days: int) -> str:

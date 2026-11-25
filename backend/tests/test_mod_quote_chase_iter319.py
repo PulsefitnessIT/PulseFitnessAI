@@ -139,11 +139,11 @@ def test_run_chase_once(mgr, rep):
     fus = list(DB.mod_quote_followups.find({"group_id": gid}, {"_id": 0}))
     assert len(fus) == 1
     rep_id = DB.users.find_one({"email": "modsales.rep@pulsedemo.test"})["id"]
-    assert fus[0]["assigned_to"] == rep_id and fus[0]["customer_email"] == "dry_run" and fus[0]["chase_no"] == 1
+    assert fus[0]["assigned_to"] == rep_id and fus[0]["email_status"] == "awaiting_approval" and fus[0]["chase_no"] == 1
     STATE["fid"] = fus[0]["id"]
     g = mgr.get(f"{MQ}/groups/{gid}").json()
-    assert [c["status"] for c in g["chase_schedule"]] == ["done", "pending", "pending"]
-    assert g["chase_schedule"][0]["customer_email"] == "dry_run"
+    assert [c["status"] for c in g["chase_schedule"]] == ["task_created", "pending", "pending"]
+    assert g["chase_schedule"][0]["email_status"] == "awaiting_approval"
     assert any(e["kind"] == "follow_up_due" for e in g["events"])
 
 

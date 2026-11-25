@@ -21,6 +21,13 @@ function ChipPick({ options, selected, onToggle, testid }) {
   return (
     <div className="flex flex-wrap gap-1.5" data-testid={testid}>
       {options.length === 0 && <span className="text-xs text-slate-400">None available</span>}
+      {selected.filter((id) => !options.some((o) => o.id === id)).map((id) => (
+        <button type="button" key={id} onClick={() => onToggle(id)} data-testid={`${testid}-invalid-${id}`}
+          title="This reference no longer exists — click to remove it"
+          className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-red-50 text-red-700 border-red-300 line-through">
+          Unknown reference ✕
+        </button>
+      ))}
       {options.map((o) => {
         const on = selected.includes(o.id);
         return (
@@ -78,9 +85,7 @@ export default function StaffEngineers() {
     setModal({ mode: 'edit', id: m.id, form: {
       full_name: m.full_name || '', email: m.email || '', phone: m.phone || '',
       bfpo_role: m.bfpo_role, password_mode: 'invite', temp_password: '',
-      // Dangling references (deleted territory/site) are dropped here so a save corrects them.
-      bfpo_territory_ids: (m.bfpo_territory_ids || []).filter((id) => territories.some((t) => t.id === id)),
-      bfpo_site_ids: (m.bfpo_site_ids || []).filter((id) => sites.some((x) => x.id === id)),
+      bfpo_territory_ids: m.bfpo_territory_ids || [], bfpo_site_ids: m.bfpo_site_ids || [],
     }, original: { t: m.bfpo_territory_ids || [], s: m.bfpo_site_ids || [] } });
   };
   const setF = (patch) => setModal((mo) => ({ ...mo, form: { ...mo.form, ...patch } }));
