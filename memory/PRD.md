@@ -39488,3 +39488,10 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - pip-audit: audits the pinned freeze with --no-deps (emergentintegrations excluded, not on PyPI); upgraded 26 vulnerable packages (aiohttp, pillow 13, pymongo 4.18 + motor 3.7.1, pyjwt, pypdf, litellm 1.103.1, etc.); removed unused python-jose/ecdsa; 2 unreachable advisories ignored with justification. Local result: no known vulnerabilities.
 - Python job: regression tests were hitting the live preview URL from GitHub; CI now starts the backend locally on the mongo sidecar. Stale tests fixed (demo org renamed, MFA enrolment, master-admin allowed on MOD portal, missing purchase_orders mock). Simulated CI run: 97/97 pass.
 - Frontend job: corrected yarn.lock is not picked up by platform commits; CI falls back to a normal install with a warning when the lockfile is stale.
+
+## 2026-11-25 — Founder same-day release sprint
+- CI: removed `/app` absolute paths (Makefile `ROOT`, 4 authz tests, docs_verify, brand preview, 306 test files via `tests/_paths.py`); preview URL / bypass-secret literals in tests now env-driven; CI jobs start a local backend + mongo sidecar and pass `JWT_SECRET`/`TEST_API_URL`; auth matrix fixed for FastAPI 0.142 and baseline reviewed.
+- MOD safety: `/api/mod-ops/quotes/rates/current` (status per Type A/B, customer_ready flag); synthetic workbook guard (409); boot flags test-approved rates.
+- UI (scoped `.mq-scope` / `MqUi.js` / `modOps.css`): quotation list, wizard stepper + sticky footer, group detail action hierarchy + comparison cards, authorisation cards, handover detail, Schedule of Rates table with approval banner. Front of House: header from lg, mobile drawer prefs, hero CTAs, sign-in dialog a11y.
+- Tests: iteration_318 backend 11/11; frontend flows pass; follow-up fixes applied (tablet header, qty width, n/a call-out, approve disabled until exceptions).
+- Open: preview has NO approved live Schedule B (18 test-data rates, 35 unapproved) → customer publication blocked; make-regression legacy suite 2378 pass / 211 fail / 51 errors (seeded accounts, object storage key, lockouts).

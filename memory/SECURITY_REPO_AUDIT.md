@@ -23,3 +23,8 @@ The four `*.pulsefitness.test` BFPO accounts and the accounts in `memory/test_cr
 
 ## Other tracked business files to review (not removed — runtime dependencies)
 `backend/seed_data/pulse_price_list.xlsx` and `backend/scripts/data/contract_quoting.xlsx` are loaded by seed/pricing code. Confirm with Commercial whether these are publishable; if not, move them to object storage and load at runtime.
+
+## 2026-11-25 — Release sprint findings
+- **Rate-limit bypass secret exposed:** the preview `RATE_LIMIT_BYPASS_SECRET` value was hard-coded in 30 public test files (and historic `test_reports/`). Tests now read `RATE_LIMIT_BYPASS_SECRET` from the environment. ACTION (management): rotate this secret in preview and production; history still contains the old value.
+- **Authorisation matrix was silently empty:** FastAPI 0.142 wraps included routers, so `gen_security_matrix.py` saw 0 routes and the BFLA gate checked nothing. Fixed (`_iter_routes`). 21 pre-existing unauthenticated routes surfaced and were reviewed: 5 cron endpoints (HMAC bearer `WEBHOOK_CRON_SECRET`), 9 capability-token routes (invite / AFS agreement / quote shortcode / creative file), 1 dual-auth vehicle photo, 2 public Sicon mapping downloads, 2 public image proxies (staff photo, blue-light logo by UUID). Accepted into the baseline; the staff photo and blue-light logo proxies are a low-risk follow-up.
+- **Synthetic MOD rates:** preview rate card held synthetic test prices marked "verified" by a test manager. Boot integrity now flags them `rate_*_synthetic`; they are never treated as approved unless `MOD_RATES_ALLOW_SYNTHETIC=true` (CI/test servers only). Synthetic workbooks cannot be approved as live rates.

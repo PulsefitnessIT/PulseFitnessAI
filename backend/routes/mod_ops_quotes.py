@@ -950,6 +950,10 @@ async def rates_current(user=Depends(require_operator_crm_user)):
                "price_list_version": e.get("price_list_version")}
         for k in ("a", "b"):
             rate = e.get(f"rate_{k}") or {}
+            if k == "a" and e.get("kind") == "call_out":
+                row[k] = {"code": None, "sage_code": None, "price": None, "status": "n/a", "effective_from": None,
+                          "expires_on": None, "source": None, "approved_by": None, "ambiguous": False}
+                continue
             row[k] = {"code": e.get(f"schedule_b_uid_{k}") or e.get(f"code_{k}"), "sage_code": e.get(f"sage_code_{k}"),
                       "price": e.get(f"type_{k}_price"), "status": _rate_status(e, k, today),
                       "effective_from": rate.get("effective_from"), "expires_on": rate.get("expires_on"),

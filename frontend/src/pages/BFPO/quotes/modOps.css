@@ -1,6 +1,7 @@
 /* MOD Operations quotation workspace — scoped to .mq-scope so no other module is affected. */
 .mq-scope { --mq-radius: 14px; --mq-ctl-h: 40px; color: var(--theme-text); letter-spacing: normal; }
 .mq-scope button, .mq-scope input, .mq-scope select, .mq-scope textarea { letter-spacing: normal; }
+@media (max-width: 640px) { .mq-scope { padding-bottom: 96px; } .mq-footer { padding-right: 72px; } }
 .mq-scope h2, .mq-scope h3 { letter-spacing: -0.01em !important; }
 
 .mq-btn {

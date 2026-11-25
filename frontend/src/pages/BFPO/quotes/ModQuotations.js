@@ -208,7 +208,7 @@ function Handovers({ caps, onOpen }) {
   );
 }
 
-const RATE_LABEL = { verified: 'Approved', unverified: 'Not approved', test_data: 'Test data', poa: 'POA', historical: 'Historical — confirm', expired: 'Expired', placeholder: 'Placeholder' };
+const RATE_LABEL = { 'n/a': 'Not applicable', verified: 'Approved', unverified: 'Not approved', test_data: 'Test data', poa: 'POA', historical: 'Historical — confirm', expired: 'Expired', placeholder: 'Placeholder' };
 
 function RateCell({ r }) {
   return (

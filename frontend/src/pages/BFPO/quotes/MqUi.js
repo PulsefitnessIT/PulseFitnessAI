@@ -6,7 +6,7 @@ const TONE = {
   customer_review: 'info', authorisation_submitted: 'warn', accepted: 'ok', handed_over: 'ok', setup_complete: 'ok',
   verified: 'ok', submitted: 'warn', awaiting_setup: 'warn', declined: 'bad', withdrawn: 'neutral', expired: 'bad',
   superseded: 'neutral', not_selected: 'neutral', unverified: 'warn', test_data: 'bad', poa: 'neutral', historical: 'warn',
-  live: 'ok', preview: 'warn',
+  live: 'ok', preview: 'warn', 'n/a': 'neutral',
 };
 
 export function StatusChip({ status, label }) {

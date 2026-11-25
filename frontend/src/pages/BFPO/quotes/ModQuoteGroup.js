@@ -44,6 +44,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
   const c = g.customer;
 
   const closed = ['accepted', 'handed_over', 'withdrawn'].includes(g.status);
+  const missingExc = unverified.filter((ln) => (exc[excKey(ln)]?.reason || '').trim().length < 10).length;
   const canNotify = g.quotes.some((q) => q.customer_visible) && !closed;
   const nextStep = {
     draft: 'Submit the draft for manager approval.',
@@ -77,7 +78,8 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
           {g.status === 'draft' && <Btn icon={Send} variant="primary" loading={busy} data-testid="mq-submit" onClick={() => act(() => mq.post(`/groups/${g.id}/submit`), 'Submitted for approval')}>Submit for approval</Btn>}
           {g.status === 'pending_approval' && caps.manager && (
             <>
-              <Btn icon={CheckCircle2} variant="primary" loading={busy} data-testid="mq-approve"
+              <Btn icon={CheckCircle2} variant="primary" loading={busy} data-testid="mq-approve" disabled={missingExc > 0}
+                title={missingExc ? `${missingExc} unapproved line(s) still need an exception reason` : undefined}
                 onClick={() => act(() => mq.post(`/groups/${g.id}/approve`, approvePayload()), 'Quotations approved')}>Approve</Btn>
               <Btn icon={XCircle} disabled={busy} data-testid="mq-reject" onClick={() => act(() => mq.post(`/groups/${g.id}/approve`, { approve: false, notes: reason }), 'Returned to draft')}>Return to draft</Btn>
             </>
@@ -94,6 +96,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
           {!closed && <Btn icon={XCircle} variant="danger" disabled={busy} className="sm:ml-auto" data-testid="mq-withdraw"
             onClick={() => window.confirm('Withdraw these quotations? Customers will no longer see them.') && act(() => mq.post(`/groups/${g.id}/withdraw`, { reason }), 'Withdrawn')}>Withdraw</Btn>}
         </div>
+        {g.status === 'pending_approval' && caps.manager && missingExc > 0 && <div className="text-xs mt-3" style={{ color: 'var(--color-warning)' }} data-testid="mq-approve-blocked">Approve is unavailable: {missingExc} line(s) on unapproved rates need a commercial exception reason below, or revise the quotation.</div>}
         {g.status === 'pending_approval' && !caps.manager && <div className="text-xs mt-3 mq-muted" data-testid="mq-approve-manager-only">Approval is restricted to MOD Sales Managers.</div>}
       </div>
       {g.status === 'pending_approval' && caps.manager && (

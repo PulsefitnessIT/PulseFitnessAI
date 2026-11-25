@@ -16,7 +16,7 @@ export const errText = (e) => {
   if (!d) return e?.message || 'Something went wrong';
   if (typeof d === 'string') return d;
   if (d.issues) return `${d.message}: ${Object.values(d.issues).flat().join('; ')}`;
-  if (d.unverified) return `${d.message}: ${d.unverified.join('; ')}`;
+  if (d.unverified) return `${d.message} (${d.unverified.length} line(s) — see the approval panel)`;
   return d.message || JSON.stringify(d);
 };
 

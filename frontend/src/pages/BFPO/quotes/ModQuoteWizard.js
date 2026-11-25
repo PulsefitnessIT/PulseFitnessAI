@@ -8,13 +8,16 @@ const STAGES = ['Customer & site', 'Equipment list', 'Quotation options', 'Revie
 
 function Stepper({ stage }) {
   return (
-    <ol className="mq-steps mb-6" data-testid="mq-wizard-stepper" aria-label="Quotation steps">
+    <>
+    <ol className="mq-steps mb-2 sm:mb-6" data-testid="mq-wizard-stepper" aria-label="Quotation steps">
       {STAGES.map((s, i) => (
         <li key={s} className="mq-step" data-state={i === stage ? 'current' : i < stage ? 'done' : 'todo'} aria-current={i === stage ? 'step' : undefined} data-testid={`mq-step-${i}`}>
           <span className="mq-step-n">{i < stage ? <Check size={14} /> : i + 1}</span><span className="mq-step-t">{s}</span>
         </li>
       ))}
     </ol>
+    <div className="sm:hidden text-sm font-semibold mb-5" data-testid="mq-step-label">Step {stage + 1} of {STAGES.length} · {STAGES[stage]}</div>
+    </>
   );
 }
 
@@ -100,15 +103,15 @@ function RowEditor({ row, catalogue, onChange, onRemove, showCoverage }) {
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-desc" />
         {row.serial && <div className="text-xs mt-1" style={muted}>S/N {row.serial}</div>}
       </td>
-      <td className="p-2 w-20">
-        <input type="number" min={0} value={row.qty} onChange={(e) => onChange({ ...row, qty: Math.max(0, parseInt(e.target.value || '0', 10)) })}
+      <td className="p-2 w-20 min-w-[76px]">
+        <input type="number" min={0} aria-label="Quantity" value={row.qty} onChange={(e) => onChange({ ...row, qty: Math.max(0, parseInt(e.target.value || '0', 10)) })}
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-qty" />
       </td>
       <td className="p-2 min-w-[220px]">
         <select value={row.rate_card_id || ''} onChange={(e) => onChange({ ...row, rate_card_id: e.target.value || null, needs_review: false })}
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-sor">
           <option value="">— choose SOR category —</option>
-          {services.map((e) => <option key={e.id} value={e.id}>{e.code_a?.replace('A', '')} · {e.label} {e.sage_code_a ? `(${e.sage_code_a.replace(/-A$/, '')})` : ''}</option>)}
+          {services.map((e) => <option key={e.id} value={e.id}>{`${e.code_a?.replace('A', '') || ''} · ${e.label}${e.sage_code_a ? ` (${e.sage_code_a.replace(/-A$/, '')})` : ''}`}</option>)}
         </select>
         {row.needs_review && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }} data-testid="mq-row-review">Check this match{row.match_confidence ? ` (${Math.round(row.match_confidence * 100)}%)` : ''}</div>}
       </td>

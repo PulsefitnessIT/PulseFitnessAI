@@ -155,7 +155,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             draggable={false}
           />
         </RouterLink>
-        <nav className="hidden md:flex items-center gap-7 text-[13px] font-semibold uppercase text-white/85" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif", letterSpacing: '0.08em' }}>
+        <nav className="hidden lg:flex items-center gap-7 text-[13px] whitespace-nowrap font-semibold uppercase text-white/85" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif", letterSpacing: '0.08em' }}>
           {NAV_LINKS.map((l) => (
             l.to ? (
               <RouterLink key={l.to} to={l.to} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</RouterLink>
@@ -221,7 +221,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
             aria-expanded={mobileOpen}
-            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center border border-white/40 hover:bg-white/10 transition-colors"
+            className="lg:hidden w-10 h-10 rounded-xl flex items-center justify-center border border-white/40 hover:bg-white/10 transition-colors"
             data-testid="pulse-mobile-menu-btn"
           >
             <Menu size={18} className="text-white" />
@@ -231,7 +231,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
 
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[60] h-screen"
+          className="lg:hidden fixed inset-0 z-[60] h-screen"
           data-testid="pulse-mobile-drawer"
           role="dialog"
           aria-modal="true"
@@ -1762,9 +1762,9 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) clear(); onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white border-slate-200 [&>button]:!mt-3 [&>button]:!mr-3" data-testid="pulse-login-dialog">
+      <DialogContent className="w-[calc(100%-2rem)] rounded-2xl sm:max-w-md p-0 overflow-hidden bg-white border-slate-200 [&>button]:!mt-3 [&>button]:!mr-3" data-testid="pulse-login-dialog">
         <DialogHeader className="p-6 pb-0">
-          <img src="/brand/pulse-logo-dark.svg" alt="Pulse Fitness" className="h-7 w-auto self-start mb-3" onError={(e) => { e.currentTarget.style.display = 'none'; }} data-testid="pulse-login-logo" />
+          <img src="/brand/pulse-logo-dark.svg" alt="Pulse Fitness" className="h-7 w-auto self-center sm:self-start mb-3" onError={(e) => { e.currentTarget.style.display = 'none'; }} data-testid="pulse-login-logo" />
           <DialogTitle className="text-2xl font-bold text-[var(--color-surface-dark-panel-alt)]">{t('pulse.lm_title', 'Welcome back')}</DialogTitle>
           <DialogDescription className="text-[var(--color-text-slate)]">{t('pulse.lm_sub', 'Sign in to your Pulse Fitness portal')}</DialogDescription>
         </DialogHeader>
@@ -1774,6 +1774,7 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
             <label htmlFor="login-username" className="text-xs font-semibold text-[var(--color-text-slate)] mb-1.5 block">{t('pulse.lm_email', 'Your email or site code')}</label>
             <Input
               id="login-username"
+              autoFocus
               name="username"
               type="text"
               autoComplete="username"
