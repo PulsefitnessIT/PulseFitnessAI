@@ -1,0 +1,48 @@
+{
+  "summary": "Final staff UAT, frontend only, real browser journeys on the preview URL. Contract Management: the COORDINATOR journey passes end to end. The test logged in at /launch, chose Contract Management, opened Contracts, searched TEST_UAT and opened the contract. It edited Comments with a reason, and the change history shows field, old->new, user and reason; the revision went 1->2. It added a note, which appears in the history. Run scan prepared the renewal draft TEST-UAT-0001/R2 ('Prepared - awaiting approval', no email). A 10% rise was refused by the backend with a 403, and the 'Submit for approval' toast created the price-approval action. Service Planner and the Finance preview ('Preview only. Nothing is invoiced, posted...') load. Settings shows only 'Your workspace', with no role editing. Log out and log back in landed straight back on /contract-management. AFTERSALES MANAGER: sees the Action Centre, the 'Approve 10% & send' button on the price-approval alert, the full audit history and the Approve-for-Sicon button. The approve-send call was deliberately blocked in the browser (route.abort) because it sends a LIVE Resend email, so approval was not run end to end. FINANCE: nav has no Build Quote or Renewals, the Finance invoice-run and Sage-sync preview loads, Settings has no role or pricing admin. NO-ACCESS: no CM tile, and /contract-management redirects to /staff-portal. API with the CRM token: 403 on /crm/workspace/renewals and on maintenance-master/contracts. MOD SALES: the rep built a Type A/B Mix quote for MOD Test Site with 8 register items (suggest: cardio A, strength B). Tile and review both show net £860.16, VAT £172.03, gross £1,032.19, and the line sum matches. Submit passes, and the rep sees 'Approval is restricted to MOD Sales Managers'. The manager approved (all rates verified). The PDF downloaded (PFQ-001097_Type-A-B-Mix_MOD-Test-Site_v1.pdf, 426KB, %PDF). Publish worked. Notify returned 'Test mode: no email was sent'. Recall worked. DELETE IS NOT AVAILABLE TO EITHER the rep or the manager after recall: the backend _is_owner needs platform role owner, master admin or pulse admin, and the rep is 'staff' and the manager is 'manager'. The 'MOD test owner' account named in the briefing is not in test_credentials.md. Accepted-quote delete was not reached in the UI (no accepted group exists). By code, the button is hidden for accepted and handed_over, and the backend returns 409. Follow-ups tab: the wording panel loads ('Awaiting owner approval · Customer emails are not being sent yet', Review wording). No Release button (no follow-ups due). MOD OPS ENGINEERS (modsales.manager): each row shows separate 'Territories:' and 'Specific sites:' lines and a login-status badge ('Last signed in ...' / 'Invite sent - not signed in yet'). A dangling site id injected on a QA engineer showed a red 'Unknown reference ✕' chip (bg-red-50, line-through) and the row warning 'References a site that no longer exists'. Clicking the chip removes it (not saved). Deactivating Tomás Bianchi (18 open jobs) opened a modal with a per-job decision (Reassign / Unassigned queue / Hold for management review) and a reason. Confirm is red rgb(220,38,38) and disabled until complete. It was not confirmed. NOT REACHED: the Job detail amber outside-coverage warning and its required reason (run out of budget). It needs a retest.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/crm/v2/aftersales/maintenance-master/contracts/{id}", "issue": "The reason is optional. A coordinator saved next_action with an empty reason and got a 'Saved' toast, revision 3, and a history row with no reason. If the business rule is 'edit with a reason', enforce reason.strip() on the backend and disable Save in the UI when it is empty."},
+      {"endpoint": "POST /api/crm/workspace/renewals/{id}/approve-send", "issue": "No dry-run switch for renewal emails. It calls utils.email.send_email live through RESEND_API_KEY, unlike MOD_QUOTE_NOTIFY_LIVE. Preview UAT cannot approve a renewal without sending a real email. Add a CM_RENEWAL_EMAIL_LIVE-style flag."},
+      {"endpoint": "403 detail text", "issue": "'No workspace role is not permitted to perform this action (renewals.review).' is ungrammatical. Suggested: 'You don't have a Contract Management role…'"},
+      {"endpoint": "POST /api/crm/auth/cross-login", "issue": "Returns 403 on every /bfpo load for modsales.rep and modsales.manager. Console noise, not user-visible."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ModQuoteGroup Delete", "issue": "After Recall, neither modsales.rep (the creator) nor modsales.manager sees Delete. caps.owner and backend _is_owner only allow platform role 'owner', master admin or pulse admin. If the requirement is 'the quote owner (creator) can delete after recall', allow g.created_by == user.id. If not, give UAT a MOD owner account.", "selector": "[data-testid='mq-delete']", "priority": "HIGH"},
+      {"component": "ModQuoteWizard equipment step", "issue": "The banner '3 row(s) need a confirmed item code before you continue' shows, yet Next is enabled and the quote can be generated. reviewCount counts needs_review rows, but canNext only blocks unmapped rows. The wording contradicts the behaviour.", "selector": "[data-testid='mq-review-count']", "priority": "MEDIUM"},
+      {"component": "ModQuoteGroup follow-up chips", "issue": "After Recall (withdrawn), the follow-up chips still say '2/4/6 weeks · scheduled'. This matches the known iteration_324 MEDIUM issue.", "selector": "[data-testid='mq-chase-schedule']", "priority": "MEDIUM"},
+      {"component": "Engineer edit modal", "issue": "Escape does not close the modal (only the X does).", "selector": "[data-testid='engineer-modal']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PWA install prompt (all pages)", "issues": ["The title 'Add Pulse Fitness to Home Screen' is almost invisible: dark text on a black card."]},
+      {"screen": "CM Renewals > RPI Reviews", "issues": ["One RPI card has no customer name (the contract has an empty company_name). Show the contract number as a fallback."]},
+      {"screen": "MOD Quote wizard step 2", "issues": ["With only the Mixed option selected, the unselected Type A/B cards have a large empty top area. Their content is vertically off-centre."]},
+      {"screen": "Engineer edit > Allocated sites", "issues": ["The list is polluted with many 'Async Site 0 (MOD establishment)' duplicates and about 20 'QA Edit/Invite/Temp Engineer' rows left over from earlier test runs. Preview data hygiene."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Decide who can delete a recalled MOD quote. Today only a platform 'owner' can, so the creator rep and the MOD Sales Manager cannot. Fix caps/_is_owner, or add a MOD owner test account to test_credentials.md.",
+    "Make the wizard 'need a confirmed item code' banner match the behaviour: block Next, or reword it to a warning.",
+    "Add a dry-run flag for CM renewal emails (approve-send / resend) so preview UAT never sends live email.",
+    "Optional: require a non-empty reason for maintenance-master contract edits.",
+    "Fix the PWA install prompt title contrast.",
+    "Retest: StaffJobDetail outside-coverage amber warning + required reason (not reached)."
+  ],
+  "critical_code_review_comments": [
+    "crm_maintenance_master.py PATCH /contracts/{cid}: reason defaults to '' with no validation.",
+    "cm_renewals._send_renewal_email always sends live. There is no env gate.",
+    "mod_ops_quotes._is_owner uses the platform role 'owner', not the quote creator. The 'owner can delete' wording is ambiguous.",
+    "ModQuoteWizard canNext ignores needs_review rows while the banner says 'before you continue'."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "~88% of requested steps passed (MOD delete-after-recall blocked; job-detail coverage warning not reached; renewal approve-send intentionally not executed)"},
+  "seed_data_creation": "Created and DELETED by id: crm2_companies TEST_UAT_co_0001, crm2_contracts TEST_UAT_ct_0001 and its renewal draft d2776c0d-..., their crm2_activities and crm2_contract_changes, MOD quote group f473a001-... (PFQ-001097) with its mod_quote_events and crm2_quotes row. A temporary dangling site id 'TEST_UAT_missing_site' was added to QA engineer 6cf1f401 and then removed. Side effect: the coordinator 'Run scan now' runs org-wide daily checks for Pulse Fitness Ltd and refreshed the existing missing-info alerts on the 6 pre-existing test contracts. The CM-coordinator scan also added an RPI alert for the TEST contract (deleted).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login rate limit: run `cd /app/backend && PYTHONPATH=. python tests/_clear_login_ratelimit.py` between scripts (429 after about 4 logins). Imported maintenance contracts: there are 0 real ones (mm_record_key), so seed a synthetic one (see /tmp/seed_uat.py pattern: mm_record_key, revision, mm_source, end_date within 90d, company email). MOD Test Site site_id abfdabd9-ae11-4877-a44d-a36fea7f1f4e; its register gives 8 items, Mixed AB = £860.16 / £172.03 / £1,032.19. BFPO Engineers: open via role button 'Engineers'; engineer.gib id bfpo-eng-gib has 18 open jobs (do not confirm deactivation). The CM approve-send path sends a live email, so block it with page.route. Still to test: StaffJobDetail outside-coverage picker and an accepted-quote delete attempt."
+}

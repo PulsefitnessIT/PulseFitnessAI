@@ -108,7 +108,8 @@ function RowEditor({ row, catalogue, onChange, onRemove, showCoverage }) {
           <option value="">— choose item code —</option>
           {services.map((e) => <option key={e.id} value={e.id}>{`${e.label}${e.sage_code_a ? ` (${e.sage_code_a.replace(/-A$/, '')})` : ''}`}</option>)}
         </select>
-        {row.needs_review && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }} data-testid="mq-row-review">Check this match{row.description ? ` for "${row.description}"` : ''}{row.match_confidence ? ` (${Math.round(row.match_confidence * 100)}%)` : ''}</div>}
+        {row.needs_review && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }} data-testid="mq-row-review">Check this match{row.description ? ` for "${row.description}"` : ''}{row.match_confidence ? ` (${Math.round(row.match_confidence * 100)}%)` : ''}
+          {row.rate_card_id && <button type="button" className="ml-2 underline font-semibold" onClick={() => onChange({ ...row, needs_review: false })} data-testid="mq-row-confirm">Confirm</button>}</div>}
         {row.serial && <div className="text-xs mt-1" style={muted}>S/N {row.serial}</div>}
       </td>
       <td className="p-2 min-w-[120px]">
@@ -275,7 +276,7 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
     return () => clearTimeout(t);
   }, [payload, customer, rows.length, options.length]);
 
-  const unmapped = rows.filter((r) => r.qty > 0 && !r.rate_card_id).length;
+  const unmapped = rows.filter((r) => r.qty > 0 && (!r.rate_card_id || r.needs_review)).length;
   const noCoverage = options.includes('AB') && rows.some((r) => r.qty > 0 && !r.coverage);
   const canNext = [!!customer?.site_id, rows.some((r) => r.qty > 0) && !unmapped && !noCoverage && options.length > 0, true][stage];
   const toggle = (t) => setOptions(options.includes(t) ? options.filter((o) => o !== t) : [...options, t]);

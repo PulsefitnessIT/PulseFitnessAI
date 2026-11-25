@@ -39537,3 +39537,13 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Secret: the master admin password was removed from 54 test files (tests read MASTER_ADMIN_PASSWORD from backend/.env via conftest). The user must rotate it and clean the git history.
 - Prod data (read-only): John Maina has no territories or sites. Jimmy Connors (the second engineer) has one MOD site and no territory. These need re-allocating in Master Admin.
 - Tests: iteration_323 plus tests/test_mod_ops_integrity_iter323.py (38 pass).
+
+## Final release certification sprint (2026-11-25)
+- CI: the backend-tests job now uses a synthetic per-run MASTER_ADMIN_PASSWORD (MASTER_ADMIN_RESET_ON_BOOT) against the throwaway CI Mongo. No real credential is used.
+- yarn.lock: synced in the working tree and `yarn install --frozen-lockfile` passes, but platform auto-commits have NOT included it (last commit b4f62e88). It must be pushed with Save to Github.
+- Engineers: edits keep existing unknown refs (shown as a red chip that can be removed), and only NEW unknown ids get a 422 (bfpo + Master Admin). Deactivation "keep" is now a management hold: the job is unassigned with management_hold and held_from_engineer_id. Reassigning outside coverage needs override_reason. Held jobs are hidden from engineers and accept refuses them. Accept is atomic and never steals another engineer's job.
+- Follow-ups: email_status state machine (awaiting_approval/ready/sending/sent/failed/not_applicable/cancelled) with a unique (group, chase, revision) index. Dispatch is a leased atomic claim with retry ≤3. Legacy dry runs are migrated to awaiting_approval (backlog). A manager can Release or Don't send (POST /followups/{id}/email); release needs live sending AND approved wording.
+- Schedule B boot: cross-replica lock (mod_bootstrap_locks) and repair_split_versions(). Prod race: 2 versions from the same file (af73ec live, f0f81b superseded, 24 rows stranded). Rows are re-pointed on next boot. 5 legacy rows + 3 POA are left untouched (they are not in the workbook).
+- Maintenance Master: the 12.11 workbook was reconciled in preview (ready, not committed): 8067 new, 11 duplicate/overlap, 1127 missing info, 1 requires review, 200 MOD held. Prod has no uploads. Cutover is BLOCKED and Excel stays the fallback.
+- Local `make regression` (against preview): 2443 pass, 159 fail, 41 errors, 26 skipped. Most failures are auth/test-env (lockouts, invalid legacy creds, 429), MagicMock fixtures or outdated source-string assertions. The renewal autopilot tests are outdated (the design is now approval-first).
+- Tests: iteration_324 and 325, test_release_cert_iter324.py, test_mod_schedule_b_bootstrap_race.py.
