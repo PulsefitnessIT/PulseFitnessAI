@@ -8,7 +8,7 @@ Covers:
 - Permissions: shared login blocked from managing staff and from another site's active list
 - Multi-site isolation: staff in one site don't appear in another
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import uuid

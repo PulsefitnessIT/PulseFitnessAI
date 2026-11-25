@@ -15,7 +15,7 @@ Tests verify:
      `require_master_admin`) still live in `routes.master_admin`.
   5. Both new routers are registered in `route_registry/admin.py`.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import importlib
 import os
 

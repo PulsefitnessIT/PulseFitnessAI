@@ -20,7 +20,7 @@ marketing generator imports the canon directly. This test file:
      canon (so future grep-led agents land on the right doc).
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import re
 from pathlib import Path

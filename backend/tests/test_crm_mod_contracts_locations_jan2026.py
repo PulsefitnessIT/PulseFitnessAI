@@ -1,6 +1,6 @@
 # CRM MOD: auto-linking of MOD site companies, equipment-register locations (add / move),
 # add-contact job-title picklist validation, and MOD aftersales contracts CRUD.
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 import pytest

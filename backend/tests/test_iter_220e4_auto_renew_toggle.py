@@ -5,7 +5,7 @@ wizard (Step 1) AND as a one-click toggle pill on the contract
 Detail header — so contract coordinators don't have to dig into the
 Edit modal to enable the autopilot.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 from pathlib import Path
 
 FRONTEND = Path(REPO + "/frontend/src")

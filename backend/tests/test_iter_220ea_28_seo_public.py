@@ -12,7 +12,7 @@ discoverable and shareable:
   • IndexNow is best-effort and safely no-ops without URLs / when disabled,
   • robots.txt points at the dynamic sitemap and the OG cover exists.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import re
 import uuid

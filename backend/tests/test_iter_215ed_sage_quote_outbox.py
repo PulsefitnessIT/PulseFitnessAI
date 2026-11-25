@@ -26,7 +26,7 @@ Tests:
 
 9. Lint script: python /app/backend/scripts/check_integration_mapping.py exits 0, 6 ok · 0 warn · 0 err
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

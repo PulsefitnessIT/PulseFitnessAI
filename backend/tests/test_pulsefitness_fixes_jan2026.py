@@ -12,7 +12,7 @@
      org tagged account_type='mod_site' + mod_force=<force> that appears
      in GET /api/master-admin/mod-estate/site-readiness (cleaned up).
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import re
 import sys

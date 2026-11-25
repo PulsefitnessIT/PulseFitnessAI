@@ -14,7 +14,7 @@ Three classes of finding from the risk register closed in this iter:
     poisoned by a script.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

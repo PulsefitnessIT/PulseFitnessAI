@@ -5,7 +5,7 @@ service-report PDF sign-off block, calibration certificate sign-off section,
 BFPO job signature + complete gate + job-sheet PDF, BFPO PPM complete gate +
 certificate PDF.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import time

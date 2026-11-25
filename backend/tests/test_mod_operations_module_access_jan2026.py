@@ -11,7 +11,7 @@ Strategy:
     granted-but-non-bfpo user (owner@isodemo.com) whose module_overrides
     flag we flip directly in Mongo for the test (cleaned up afterwards).
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import asyncio

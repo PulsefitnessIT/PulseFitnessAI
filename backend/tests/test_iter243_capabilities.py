@@ -10,7 +10,7 @@ Root pattern (3rd occurrence): features hand-listed roles
   pulse admins (was a LIVE bug — Pulse Settings → fault templates).
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import uuid
 
 import requests

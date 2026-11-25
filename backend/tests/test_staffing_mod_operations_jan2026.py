@@ -8,7 +8,7 @@ mirroring the main agent's self-test approach (HTTP auth is rate-limited &
 requires cookies + MFA-free path). This is the pattern used by the earlier
 iteration's test file for master_admin_users.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import sys
 

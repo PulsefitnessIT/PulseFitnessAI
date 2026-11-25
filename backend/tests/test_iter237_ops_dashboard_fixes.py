@@ -13,7 +13,7 @@ User reports:
    → Tabs / header / KPI labels wired to i18n.
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url

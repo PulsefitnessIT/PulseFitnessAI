@@ -12,7 +12,7 @@ Covers:
 - Staff dashboard, sites tree, jobs filters, allocate, visiting-access
 - 403 role guard for engineer on /staff/* endpoints
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 import requests

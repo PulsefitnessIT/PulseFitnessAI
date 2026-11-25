@@ -1,6 +1,6 @@
 """Helper for UI testing: seed (upload only, no commit) a fictional mmt_ui_ workbook, or report state / cleanup.
 Usage: python tests/mm_ui_seed.py state|seed|cleanup"""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 

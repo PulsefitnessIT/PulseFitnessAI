@@ -4,7 +4,7 @@ SEC-003: state-changing /api/* calls with a foreign Origin are 403 'Cross-site r
          unless Bearer auth; trusted origins / no Origin / GET pass.
 P3: /api/bfpo/jobs/{id}/site-photos only lists mod-attachments/{site}/ and issues/{issue}/ paths.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 import pytest

@@ -11,7 +11,7 @@ live status, KPI timestamps, a timeline, and the case reference, and the
 fault is auto-resolved when the case closes.
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import uuid

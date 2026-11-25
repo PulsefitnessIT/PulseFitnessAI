@@ -4,7 +4,7 @@ Pins that the FE plumbing matches the backend endpoints already
 present on ``routes/svc/notifications.py``. No new backend endpoints —
 this is pure FE wire-up of the existing push infrastructure.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 from pathlib import Path
 
 FRONTEND = Path(REPO + "/frontend/src")

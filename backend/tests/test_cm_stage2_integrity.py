@@ -4,7 +4,7 @@ estate-onboarding reconciliation, MOD rate verification and daily checks.
 Fictional data only; every record created here is tagged ``cm_t2_`` and
 removed at the end. The MOD rate card is snapshotted and restored.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import subprocess
 import uuid

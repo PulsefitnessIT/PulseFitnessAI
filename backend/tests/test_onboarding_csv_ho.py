@@ -6,7 +6,7 @@ Covers:
 - /api/master-admin/head-offices (HO picker source)
 - /api/master-admin/organizations/{org_id}/sites (branch site create) + confirm import w/ site_id
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import uuid

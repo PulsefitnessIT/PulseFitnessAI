@@ -1,5 +1,5 @@
 """Iter 283 — Failed email Resend (single + Resend-all) contract tests."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import uuid

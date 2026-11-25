@@ -5,7 +5,7 @@ Covers:
 - Row line maps to SingleStation Strength Machine (not Rowing)
 - DELETE /api/crm/v2/companies/{id} works for master admin
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import io
 import uuid

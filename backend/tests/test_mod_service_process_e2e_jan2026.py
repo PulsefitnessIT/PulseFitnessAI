@@ -1,7 +1,7 @@
 # MOD service process end-to-end: MOD fault log -> ESP + Pulse notified -> ESP engineer
 # claims & completes in engineer app with customer sign-off -> MOD fault shows engineer
 # report -> Pulse close-out email for Sicon. Runs sequentially; shared state in module dict.
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 from datetime import datetime, timezone

@@ -8,7 +8,7 @@ Covers:
 - Manager correction: manual_override + history, missing reason -> 400, override survives leave revocation
 - Attendance board summary + not_confirmed rows
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import uuid

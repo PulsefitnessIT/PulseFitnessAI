@@ -3,7 +3,7 @@ activation → service plan + billing, with one Action Centre item per stage.
 
 Fictional data only (prefix ``cm_qc_``); everything is removed afterwards.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import subprocess
 

@@ -1,5 +1,5 @@
 """Phase 4 — Pulse Fitness AI Comms Centre: ESP import, webhooks, API keys, public REST API, Resend inbound."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import json
 import os

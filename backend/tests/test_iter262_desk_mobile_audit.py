@@ -13,7 +13,7 @@ Frontend (source pins): dashboard stat cards navigate to tabs, cases KPI
 cards drill into the filtered queue, tables scroll horizontally on mobile.
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url

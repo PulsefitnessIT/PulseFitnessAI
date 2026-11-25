@@ -18,7 +18,7 @@ Tests verify:
      keep working.
   5. The combined router exposes every route the monolith used to.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import importlib
 import os
 

@@ -7,7 +7,7 @@ Validates:
   - Object-storage-backed features (parts requests attachments, exploded drawings) still work
   - Core authenticated endpoint (list parts-requests) works
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import io
 import time

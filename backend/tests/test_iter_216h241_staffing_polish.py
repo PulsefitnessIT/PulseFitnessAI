@@ -18,7 +18,7 @@ production review of the HR / Staffing console:
    placeholder kept so the parent flex wrappers stay valid).
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import inspect
 import pathlib

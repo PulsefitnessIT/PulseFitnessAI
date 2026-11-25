@@ -6,7 +6,7 @@ After this iteration:
     routes/master_admin.py                  (~732 LoC, was 905)
     routes/master_admin_org_branding.py     (NEW, ~210 LoC, 3 routes)
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import importlib
 import os
 

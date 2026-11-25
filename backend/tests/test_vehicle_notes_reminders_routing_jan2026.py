@@ -1,6 +1,6 @@
 # Regression: vehicle photo cookie auth, operator-staff routing opt-in,
 # driver notes + extra photos, weekly reminder email (cron + manager).
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import io
 import pytest

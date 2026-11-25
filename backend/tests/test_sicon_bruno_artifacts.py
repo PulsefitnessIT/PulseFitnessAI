@@ -2,7 +2,7 @@
 Verification of PulseFitness Sicon WebAPI Bruno collection + mapping artifacts.
 Independently validates the 12 acceptance criteria listed in the review request.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import re
 import csv

@@ -3,7 +3,7 @@
 Pins that the Phase B + Phase C UI surfaces actually exist in the
 React source so they can't silently disappear during refactors.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 from pathlib import Path
 
 FRONTEND = Path(REPO + "/frontend/src")

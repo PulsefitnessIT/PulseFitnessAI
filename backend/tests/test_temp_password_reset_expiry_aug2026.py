@@ -12,7 +12,7 @@ Covered here (backend only):
   3. Regression: reset response shape + old password now fails as INVALID
      credentials (not "expired").
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import base64
 import hashlib
 import os

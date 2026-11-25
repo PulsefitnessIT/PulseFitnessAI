@@ -4,6 +4,7 @@ import { useCRM } from '@/pages/CRM/CRMApp';
 import { CM_SECTION_SUBTABS, sectionForSubTab } from './cmNav';
 import WorkspaceSettings from './WorkspaceSettings';
 import RenewalsInProgress from './RenewalsInProgress';
+import ModCommitments from './ModCommitments';
 
 /** Renders one Contract Management section using the existing components. */
 export default function ContractManagementSection({ section, subTab, onNavigate }) {
@@ -15,6 +16,7 @@ export default function ContractManagementSection({ section, subTab, onNavigate 
   return (
     <div data-testid={`cm-section-${section}`}>
       {section === 'renewals' && <RenewalsInProgress />}
+      {section === 'contracts' && <ModCommitments />}
       <AftersalesApp
         key={`${section}:${initial}`}
         sections={sections}

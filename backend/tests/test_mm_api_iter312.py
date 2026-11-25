@@ -1,6 +1,6 @@
 """Iteration 312 — retest of Maintenance Master fixes (public URL). Run after mm_ui_seed.py seed + commit of the mmt_ upload.
 Never commits the real upload (read-only checks only)."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import sys

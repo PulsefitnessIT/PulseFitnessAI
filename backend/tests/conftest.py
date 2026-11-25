@@ -18,7 +18,7 @@ current event loop in thread 'MainThread'` once any earlier
 `asyncio.run(...)` cleans up the global loop. The helper installs a
 fresh loop if needed and returns the coroutine's result.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import pytest

@@ -12,7 +12,7 @@ User feedback:
 - The class step should expose instructors via a dropdown.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 import pathlib

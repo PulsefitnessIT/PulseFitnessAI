@@ -1,5 +1,5 @@
 # MOD machine suppliers: site provider allocation (master admin) + site-staff bulk reassign
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 

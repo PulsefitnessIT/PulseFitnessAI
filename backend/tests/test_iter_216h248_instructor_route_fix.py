@@ -13,7 +13,7 @@ the guard immediately bounced the user back to Start.
 Fix: add ``'instructors'`` to the allowed Studio-Mode tab set.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import pathlib
 

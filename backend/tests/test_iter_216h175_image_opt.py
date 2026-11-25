@@ -14,7 +14,7 @@ Verifies:
   4. Member-facing portal `<img>` tags carry `loading=` / `decoding=`
      hints so the browser knows when to defer them.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import re
 

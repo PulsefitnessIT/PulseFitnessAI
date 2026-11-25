@@ -7,7 +7,7 @@ test runs as a static-string check against the file at:
 ``/app/.githooks/pre-commit`` plus the Makefile install target.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 from pathlib import Path
 

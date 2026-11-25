@@ -1,6 +1,6 @@
 """Iter 316 – MOD Quotation founder stabilisation sprint: site truth, idempotency, revision race, Sage ref,
 validity/extension/expiry, notify dry-run, handover setup, retired CRM endpoints. Does NOT import/approve rate lists."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import threading

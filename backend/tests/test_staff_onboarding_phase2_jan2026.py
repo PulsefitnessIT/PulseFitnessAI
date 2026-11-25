@@ -9,7 +9,7 @@ have offer + contract fixtures available for the PDF endpoint tests. The full
 spine is covered by test_staff_onboarding_wizard_jan2026.py.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import io
 import os

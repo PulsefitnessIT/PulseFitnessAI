@@ -9,7 +9,7 @@ Tests:
 5. _branding_for_member helper returns correct values for various scenarios
 6. Frontend live preview component exists with correct data-testid
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

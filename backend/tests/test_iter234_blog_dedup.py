@@ -17,7 +17,7 @@ Fixes under test:
    already-published topics are skipped (status='skipped_duplicate').
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 from tests.shared_loop import run_async as drive_async
 
 from utils.seo_article_freshness import check_article_uniqueness, keyword_similarity

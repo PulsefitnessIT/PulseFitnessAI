@@ -4,7 +4,7 @@ Covers GET /api/bfpo/alerts scoping, POST /api/bfpo/alerts/{id}/ack per-user,
 GET /api/bfpo/jobs/{id}/site-photos[/index] streaming + scoping.
 Seeded case ids come from /tmp/test_alert_ids.txt ("<issue_id> <case_id>").
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

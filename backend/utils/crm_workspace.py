@@ -7,6 +7,7 @@ keeps its historical unrestricted CRM behaviour (role ``crm_user``).
 """
 from __future__ import annotations
 
+import re as _re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -21,6 +22,10 @@ ROLE_LABELS = {
 }
 ASSIGNABLE_ROLES = tuple(ROLE_LABELS.keys())
 LEGACY_ROLE = "crm_user"
+NO_ROLE = "none"
+# Sensitive extras granted per person on top of a role (audited), never by job title.
+EXTRA_PERMISSIONS = {"finance.post": "Post financial transactions", "billing.reconcile": "Reconcile financial records"}
+_SALES_HINTS = ("sales",)
 
 ALL_PERMISSIONS = {
     "workspace.crm", "workspace.contract_management",
@@ -55,8 +60,10 @@ ROLE_PERMISSIONS = {
     },
     "finance": {
         "workspace.contract_management", "contracts.read", "service.read",
-        "billing.prepare", "billing.reconcile", "finance.sync", "finance.post",
+        "billing.prepare", "billing.reconcile", "finance.sync",
     },
+    # Operator staff with no Contracts/CRM responsibility: no workspace access.
+    NO_ROLE: set(),
     # Non-operator tenants: unchanged historical CRM behaviour.
     LEGACY_ROLE: set(ALL_PERMISSIONS) - {"workspace.contract_management"},
 }
@@ -90,7 +97,15 @@ def derive_role(platform_user: dict) -> str:
         return "admin"
     if role in ("finance", "accounts", "accountant"):
         return "finance"
-    return "sales_manager"
+    # Only genuine sales staff keep the historical CRM sales access by default.
+    # Everyone else (service admin, coordinators, managers by job title …) needs an
+    # explicit workspace role — a job title or "manager" login never grants it.
+    dept = str(platform_user.get("department") or "").lower()
+    mo = platform_user.get("module_overrides") if isinstance(platform_user.get("module_overrides"), dict) else {}
+    crm_granted = mo.get("crm") is True and not platform_user.get("crm_override_from_workspace")
+    if crm_granted or any(h in role for h in _SALES_HINTS) or dept in ("sales", "sales admin"):
+        return "sales_manager"
+    return NO_ROLE
 
 
 async def _operator_org_ids() -> set:
@@ -152,11 +167,35 @@ async def resolve_workspace_role(platform_user: Optional[dict], op_ids: Optional
     if explicit in ASSIGNABLE_ROLES:
         return explicit
     granted = await _apply_grant(platform_user)
-    return granted or derive_role(platform_user)
+    if granted:
+        return granted
+    if not platform_user.get("department"):
+        staff = await linked_staff(platform_user)
+        if staff:
+            platform_user = {**platform_user, "department": staff.get("department"),
+                             "role": f"{platform_user.get('role') or ''} {staff.get('primary_role') or ''}".strip()}
+    return derive_role(platform_user)
 
 
-def permissions_for(role: str) -> set:
-    return set(ROLE_PERMISSIONS.get(role, set()))
+async def linked_staff(platform_user: dict) -> Optional[dict]:
+    """The Staffing & HR record for a login (same identity: user_id, else email)."""
+    proj = {"_id": 0, "id": 1, "department": 1, "primary_role": 1, "status": 1, "user_id": 1, "email": 1}
+    if platform_user.get("id"):
+        st = await db.staff_members.find_one({"user_id": platform_user["id"]}, proj)
+        if st:
+            return st
+    email = (platform_user.get("email") or "").strip().lower()
+    if email:
+        return await db.staff_members.find_one(
+            {"organization_id": platform_user.get("organization_id"), "email": {"$regex": f"^{_re.escape(email)}$", "$options": "i"}}, proj)
+    return None
+
+
+def permissions_for(role: str, platform_user: Optional[dict] = None) -> set:
+    perms = set(ROLE_PERMISSIONS.get(role, set()))
+    if role in CM_ROLES and platform_user:
+        perms |= {p for p in (platform_user.get("crm_workspace_extra_permissions") or []) if p in EXTRA_PERMISSIONS}
+    return perms
 
 
 async def workspace_context(platform_user: dict, org: Optional[dict]) -> dict:
@@ -164,13 +203,13 @@ async def workspace_context(platform_user: dict, org: Optional[dict]) -> dict:
     menu and route guards share one backend-resolved access decision."""
     from utils.module_access import has_module
     role = await resolve_workspace_role(platform_user)
-    perms = permissions_for(role)
+    perms = permissions_for(role, platform_user)
     crm_on = is_platform_admin(platform_user) or (
         not str((org or {}).get("account_type") or "").startswith("mod_")
         and has_module(platform_user, org, "crm"))
     return {
         "crm_workspace_role": role,
-        "crm_workspace_role_label": ROLE_LABELS.get(role, "CRM user"),
+        "crm_workspace_role_label": ROLE_LABELS.get(role, "No workspace role" if role == NO_ROLE else "CRM user"),
         "crm_permissions": sorted(perms),
         "crm_workspaces": {
             "crm": bool(crm_on and "workspace.crm" in perms),
@@ -264,3 +303,28 @@ async def _bootstrap_schedule_b() -> str:
         return await ensure_year4_schedule_b()
     except Exception as e:  # never block boot; retried on next start
         return f"error: {e}"[:200]
+
+
+async def release_departing_staff(platform_user: dict, actor: str) -> dict:
+    """Offboarding: revoke Contracts/MOD roles (audited) and hand open coordinator work and
+    customer portfolios to the shared coordinator queue. History and names on past actions stay."""
+    uid = platform_user.get("id")
+    now = _now()
+    if platform_user.get("crm_workspace_role"):
+        await set_explicit_role(platform_user, None, actor=f"offboarding:{actor}")
+    if platform_user.get("mod_quote_role"):
+        await db.users.update_one({"id": uid}, {"$set": {"mod_quote_role": None}})
+        await db.crm_workspace_role_audit.insert_one({"user_id": uid, "email": platform_user.get("email"), "kind": "mod_quote_role",
+                                                     "from": platform_user.get("mod_quote_role"), "to": None,
+                                                     "by": f"offboarding:{actor}", "at": now})
+    shared = {"owner_id": "system", "owner_name": "Shared coordinator queue"}
+    tasks = await db.crm2_activities.update_many(
+        {"owner_id": uid, "status": "open"},
+        {"$set": shared, "$push": {"owner_history": {"at": now, "from_id": uid, "from_name": platform_user.get("full_name"),
+                                                     "by": f"offboarding:{actor}"}}})
+    portfolios = await db.crm2_companies.update_many(
+        {"coordinator_id": uid},
+        {"$set": {"coordinator_id": None, "coordinator_name": None},
+         "$push": {"coordinator_history": {"at": now, "by": f"offboarding:{actor}", "from_id": uid,
+                                           "from_name": platform_user.get("full_name"), "to_id": None, "to_name": None}}})
+    return {"tasks_to_shared_queue": tasks.modified_count, "portfolios_unassigned": portfolios.modified_count}

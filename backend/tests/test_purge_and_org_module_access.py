@@ -2,7 +2,7 @@
 - BUG 1: Master Admin purge test-data — sites detection + scoped deletion
 - BUG 2: /auth/me exposes org_module_access alongside module_access (master bypass)
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 import pytest

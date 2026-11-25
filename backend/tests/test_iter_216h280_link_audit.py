@@ -21,7 +21,7 @@ us honest if someone removes them. Pure file-system check so we don't
 need a running React app.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 from pathlib import Path
 

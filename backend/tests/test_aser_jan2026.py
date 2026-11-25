@@ -3,7 +3,7 @@
 Covers MOD-only gating, site-scoping, create flow, equipment red-flag,
 actions (create-fault / flag-capex / close / dispose), dashboard cards.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import pytest

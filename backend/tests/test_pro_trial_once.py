@@ -1,5 +1,5 @@
 # Pulse Pro trial: once-per-org, dismissible banner, master-admin re-grant
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import asyncio

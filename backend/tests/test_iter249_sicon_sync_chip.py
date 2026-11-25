@@ -7,7 +7,7 @@ cases that came FROM Sicon with no outbound rows count as synced) and
 status pill.
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 

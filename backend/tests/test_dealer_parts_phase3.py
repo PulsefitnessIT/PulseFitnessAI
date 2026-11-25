@@ -1,5 +1,5 @@
 """Dealer Warranty Parts Phase 3 — usage / stores-dashboard / RMA."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import pytest

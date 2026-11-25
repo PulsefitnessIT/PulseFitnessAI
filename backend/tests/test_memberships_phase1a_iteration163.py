@@ -7,7 +7,7 @@ Tests for:
 4. Email hooks (booking confirmation, waitlist promotion, class cancellation)
 5. Waitlist promotion flow with DB state verification
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

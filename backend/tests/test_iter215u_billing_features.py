@@ -9,7 +9,7 @@ Iteration 215u — Backend tests for:
 7. Regression: non-smoothed plans use stripe_price_id and price_pence
 8. Regression: GET /api/member/bookings returns waitlist_position and promoted_from_waitlist_at
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import pytest
 import requests
 import os

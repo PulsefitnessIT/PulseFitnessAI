@@ -10,7 +10,7 @@ Google requirements: a crawlable favicon, multiple of 48x48px, linked
 from the homepage <head>.
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import requests

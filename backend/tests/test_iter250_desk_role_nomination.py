@@ -13,7 +13,7 @@ Process under test (end-to-end, no gaps):
     (service_org_id inherited from the granting admin).
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import uuid

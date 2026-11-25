@@ -4,7 +4,7 @@ duplicate customers/equipment/quotes, unapproved prices cannot be issued.
 
 Fictional data only (prefix ``cm_bq_``). Uses the real document extractor.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import io
 import os

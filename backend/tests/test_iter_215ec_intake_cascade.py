@@ -9,7 +9,7 @@ Tests:
 5. Priority mapping from severity
 6. Equipment/site resolution from serial_number
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

@@ -3,7 +3,7 @@
 Public endpoints, NO auth, NO rate-limit bypass header (the point is to prove
 the two limiters use DIFFERENT buckets).
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import uuid

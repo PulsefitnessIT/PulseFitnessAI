@@ -24,7 +24,7 @@ This file pins the redirect routes + scans the codebase to catch any
 new link that points at the killed wizard path.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 from pathlib import Path
 

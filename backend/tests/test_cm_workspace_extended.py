@@ -1,6 +1,6 @@
 """Contract Management workspace — extended checks over the public URL:
 real login payload flags, shared records, admin role assignment round-trip."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import subprocess
 

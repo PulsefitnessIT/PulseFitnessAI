@@ -3,7 +3,7 @@
 Covers POST /api/crm/v2/quotes totals + GET /api/crm/v2/quotes/{id}/pdf with a trade-in line.
 CRM uses a SEPARATE token via POST /api/crm/auth/login.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import pytest

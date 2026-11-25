@@ -8,7 +8,7 @@ Covers:
 - Reschedule-visit reverts to pending_confirmation with new proposed_date
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 import datetime as dt

@@ -3,7 +3,7 @@
 2. DBS fields on HR profile (PATCH /api/staffing/hr/profile/{id})
 3. Fleet Manager endpoint (/api/vehicles) - 45 vehicles + new fields
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import secrets
 import uuid

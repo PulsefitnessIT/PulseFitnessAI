@@ -3,7 +3,7 @@ RELEASE READINESS AUDIT — PulseFitness.ai (Jan 2026)
 Per-persona golden path smoke checks. Breadth over depth.
 DO NOT complete Stripe payment. LIVE key in .env.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import uuid

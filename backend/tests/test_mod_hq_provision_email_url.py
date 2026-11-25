@@ -1,5 +1,5 @@
 # MOD HQ "site login provisioned" email — env-driven MOD login link (MOD_PORTAL_URL / FRONTEND_URL)
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import uuid

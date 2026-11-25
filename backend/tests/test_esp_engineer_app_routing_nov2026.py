@@ -1,6 +1,6 @@
 # ESP (External Service Provider) engineer — identity flag, Engineer-App job scope, queue, claim scoping.
 # Fixture data: backend/tests/_esp_seed.py (user esp-test-eng-1, cases esp-test-case-1 [own site] / esp-test-case-other).
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import subprocess
 import sys

@@ -223,6 +223,9 @@ jobs:
         env:
           REACT_APP_BACKEND_URL: https://ci-placeholder.example.com
           CI: "false"    # don't treat webpack warnings as errors
+          # The bundle is large; the default ~2 GB Node heap ran out on GitHub runners (7 GB RAM).
+          NODE_OPTIONS: --max-old-space-size=4096
+          GENERATE_SOURCEMAP: "false"
         run: yarn build
 
   # ────────────────────────────────────────────────────────────

@@ -18,7 +18,7 @@ If anyone reverts to ``Receipt`` (or copy-pastes from a US-locale
 template), this test fails immediately.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import os
 import re

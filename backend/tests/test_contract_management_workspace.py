@@ -4,7 +4,7 @@ Uses the fictional cm.*@pulsefitness.test staff seeded by
 scripts/seed_cm_workspace_test_users.py (run automatically below).
 Tokens are minted directly so the login rate-limit never interferes.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import subprocess
 

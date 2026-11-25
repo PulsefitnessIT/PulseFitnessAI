@@ -21,7 +21,7 @@ rest of the reconciliation path.
 Requires STRIPE_WEBHOOK_SECRET in /app/backend/.env (already set).
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 import hmac

@@ -1,5 +1,5 @@
 """Iter311: edit contract_amount + comments on fictional MMT-1006, verify updated Master workbook writes them in original cells."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import sys
 

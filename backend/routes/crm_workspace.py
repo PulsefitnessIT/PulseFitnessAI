@@ -273,3 +273,14 @@ async def cron_daily_checks(request: Request, background: BackgroundTasks):
         return {"accepted": True, "duplicate": True, "run_id": run_id}
     background.add_task(_daily_checks_all, run_id)
     return {"accepted": True, "run_id": run_id}
+
+
+@router.get("/mod-commitments")
+async def mod_commitments(user=Depends(require_crm_perm("contracts.read"))):
+    """Read-only view of accepted MOD quotations handed to MOD Service Operations.
+    MOD Operations stays the authoritative register — nothing here is editable."""
+    proj = {"_id": 0, "id": 1, "mod_site_name": 1, "quote_type": 1, "source_quote_number": 1, "annual_type_a_value": 1,
+            "one_off_type_b_value": 1, "start_date": 1, "status": 1, "service_records": 1, "group_id": 1, "created_at": 1,
+            "outstanding": 1}
+    items = await db.mod_quote_handovers.find({}, proj).sort("created_at", -1).to_list(500)
+    return {"items": items}

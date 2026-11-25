@@ -18,7 +18,7 @@ This iter fills those gaps. Backend was already complete; the
 work is entirely on the company drawer in CRMCompanies.js.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import pathlib
 import re

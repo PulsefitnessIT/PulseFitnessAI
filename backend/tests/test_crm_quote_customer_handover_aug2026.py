@@ -7,7 +7,7 @@ Covers routes/crm_quote_handover.py:
 Seeded fixture (left in place): crm2_companies 'HANDOVER-TEST-CO' (iso-demo-org)
 -> tenant_org_id 'handover-test-portal' (org 'Handover Test Gym').
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import pytest

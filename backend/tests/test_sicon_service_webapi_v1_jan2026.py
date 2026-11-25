@@ -16,7 +16,7 @@ Covers the mapping-correctness + persistence fix requested by the customer:
 All Sicon HTTP calls are stubbed — no live network.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import os
 import sys

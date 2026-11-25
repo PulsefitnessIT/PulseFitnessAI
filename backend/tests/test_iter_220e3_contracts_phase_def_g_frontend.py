@@ -5,7 +5,7 @@ dashboard and "Send / PDF" actions on contract detail all live in
 the source. Frontend-only assertions — backend behaviour is covered
 by ``test_iter_220e3_contracts_phase_def_g.py``.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 from pathlib import Path
 
 FRONTEND = Path(REPO + "/frontend/src")

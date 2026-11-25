@@ -1,7 +1,7 @@
 """Sicon read-side dashboard + endpoints integration test — Increment B.
 Runs against the live public backend using owner@isodemo.com creds.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

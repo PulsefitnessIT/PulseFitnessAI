@@ -1,7 +1,7 @@
 """Iteration 310 — CM Phase 3 Service Planner fixes (public URL), needs `_seed_p3ui.py seed` data.
 Run: cd /app/backend && PYTHONPATH=. python -m pytest -q -p no:xdist tests/test_cm_phase3_planner_fixes_iter310.py
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 from datetime import date, timedelta

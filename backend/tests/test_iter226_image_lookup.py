@@ -8,7 +8,7 @@ We avoid live HTTP in CI: instead we seed the `manufacturer_catalogue`
 collection directly and assert the lookup picks the right row.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import os
 import uuid

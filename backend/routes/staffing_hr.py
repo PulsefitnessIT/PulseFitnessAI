@@ -651,11 +651,17 @@ async def complete_offboarding(staff_id: str, user: dict = Depends(get_current_u
             {"id": uid},
             {"$set": {"active": False, "tokens_revoked_before": int(_now().timestamp()),
                       "updated_at": _now().isoformat()}})
+    released = {}
+    if uid:
+        from utils.crm_workspace import release_departing_staff
+        leaver = await db.users.find_one({"id": uid}, {"_id": 0})
+        if leaver:
+            released = await release_departing_staff(leaver, user.get("email") or user.get("id"))
     await db.staff_offboarding_cases.update_one(
         {"id": case["id"]},
         {"$set": {"status": "complete", "completed_at": _now().isoformat(),
-                  "completed_by": user.get("full_name"), "access_revoked": bool(uid)}})
-    return {"ok": True, "access_revoked": bool(uid), "termination_date": lwd}
+                  "completed_by": user.get("full_name"), "access_revoked": bool(uid), "work_released": released}})
+    return {"ok": True, "access_revoked": bool(uid), "termination_date": lwd, "work_released": released}
 
 
 # ═════════════════ Full Employee File export (PDF / Excel) ═════════════════

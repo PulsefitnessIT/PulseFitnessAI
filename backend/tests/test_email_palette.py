@@ -1,5 +1,5 @@
 # Email HTML palette regression: banned legacy colours must not appear in rendered email bodies.
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import glob
 import os

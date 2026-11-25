@@ -16,7 +16,7 @@ Notes for the next agent:
   shared Motor event loop (the old asyncio.run cleanup raised
   "RuntimeError: Event loop is closed").
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 

@@ -6,7 +6,7 @@ Covers:
   tz override, then revert to GB so the shared admin org isn't left as US.
 - Engineer invoice payload snapshots currency + tax vocabulary from the market.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 

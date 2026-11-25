@@ -6,7 +6,7 @@ Covers:
 - Guards: double accept -> 410, decline-after-accept -> 410, accept-after-decline -> 410.
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

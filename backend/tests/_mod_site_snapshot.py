@@ -1,5 +1,5 @@
 # Snapshot / restore MOD Test Site supplier state (usage: python _mod_site_snapshot.py save|restore)
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import pickle
 import os
 import sys

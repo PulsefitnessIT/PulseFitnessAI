@@ -7,7 +7,7 @@ Covers:
 - Engineer detail endpoint exposes those fields
 - Supplier portal _resolve_reporter_contact returns role + via_shared_login
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import uuid

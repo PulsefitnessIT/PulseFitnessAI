@@ -13,7 +13,7 @@ Bug4 Sicon integration_logs are queryable (Event Log expand renders payload
      or fallback on the frontend; backend just needs to expose entries).
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import asyncio
 import pytest

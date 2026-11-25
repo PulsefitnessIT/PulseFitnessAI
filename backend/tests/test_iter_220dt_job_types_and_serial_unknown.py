@@ -20,7 +20,7 @@ Operator feedback (Feb 2026):
      job_type + equipment.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 from pathlib import Path
 

@@ -1,6 +1,6 @@
 """Iteration 311 — Maintenance Master API checks via PUBLIC URL against the mmt_ui_ upload committed in the UI
 (run after `python tests/mm_ui_seed.py` / UI commit). Never touches the real upload except read-only + 403 commit check."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 

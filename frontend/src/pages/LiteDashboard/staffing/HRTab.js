@@ -24,6 +24,7 @@ import {
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
 import { DeptVisibilityPanel } from '@/pages/LiteDashboard/staffing/DeptVisibilityPanel';
+import { SystemAccessPanel } from '@/pages/LiteDashboard/staffing/SystemAccessPanel';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const hrPhotoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
@@ -1625,15 +1626,23 @@ export default function HRTab({ headers, isManager, canGrant = false, scopedView
   }, [staffList, search, deptFilter]);
 
   const active = filtered.find((s) => s.id === activeId) || filtered[0];
+  const [showAccess, setShowAccess] = useState(false);
 
   return (
     <div className="space-y-3" data-testid="hr-tab">
 
       <DetailChangeRequestsPanel headers={headers} isManager={isManager} />
 
+      {showAccess && <SystemAccessPanel headers={headers} onClose={() => setShowAccess(false)} />}
+
       {isManager && (
         <div className="flex items-center justify-end gap-2 flex-wrap">
           <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={() => setShowAccess((v) => !v)}
+              className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="hr-system-access-btn">
+              System Access
+            </button>
             <button type="button" onClick={reconcileRoles} disabled={reconciling}
               className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}

@@ -1,5 +1,5 @@
 # Engineer report fields (svc + MOD jobs + MOD PPM), case detail/signoff, PPM calendar visits, Service Desk asset list (all sites + PDF)
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import uuid

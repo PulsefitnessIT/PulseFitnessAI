@@ -5,7 +5,7 @@ kind, saving the operator (especially dance-studio prospects setting
 up a recital) ~15–20 minutes of manual data entry.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 import pathlib

@@ -1,6 +1,6 @@
 """Iteration 313 — Maintenance Master resolution centre, daily view, invoice-run preview (public URL).
 Run after `mm_ui_seed.py seed`. Real upload e7a84748 is only READ (never committed)."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import time

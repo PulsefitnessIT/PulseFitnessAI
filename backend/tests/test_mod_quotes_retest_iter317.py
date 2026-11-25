@@ -1,6 +1,6 @@
 """Iter 317 – narrow retest of iter316 fixes: date typing (extend/setup), concurrent revise guard, regex escape,
 portal published_at + Sage number as quote_number. Cleans up only the groups it creates."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import threading

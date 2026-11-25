@@ -1,6 +1,6 @@
 # MOD Service Report consistency (Jan 2026): BFPO job-sheet -> standard Service Report,
 # MOD site fault service-report download, non-MOD calibration regression, PPM schedule is_mod flag.
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import uuid

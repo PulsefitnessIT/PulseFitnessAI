@@ -1,5 +1,5 @@
 # Retest of iteration_280 fixes: auth bypass 403, emailed null on Resend failure, no duplicates, estate scoping, $literal
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import pytest

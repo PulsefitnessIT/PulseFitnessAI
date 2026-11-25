@@ -17,7 +17,7 @@ Audited surfaces and their mechanisms:
 - Pulse ops        — covered by test_iter241 (tabVisible invariant).
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import re
 
 SRC = REPO + "/frontend/src"

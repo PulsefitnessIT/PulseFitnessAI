@@ -21,7 +21,7 @@ Pins (from operator feedback on the Treadmill-slip screenshot, Feb 2026):
      this visit?" gate that drives ``return-to-fix``.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 from pathlib import Path

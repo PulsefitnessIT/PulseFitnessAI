@@ -6,7 +6,7 @@ Covers:
 - Staff Portal handbook PDF
 - Legacy compatibility (van_maintenance→van, vehicle_check→car, vehicle_check_ev→electric_car)
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import uuid

@@ -8,7 +8,7 @@ Tests for freshly ported GymAxis→Pulse features (Jan 2026):
 - Equipment Transfers (router presence)
 - Regression: CRM Tenders + Master Admin routing
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

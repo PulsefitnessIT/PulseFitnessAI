@@ -6,7 +6,7 @@ Covers /api/dealer-parts/data/* endpoints:
  - machines + machine-parts, settings, chunked upload skeleton
  - RBAC (dealer_user blocked)
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import time
 import pytest

@@ -4,7 +4,7 @@ Verifies GET /api/master-admin/email-health classification logic and
 that ``send_email`` audit rows surface in the recent feed.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 import os

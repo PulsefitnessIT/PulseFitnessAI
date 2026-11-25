@@ -5,7 +5,7 @@ Equipment tab, Faults tab (incl. filters + severity labels), Documents
 tab and the Log-a-Fault wizard (LiteDialogs).
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import json
 
 FRONTEND = REPO + "/frontend/src"

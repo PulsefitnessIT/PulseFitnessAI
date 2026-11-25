@@ -4,7 +4,7 @@ Verifies the fix for runaway duplicate emails (48 copies/hour) caused by a
 broken $ne filter on the per-ISO-week claim in system_jobs. The corrected
 implementation uses $setOnInsert keyed on (job, week_tag).
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import sys

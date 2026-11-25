@@ -1,5 +1,5 @@
 # Iteration 293: ONE real email send to TEST_RECIPIENT_EMAIL + read-only Resend domains check. Never prints the key.
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import sys

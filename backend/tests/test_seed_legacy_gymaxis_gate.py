@@ -1,5 +1,5 @@
 # seed_master_admin() — LEGACY_GYMAXIS_CLEANUP opt-in gate (no destructive deletes by default)
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import sys

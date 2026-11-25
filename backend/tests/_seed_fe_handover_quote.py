@@ -7,7 +7,7 @@ Creates a CPQ v2 quote for the seeded linked company HANDOVER-TEST-CO
 Usage:  python tests/_seed_fe_handover_quote.py            # seed
         python tests/_seed_fe_handover_quote.py --cleanup  # remove TEST data
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 

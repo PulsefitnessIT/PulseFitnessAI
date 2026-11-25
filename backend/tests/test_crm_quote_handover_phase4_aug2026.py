@@ -6,7 +6,7 @@ Covers routes/crm_quote_handover.py:
   POST /api/crm/v2/quotes/{id}/complete        (+ force)
   POST /api/crm/v2/quotes/{id}/reopen
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import pytest

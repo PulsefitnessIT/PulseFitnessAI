@@ -11,7 +11,7 @@ approval, writing `trial.status='active'`, `trial.ends_at` (+10 days) and
 `subscription.current_period_end`.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import os
 import uuid

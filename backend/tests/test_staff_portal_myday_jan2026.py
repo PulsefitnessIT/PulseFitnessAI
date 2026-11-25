@@ -3,7 +3,7 @@
 Covers /api/new-starter/portal/{my-day, day/timesheet, day/punch,
 my-time, report-absence} against the Attendance Spine.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 from datetime import date, timedelta
 

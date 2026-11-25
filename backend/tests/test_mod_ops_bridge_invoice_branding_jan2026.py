@@ -1,5 +1,5 @@
 """MOD Operations fault bridge (every MOD intake path → /bfpo) + Pulse invoice header/footer on PDFs."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import uuid

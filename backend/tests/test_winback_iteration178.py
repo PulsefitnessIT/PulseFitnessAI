@@ -10,7 +10,7 @@ Tests for the "We've missed you" win-back email feature:
 - Auth hardening: member tokens rejected with 403
 """
 
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import pytest
 import requests
 import os

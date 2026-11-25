@@ -9,7 +9,7 @@ Pins:
 * Entitlement endpoint hides the panel for contract-less tenants (#11).
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 from pathlib import Path

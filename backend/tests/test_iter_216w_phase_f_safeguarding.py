@@ -10,7 +10,7 @@ Tests:
 - Regression: GET /api/memberships/instructors/performance still returns expected shape
 - Regression: GET /api/memberships/instructors/{id} still works (static routes don't shadow dynamic)
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

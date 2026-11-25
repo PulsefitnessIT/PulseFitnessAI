@@ -1,5 +1,5 @@
 # Iter282 retest: _can_manage_mod_site operator-company authz + follows-default display name normalisation
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import pytest

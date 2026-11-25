@@ -12,7 +12,7 @@ Verifies:
   6. `react-window` is listed in package.json so production builds
      don't silently break on missing dep.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import json
 import os
 

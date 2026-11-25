@@ -2,7 +2,7 @@
 Iter 220 P1 slice 4 — CRM Master Price List backup/export E2E API tests.
 Hits the live public REACT_APP_BACKEND_URL via /api/* routes.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

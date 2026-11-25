@@ -15,7 +15,7 @@ Test coverage:
 - POST /api/gym-floor/fault without staff_id returns 422
 - GET /api/issues/{id} returns created_by_name, created_by_email, created_by_mobile
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

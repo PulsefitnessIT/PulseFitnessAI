@@ -1,5 +1,5 @@
 # Iter 298 — Pulse parts price list import, engineer price hiding, quote auto-fill from price list, report fallback
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import io
 import os
 import uuid

@@ -8,7 +8,7 @@ Covers:
 - PATCH engineer site_ids persistence
 - Regression: territory engineer (engineer.gib) + lead unrestricted /bfpo/sites
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 import pytest

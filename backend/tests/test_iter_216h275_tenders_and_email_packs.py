@@ -47,7 +47,7 @@ re-populated. Fixed: now re-seeds when no **active** rows exist
 preserving any custom packs).
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 import pathlib

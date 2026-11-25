@@ -1,6 +1,6 @@
 # Iter 291: GET /api/issues legacy machine_name backfill now runs before equipment enrichment.
 # Seeds TEST_ rows directly in test_database; removed by id at teardown. No email sent.
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import uuid

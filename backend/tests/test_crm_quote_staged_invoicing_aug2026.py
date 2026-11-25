@@ -6,7 +6,7 @@ Covers routes/crm_quote_invoicing.py:
   POST /api/crm/v2/quotes/{id}/schedule/auto
   POST /api/crm/v2/quotes/{id}/stages/{sid}/invoice | pay | credit-note
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import pytest

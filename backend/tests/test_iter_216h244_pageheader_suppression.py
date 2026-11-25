@@ -10,7 +10,7 @@ header collapses entirely.
 This test guards against any future PR that re-renders the H2.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import pathlib
 

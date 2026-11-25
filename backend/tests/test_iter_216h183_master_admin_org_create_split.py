@@ -18,7 +18,7 @@ Tests verify:
      a regression here would silently break the iter-216h178 split.
   5. The new router is registered in `route_registry/admin.py`.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import importlib
 import os
 

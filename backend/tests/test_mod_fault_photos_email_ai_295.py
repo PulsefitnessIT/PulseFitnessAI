@@ -1,7 +1,7 @@
 # Iter 295: MOD fault photo back-fill, scoped photo serve, MOD email ".ai" sanitiser,
 # delivery-status parallel lookups / array_filters / supplier 'pending'. NO real emails (resend mocked).
 # Requires: python tests/_seed_fault_photos_295.py seed ; run with -p no:xdist
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import json

@@ -6,7 +6,7 @@ spec_sheets with curated faults/PM-task editorial; gated on a minimum
 real-machine count so thin types 404 (no doorway pages).
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import os
 import pathlib

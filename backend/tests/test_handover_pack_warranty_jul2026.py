@@ -8,7 +8,7 @@ Covers:
   POST /api/crm/v2/quotes/{id}/purchase-orders/{po}/receive  (GRN stamps warranty)
   GET  /api/crm/v2/quotes/{id}/handover/pack    (PDF 200 / 400 when no equipment)
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 from datetime import datetime
 

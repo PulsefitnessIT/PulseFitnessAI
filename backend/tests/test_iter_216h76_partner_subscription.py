@@ -10,7 +10,7 @@ We instead assert:
   • subscription event sync (price-swap + cancellation) flows through correctly
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import asyncio
 import os

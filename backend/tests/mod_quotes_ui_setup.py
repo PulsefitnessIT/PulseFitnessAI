@@ -1,5 +1,5 @@
 """UI-test setup helper: create + publish a TEST_ MOD quotation group via API (Clyde rows). Usage: python mod_quotes_ui_setup.py [publish|state|revise GID]"""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import json
 import os
 import sys

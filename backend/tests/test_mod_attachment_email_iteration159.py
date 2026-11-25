@@ -16,7 +16,7 @@ Tests for:
 3. Cross-site security:
    - army-catterick fetching RAF attachment → 403
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

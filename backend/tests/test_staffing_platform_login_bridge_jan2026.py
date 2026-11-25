@@ -7,7 +7,7 @@ Covers:
 - POST /staffing/reconcile-roles
 - GET /master-admin/users surfaces no-login staff (login_status='none')
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import uuid
 import time

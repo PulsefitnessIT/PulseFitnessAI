@@ -5,7 +5,7 @@ landed on `/s/{token}` and posted messages that got tagged as `author_role =
 "supplier"`. The fix: the backend now detects an authenticated gym-user JWT
 on POST /api/supplier/case/{token}/comments and force-rewrites the role.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import requests
 import uuid

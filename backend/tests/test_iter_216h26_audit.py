@@ -7,7 +7,7 @@ visibility in the end-user (Operations / CRM / Memberships / Member
 portal / LiteDashboard) endpoints. Fails loudly on any broken link
 so the audit report stays honest.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import sys

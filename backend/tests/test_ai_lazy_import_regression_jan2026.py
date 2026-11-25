@@ -9,7 +9,7 @@ to lazy (function-local) scope to fix the k8s deploy crash-loop, verify:
   3) Master-admin test-data purge endpoints are wired (200 with admin JWT,
      401 unauthenticated).
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import re
 import pytest

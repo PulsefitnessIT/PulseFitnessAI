@@ -3,7 +3,7 @@ idempotent activation, truthful renewal comms, sales → coordinator handover.
 
 Fictional data only (prefix ``cm_ab_``); everything is removed afterwards.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import os
 import subprocess

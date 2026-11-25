@@ -1,6 +1,6 @@
 # Iter 294: gym comment edit/delete (15-min, own only), author_user_id on POST, delivery-status endpoint + access rules.
 # Requires: python tests/_seed_comment_edit_delivery_294.py seed (and `send` for the delivered tick check).
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import sys
 import time

@@ -3,7 +3,7 @@
 Locks down the zero-data-loss behaviour of utils/price_list_import.py
 against the real Pulse cost-engineering workbook shape.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 
 import openpyxl

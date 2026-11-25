@@ -209,7 +209,14 @@ VALID_ROLES = {"instructor", "pt", "manager", "reception", "cleaner", "maintenan
 BUSINESS_DEFAULT_ROLES = [
     "manager", "engineer", "technician", "sales_manager",
     "administrator", "receptionist", "supervisor", "director",
-    "hr", "payroll", "other",
+    "hr", "payroll",
+    # Pulse Fitness office & aftersales titles. A job title never grants
+    # Contracts / MOD / finance permissions — those are explicit System Access entitlements.
+    "service_aftersales_manager", "contract_coordinator", "senior_contract_coordinator",
+    "service_administrator", "senior_service_administrator", "service_desk_coordinator",
+    "service_manager", "field_service_engineer", "technical_manager", "sales_administrator",
+    "finance_administrator", "finance_manager", "operations_manager", "department_manager",
+    "other",
 ]
 _LEGACY_GYM_ROLES = {
     "instructor", "pt", "reception", "cleaner",
@@ -250,11 +257,13 @@ def _platform_role_from_staff_role(primary_role) -> str:
     never auto-assigned. Makes an 'Engineer' in Staffing become an 'engineer'
     login (Engineer App access) instead of a generic 'staff'/sales role."""
     r = (primary_role or "").strip().lower()
-    if r in {"engineer", "technician", "maintenance"}:
+    if r in {"engineer", "technician", "maintenance", "field_service_engineer"}:
         return "engineer"
     # People-management roles → platform "manager". NOTE: "administrator" is an
     # office/admin job (not a people-manager) so it maps to "staff", not manager.
-    if r in {"manager", "supervisor", "director", "duty_manager", "sales_manager", "hr", "payroll"}:
+    if r in {"manager", "supervisor", "director", "duty_manager", "sales_manager", "hr", "payroll",
+             "service_aftersales_manager", "service_manager", "technical_manager", "finance_manager",
+             "operations_manager", "department_manager"}:
         return "manager"
     return "staff"
 

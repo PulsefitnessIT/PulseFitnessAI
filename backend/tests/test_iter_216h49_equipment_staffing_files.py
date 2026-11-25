@@ -8,7 +8,7 @@ Features tested:
 5. GET /api/staffing/staff — Auto-backfill from db.users to db.staff_members
 6. POST /api/files/upload — PDF compression with original_size + compression_ratio fields
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 import pytest
 import requests

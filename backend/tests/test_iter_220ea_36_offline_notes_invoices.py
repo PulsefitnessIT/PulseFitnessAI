@@ -7,7 +7,7 @@ engineer outbox and replayed on reconnect, with an Idempotency-Key making
 the server create idempotent so a lost-response replay never duplicates.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import os
 import pathlib

@@ -18,7 +18,7 @@ covered there). What we are guarding here is the WIRING — the
 seams that would otherwise drift silently.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 from pathlib import Path
 

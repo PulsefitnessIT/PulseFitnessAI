@@ -31,7 +31,7 @@ Live verification: banner top is now 96px (cleared the 81px
 navbar by 15px of breathing room) and the dismiss × is clickable.
 """
 from __future__ import annotations
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 
 import pathlib
 

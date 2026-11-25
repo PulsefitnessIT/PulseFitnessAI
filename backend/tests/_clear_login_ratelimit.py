@@ -1,5 +1,5 @@
 """Test helper: clear login rate-limit buckets so the QA browser run can log in."""
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import os
 from dotenv import load_dotenv
 from pymongo import MongoClient

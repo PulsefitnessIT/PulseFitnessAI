@@ -21,7 +21,7 @@ or a running server. We construct a mock Motor cursor + collection that
 records the projection it received and verify the right fields are
 excluded.
 """
-from tests._paths import REPO  # noqa: E402
+REPO = __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))))  # noqa: E402
 import asyncio
 import importlib
 import os
