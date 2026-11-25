@@ -506,7 +506,7 @@ async def group_zip(gid: str, user=Depends(_sales)):
     g = await _group(gid)
     data = await zip_bytes(await _quotes(gid), g)
     return Response(data, media_type="application/zip",
-                    headers={"Content-Disposition": f'attachment; filename="MOD-Quotations-{gid[:8]}.zip"'})
+                    headers={"Content-Disposition": f'attachment; filename="MOD-Quotations-{"".join(ch if ch.isalnum() else "-" for ch in g["customer"]["name"]).strip("-")}-v{g["revision"]}.zip"'})
 
 
 # ── customer authorisation review & handover ───────────────────────────

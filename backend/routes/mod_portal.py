@@ -613,8 +613,7 @@ async def mod_site_quote_group_zip(group_id: str, user: dict = Depends(get_curre
     if not qs:
         raise HTTPException(404, "No quotations found for this site")
     g = await _group(group_id)
-    for q in qs:
-        await _portal_event(q, "customer_downloaded", user, {"zip": True})
+    await _portal_event(qs[0], "customer_downloaded", user, {"zip": True, "quotes": [q["quote_number"] for q in qs]})
     safe = "".join(ch if ch.isalnum() else "-" for ch in g["customer"]["name"]).strip("-")
     return Response(content=await zip_bytes(qs, g), media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="Pulse-Fitness-Quotations-{safe}.zip"'})

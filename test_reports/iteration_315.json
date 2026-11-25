@@ -1,0 +1,38 @@
+{
+  "summary": "Retest of MOD Sales Quotation System (frontend focus). Created a TEST group (Clyde rows, options A/B/AB) via API, published, plus a draft. Customer portal (modsite.officer, /MODService -> /pulse, Quotes tab) now renders grouped quotations: 1 group card, options in order A/B/AB, totals £2,614.10/£454.80/£2,022.29, View line table (10 lines), PDF download filename PFQ-000063_Type-B_MOD-Test-Site_v1.pdf, ZIP Pulse-Fitness-Quotations-MOD-Test-Site.zip. Draft group not visible to customer. View/download moved status to customer_review only (not accepted). Choose option -> authorise form (empty-officer validation toast, PO, date, evidence file) -> mod-auth-pending shown, choose buttons removed. Manager: mq-tab-auth shows the item with evidence button; Verify & accept -> group 'Handed to Operations', A/AB 'Not selected'; Notify/Edit/Withdraw hidden after handover. Customer then sees 'Selected option' on Type B. Group detail order A,B,AB (created with AB,B,A); history 'published' lines show option + reference; staff PDF filename PFQ-000062_Type-A_MOD-Test-Site_v1.pdf. Wizard: Next disabled with unmapped qty>0 row (and re-disabled when an unmapped row is added after 9 mapped rows); Clyde totals A £2,614.10 / B £454.80 / Mix £2,022.29 in UI. Revise-with-pending-auth checked via API: pending authorisation superseded (removed from submitted queue), customer can authorise new revision (200), old quote 404. test_mod_quotes_http.py 13/13 pass. Tablet 1024x768 layout OK (no horizontal overflow). ONE HIGH design bug: the customer quote groups panel is unreadable in light theme.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/mod/site/quote-groups/{id}/zip", "issue": "A single ZIP download logs 3 'customer_downloaded' events (one per quote) – staff history gets noisy; consider one group-level event."},
+      {"endpoint": "GET /api/mod-ops/quotes/groups/{id}/pdfs.zip", "issue": "Staff ZIP server filename is 'MOD-Quotations-51e35f96.zip' (group-id prefix) while customer ZIP uses the site name; inconsistent/less useful."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LiteQuotesTab -> lite-mod-quote-groups wrapper / ModPublishedQuotes", "issue": "In light theme (default for MOD portal) index.css line ~288 rule `[data-theme=\"light\"] .bg-zinc-900 { background: var(--theme-surface) !important }` turns the wrapper white, but ModPublishedQuotes uses text-white, text-white/50, text-white/60, text-white/70, border-white/20, bg-white/10 etc. Measured: wrapper bg rgb(255,255,255), muted text rgba(255,255,255,0.5). Headings, Net/VAT/Total, descriptions, View/PDF/ZIP buttons, form labels, line table and the pending message are near-invisible (only cyan buttons/status readable). Fix: add data-theme=\"dark\" (documented opt-out) to the lite-mod-quote-groups wrapper, or restyle ModPublishedQuotes with theme tokens (var(--theme-text), var(--theme-text-muted), var(--theme-border)).", "selector": "[data-testid='lite-mod-quote-groups']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Customer portal Quotes tab after authorisation", "issues": ["After submitting authorisation every option card shows 'Authorisation sent to Pulse Fitness' – customer can't see which option they chose until acceptance; highlight the chosen option."]},
+      {"screen": "Customer authorise form", "issues": ["mod-auth-date uses native browser date picker rather than the shadcn calendar used elsewhere."]},
+      {"screen": "Legacy LiteQuotesTab detail", "issues": ["lite-quote-pdf is a plain <a href> to an auth-protected endpoint (no Bearer header) – likely 401 for token-based sessions (legacy path, not exercised; no legacy quotes exist for this site)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_quotes_http.py", "/app/backend/tests/mod_quotes_ui_setup.py", "/app/backend/tests/mod_quotes_revise_auth_check.py"],
+  "action_items": [
+    "HIGH: Fix light-theme contrast of the customer quotations panel (add data-theme=\"dark\" to the lite-mod-quote-groups wrapper or use theme tokens in ModPublishedQuotes).",
+    "Minor: highlight the option the customer chose while authorisation is pending.",
+    "Minor: log one customer_downloaded event per ZIP; use site name in staff ZIP filename."
+  ],
+  "critical_code_review_comments": [
+    "ModPublishedQuotes builds its own headers from localStorage token and ignores the `headers` prop LiteQuotesTab already has; if the session is cookie-based (token==='cookie') requests send 'Bearer cookie'. Pass headers through for consistency.",
+    "ModPublishedQuotes `view()` failure and download failures show toasts but no loading state on buttons (double-clicks possible on PDF/ZIP).",
+    "Notify customer remains visible in authorisation_submitted status (per spec only hidden after acceptance) – fine, but Create revision is hidden in that status in UI while API allows it."
+  ],
+  "updated_files": ["/app/backend/tests/mod_quotes_ui_setup.py (new helper)", "/app/backend/tests/mod_quotes_revise_auth_check.py (new ad-hoc check)"],
+  "success_rate": {"backend": "100% (13/13 http tests + revise-auth check)", "frontend": "~92% (all functional flows pass; 1 HIGH contrast bug)"},
+  "seed_data_creation": "Created TEST groups 51e35f96-... (published/accepted) and ffaef6bd-... (draft) plus a revise-check group; all deleted by id via mod_quotes_test_helpers.delete_groups. Customer now has 0 groups. Notify customer was NOT clicked.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Customer login: on /MODService?portal=modservice, inputs are readonly until focused – click then press_sequentially. Staff login /login (gx-login-email/password/submit) -> /launch, then goto /bfpo -> staff-nav-quotations. Quick data setup: `python /app/backend/tests/mod_quotes_ui_setup.py publish` (prints gid), `... cust` to list customer view, cleanup `python mod_quotes_test_helpers.py delete_groups <gid>`. Retest focus: light-theme readability of lite-mod-quote-groups."
+}

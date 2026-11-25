@@ -93,8 +93,8 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
     return (
       <div data-testid="lite-quotes-list">
         {groups.length > 0 && (
-          <div className="rounded-2xl p-4 mb-4 bg-zinc-900 dark:bg-zinc-900" data-testid="lite-mod-quote-groups">
-            <ModPublishedQuotes API={API} groups={groups} onChanged={() => { load(); if (onChanged) onChanged(); }} />
+          <div className="rounded-2xl p-4 mb-4 on-dark" data-theme="dark" style={{ background: 'var(--color-ink)' }} data-testid="lite-mod-quote-groups">
+            <ModPublishedQuotes API={API} headers={headers} groups={groups} onChanged={() => { load(); if (onChanged) onChanged(); }} />
           </div>
         )}
         {list.length === 0 && groups.length === 0 ? (

@@ -39460,3 +39460,14 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Sicon states extended (held_for_sicon, conflict, changes_pending); blank-never-overwrites in Master export; `scripts/cm_backup.py`.
 - Fixed: renewal of imported contracts, /crm/v2/contracts/workspace route order, warranty-opps duplicate key, CM lint clean.
 - Tests: test_cm_maintenance_master.py 3 pass; CM regression 51 pass; iteration_313/314. Report: /app/memory/RELEASE_CANDIDATE_CONTRACTS.md
+
+## 2026-11-25 — Repo quality gates + MOD Sales Quotation System
+- Lint/quality: ruff (422→0), bandit high/medium (→0), xenon OK, ESLint (842→0, --max-warnings 0), Makefile tab fix, production build OK. Pre-existing live-server regression failures (account lockouts/rate limits/missing seeds) unchanged vs baseline.
+- MOD Operations → Quotations (/bfpo, tab "Quotations"): backend/routes/mod_ops_quotes.py (/api/mod-ops/quotes), utils/mod_quote_engine.py (Schedule B "Tender SOR" parser, Type A/B/Mix line builder, HISTORICAL_PRINTED_REFS from QT9410-12), utils/mod_quote_pdf.py (Sage-style PDF, assets backend/static/mod_quote/).
+- Workflow: draft → pending_approval → approved → published → customer_review → authorisation_submitted → accepted → handed_over (+withdrawn/superseded). Revisions after publish supersede old quotes + pending authorisations. Immutable published PDF + pricing snapshot in object storage.
+- MODService: customers see only customer_visible current versions (backend filter); grouped compare, PDF, ZIP, authorisation form (PO/officer/date/evidence); legacy e-sign kept for pre-existing quotes only. Rendered in LiteQuotesTab + MODQuotesPanel.
+- CRM: MOD Service Quote creator removed (link to MOD Operations); MOD quote activity logged to crm2_activities; GET /api/mod-ops/quotes/crm/company/{id}.
+- Handover: mod_quote_handovers (unique source_quote_id) — A lines annual, B one-off; no bookings/invoices/Sicon writes.
+- Roles: users.mod_quote_role = manager | pricing_admin | pricing_admin_manager; MOD Sales = MOD Operations module.
+- Tests: tests/test_mod_ops_quotes.py (exact line-by-line QT9410/11/12), tests/test_mod_quotes_http.py (13). Testing agent iteration 315.
+- Backlog: CRM company-record panel UI for MOD quotes (API exists); org scoping of groups list; Sage quotation number entry; verify unmapped printed SER refs (only 15 confirmed from issued PDFs); quote validity default (30 days) approval; legacy esign tests expect drafts in portal list (now intentionally hidden).

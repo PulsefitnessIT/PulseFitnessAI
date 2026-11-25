@@ -59,10 +59,9 @@ function AuthoriseForm({ API, headers, quote, onDone, onCancel }) {
   );
 }
 
-export default function ModPublishedQuotes({ API, groups, onChanged }) {
+export default function ModPublishedQuotes({ API, headers, groups, onChanged }) {
   const [auth, setAuth] = useState(null);
   const [open, setOpen] = useState(null);
-  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
   const view = async (q) => {
     try {
       const r = await axios.get(`${API}/mod/site/quotes/${q.id}`, { headers });
@@ -87,7 +86,7 @@ export default function ModPublishedQuotes({ API, groups, onChanged }) {
             </div>
             <div className="grid sm:grid-cols-3 gap-3">
               {g.quotes.map((q) => (
-                <div key={q.id} className="rounded-lg border border-white/10 p-3 flex flex-col" data-testid={`mod-quote-option-${q.mod_quote_type}`}>
+                <div key={q.id} className={`rounded-lg border p-3 flex flex-col ${(g.authorisation?.status === 'submitted' && g.authorisation.quote_id === q.id) || g.accepted_quote_id === q.id ? 'border-sky-400' : 'border-white/10'}`} data-testid={`mod-quote-option-${q.mod_quote_type}`}>
                   <div className="text-white font-bold text-sm">{TYPE[q.mod_quote_type]?.[0]}</div>
                   <div className="text-[11px] text-white/50 min-h-[30px]">{TYPE[q.mod_quote_type]?.[1]}</div>
                   <div className="mt-2 text-xs text-white/70 space-y-0.5">
@@ -96,7 +95,7 @@ export default function ModPublishedQuotes({ API, groups, onChanged }) {
                     <div className="flex justify-between text-white font-bold"><span>Total</span><span data-testid={`mod-quote-total-${q.mod_quote_type}`}>{money(q.total)}</span></div>
                   </div>
                   <div className="text-[10px] text-white/40 mt-1">{q.quote_number}{q.valid_until ? ` · valid until ${new Date(q.valid_until).toLocaleDateString('en-GB')}` : ''}</div>
-                  <div className="text-[10px] text-sky-300 mt-1">{g.accepted_quote_id === q.id ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={11} /> Selected option</span> : STATUS[q.status]}</div>
+                  <div className="text-[10px] text-sky-300 mt-1">{g.authorisation?.status === 'submitted' && g.authorisation.quote_id === q.id ? 'Your chosen option — awaiting Pulse Fitness check' : g.accepted_quote_id === q.id ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={11} /> Selected option</span> : STATUS[q.status]}</div>
                   <div className="mt-auto pt-3 flex flex-wrap gap-1.5">
                     <button type="button" onClick={() => view(q)} className="inline-flex items-center gap-1 rounded-full border border-white/20 text-white text-[11px] px-2.5 py-1" data-testid={`mod-quote-view-${q.mod_quote_type}`}><Eye size={12} /> View</button>
                     <button type="button" onClick={() => save(API, headers, `/mod/site/quotes/${q.id}/pdf`, `${q.quote_number}.pdf`).catch(() => notify.error('Download failed'))}

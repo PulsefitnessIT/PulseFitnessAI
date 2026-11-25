@@ -111,7 +111,7 @@ export default function MODQuotesPanel({ API, onClose, onSigned }) {
             <div className="py-12 text-center text-white/50 text-sm" data-testid="mod-quotes-empty">No quotes yet. When Pulse Fitness sends you a quote it will appear here to review and sign.</div>
           ) : (
             <div className="space-y-2">
-              <ModPublishedQuotes API={API} groups={groups} onChanged={() => { load(); if (onSigned) onSigned(); }} />
+              <ModPublishedQuotes API={API} headers={headers} groups={groups} onChanged={() => { load(); if (onSigned) onSigned(); }} />
               {list.map(q => (
                 <button key={q.id} onClick={() => openDetail(q.id)} data-testid={`mod-quote-row-${q.id}`}
                   className="w-full text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-3.5 flex items-center justify-between transition-colors">
