@@ -70,7 +70,7 @@ export default function BFPOApp() {
     setWelcome(null);
   };
 
-  useEffect(() => { setView(role === 'staff' ? 'dashboard' : 'home'); }, [role]);
+  useEffect(() => { setView((v) => (role === 'staff' ? (v === 'quotations' ? 'quotations' : 'dashboard') : 'home')); }, [role]);
   // Engineers arrive here by in-app navigation from /MODService — make sure offline mode is on.
   useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {}); }, []);
 

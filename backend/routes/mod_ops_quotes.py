@@ -534,6 +534,8 @@ async def extend_validity(gid: str, body: ExtendIn, user=Depends(require_operato
     g = await _group(gid)
     if g["status"] in ("accepted", "handed_over", "withdrawn"):
         raise HTTPException(409, f"Quotation is {g['status']}")
+    if len(body.reason.strip()) < 10:
+        raise HTTPException(422, "Give a reason of at least 10 characters")
     new_until = body.valid_until.isoformat()
     if new_until <= _today():
         raise HTTPException(422, "New validity date must be in the future")

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { ExternalLink } from 'lucide-react';
 
@@ -9,10 +9,13 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '—');
 export default function CRMModQuotesPanel({ companyId, API, headers, c }) {
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState('');
+  const hRef = useRef(headers);
+  hRef.current = headers;
   useEffect(() => {
-    axios.get(`${API}/mod-ops/quotes/crm/company/${companyId}`, { headers })
+    const h = hRef.current;
+    axios.get(`${API}/mod-ops/quotes/crm/company/${companyId}`, { headers: typeof h === 'function' ? h() : h })
       .then((r) => setRows(r.data.quotes)).catch((e) => setErr(e.response?.data?.detail || 'Could not load MOD quotations'));
-  }, [API, companyId, headers]);
+  }, [API, companyId]);
   if (err) return <div className="text-sm p-4" style={{ color: c.textMuted }} data-testid="crm-mod-quotes-error">{err}</div>;
   if (!rows) return <div className="text-sm p-4" style={{ color: c.textMuted }}>Loading…</div>;
   return (
@@ -26,7 +29,7 @@ export default function CRMModQuotesPanel({ companyId, API, headers, c }) {
         <tbody>
           {rows.map((q) => (
             <tr key={q.id} className="border-t" style={{ borderColor: c.border, color: c.text }} data-testid={`crm-mod-quote-${q.id}`}>
-              <td className="p-2 font-semibold">{q.quote_number}<div className="text-xs font-normal" style={{ color: c.textMuted }}>v{q.version} · by {q.created_by_name}</div></td>
+              <td className="p-2 font-semibold">{q.sage_quote_number ? `${q.sage_quote_number} (Sage)` : q.quote_number}{q.sage_quote_number && <div className="text-xs font-normal" style={{ color: c.textMuted }}>{q.quote_number}</div>}<div className="text-xs font-normal" style={{ color: c.textMuted }}>v{q.version} · by {q.created_by_name}</div></td>
               <td className="p-2">{q.mod_site_name}</td>
               <td className="p-2">{TYPE[q.mod_quote_type]}{q.selected ? ' ✓ selected' : ''}</td>
               <td className="p-2 text-right">{gbp(q.subtotal)}</td><td className="p-2 text-right">{gbp(q.total)}</td>

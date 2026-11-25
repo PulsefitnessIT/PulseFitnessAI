@@ -1,0 +1,41 @@
+{
+  "summary": "Narrow retest of the iter316 MOD quotation fixes. Backend: new suite test_mod_quotes_retest_iter317.py, 8/8 pass. It covers q=( returning 200 on /groups and /customers; concurrent revise giving exactly one 200 and one 409 with a single A and B current quote (3 pytest runs plus 10/10 overlapping diagnostic runs); extend-validity returning 422 for 'not-a-date', '', '2026-13-45' and 12345; handover setup returning 422 for 'rubbish' and '2026-02-30' with no contract created; and the portal returning published_at with the Sage number as quote_number. Frontend: the staff extend form works (Extend stays disabled until a date is set and the reason has at least 10 characters, then it shows a success toast and 'validity extended' in history, with no window dialogs). The portal group card shows 'QT31799 · PFQ-000519 · issued 25/11/2026', with the Sage number used as the Type A quote number. I found and fixed 2 frontend bugs that blocked the flows: (1) the /bfpo?view=quotations deep link was ignored; (2) the CRM 'MOD Quotations' tab always showed 'Invalid CRM token'. After the fix the CRM tab shows the read-only table and the empty state, and CRM has no button for creating MOD quotes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/mod-ops/quotes/groups/{gid}/extend-validity", "issue": "A reason made of 10 spaces passes the frontend check (ext.reason.length < 10 has no trim). I did not check whether the backend strips the reason before validating it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BFPOApp", "issue": "FIXED: useEffect([role]) always reset view to 'dashboard', so /bfpo?view=quotations&quote_group=... (used by the CRM 'View in MOD Operations' link) landed on the Dashboard.", "selector": "[data-testid=mq-group-detail]", "priority": "HIGH"},
+      {"component": "CRMModQuotesPanel", "issue": "FIXED: CRMCompanies passes `headers` as a function, but the panel gave it to axios as-is, so the call went out without the CRM token and returned 401 'Invalid CRM token' for every company.", "selector": "[data-testid=crm-mod-quotes-error]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "CRM MOD Quotations tab with rows", "issue": "Craig's CRM company list does not include the MOD site company (modco-<site_id>, search 'MOD Test' returns []). So I could not see populated rows in the UI, though the API returns them for that company id. Check whether modco companies should show up in the operator CRM, otherwise the tab is always empty in practice.", "affected_selectors": ["[data-testid^=crm-mod-quote-]"]}
+    ],
+    "design_issues": [
+      {"screen": "MODService portal quotes", "issues": ["The per-option ref and valid-until line uses text-[10px] text-white/40 on a dark card, which is low contrast."]},
+      {"screen": "Staff group detail", "issues": ["'Valid until' is shown as ISO yyyy-mm-dd while history uses en-GB format. The extend date input has no min attribute, so past dates can be picked and only the backend rejects them."]},
+      {"screen": "CRM companies list", "issues": ["Many company names appear twice in the list (e.g. 'Bitterne Leisure Centre' x2). This may be existing duplicate data."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_quotes_retest_iter317.py", "/app/test_reports/pytest/iter317.xml"],
+  "action_items": [
+    "Review the 2 frontend fixes I made (BFPOApp.js view-reset effect and CRMModQuotesPanel.js headers() call) and keep them.",
+    "Decide whether modco-* MOD site companies should be visible in the operator CRM company list; otherwise the CRM MOD Quotations tab can never show rows.",
+    "Optional: trim the extend reason before the length check (frontend and backend); add min=today to the mq-extend-date input; show sage_quote_number in the CRM panel Reference column when present."
+  ],
+  "critical_code_review_comments": [
+    "revise_group: the CAS on edit_seq + revising_batch is correct for concurrent requests. A sequential second PUT still overwrites (there is no client-sent version or etag), so lost updates between two users editing minutes apart are still possible.",
+    "mod_ops_quotes.py is 998 lines (over the 700 guideline)."
+  ],
+  "updated_files": ["/app/frontend/src/pages/BFPO/BFPOApp.js", "/app/frontend/src/pages/CRM/CRMModQuotesPanel.js", "/app/backend/tests/test_mod_quotes_retest_iter317.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% after 2 fixes (before the fixes, the deep link and the CRM tab were broken)"},
+  "seed_data_creation": "Created TEST_iter317* quote groups (pytest suite, 10 race-diagnostic groups, 1 UI group 4418fffb-…). All were deleted by id; I checked that 0 remain.",
+  "flaky_tests": ["The first run of test_concurrent_revise_one_wins with a shared requests.Session got [200,200] because the cold connection pool serialised the two calls. Using independent connections fixed it (10/10 runs then overlapped correctly)."],
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Staff: modsales.manager@pulsedemo.test via /login (gx-login-*), deep link /bfpo?view=quotations&quote_group=<gid>. Portal: /MODService?portal=modservice, mod-login-email is readonly until clicked, then go to the lite-tab-quotes tab. CRM: craig at /crm goes through the platform gx-login form; company tab testid company-tab-mod_quotes. /tmp/iter317_setup.py creates and publishes a group with a Sage number (pass the 'cleanup' arg to delete it).",
+  "rca of the issue": "1) BFPOApp: initial state honoured ?view=quotations, but useEffect(()=>setView(role==='staff'?'dashboard':'home'),[role]) ran after mount and overwrote it. Fix: keep 'quotations' when it is already the current view. 2) CRMModQuotesPanel: CRMCompanies gives `headers` as a getter function (useCallback returning {Authorization}). Passing it straight to axios meant no CRM bearer token was sent, and get_crm_user returned 401 'Invalid CRM token'. Fix: call headers() when it is a function."
+}

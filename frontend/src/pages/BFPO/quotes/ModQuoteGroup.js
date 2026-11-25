@@ -109,9 +109,9 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
 
       {ext && (
         <div className="rounded-xl p-4 mt-4 flex flex-wrap items-end gap-2 max-w-2xl" style={card} data-testid="mq-extend-form">
-          <label className="text-sm" style={muted}>New valid-until date<input type="date" value={ext.valid_until} onChange={(e) => setExt({ ...ext, valid_until: e.target.value })} className="block rounded px-2 py-1 mt-1" style={inputStyle} data-testid="mq-extend-date" /></label>
+          <label className="text-sm" style={muted}>New valid-until date<input type="date" min={new Date(Date.now() + 864e5).toISOString().slice(0, 10)} value={ext.valid_until} onChange={(e) => setExt({ ...ext, valid_until: e.target.value })} className="block rounded px-2 py-1 mt-1" style={inputStyle} data-testid="mq-extend-date" /></label>
           <label className="text-sm flex-1 min-w-[220px]" style={muted}>Reason (recorded in history)<input value={ext.reason} onChange={(e) => setExt({ ...ext, reason: e.target.value })} className="block w-full rounded px-2 py-1 mt-1" style={inputStyle} data-testid="mq-extend-reason" /></label>
-          <Btn icon={CheckCircle2} primary disabled={busy || !ext.valid_until || ext.reason.length < 10} onClick={saveExtend} data-testid="mq-extend-save">Extend</Btn>
+          <Btn icon={CheckCircle2} primary disabled={busy || !ext.valid_until || ext.reason.trim().length < 10} onClick={saveExtend} data-testid="mq-extend-save">Extend</Btn>
           <Btn icon={XCircle} onClick={() => setExt(null)} data-testid="mq-extend-cancel">Cancel</Btn>
         </div>
       )}

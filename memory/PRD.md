@@ -39471,3 +39471,15 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Roles: users.mod_quote_role = manager | pricing_admin | pricing_admin_manager; MOD Sales = MOD Operations module.
 - Tests: tests/test_mod_ops_quotes.py (exact line-by-line QT9410/11/12), tests/test_mod_quotes_http.py (13). Testing agent iteration 315.
 - Backlog: CRM company-record panel UI for MOD quotes (API exists); org scoping of groups list; Sage quotation number entry; verify unmapped printed SER refs (only 15 confirmed from issued PDFs); quote validity default (30 days) approval; legacy esign tests expect drafts in portal list (now intentionally hidden).
+
+## 2026-11-25 — Founder stabilisation sprint (MOD quotations + CI + repo hygiene)
+- CI: frontend/yarn.lock regenerated with Yarn 1.22.22 (frozen install passes); backend CI install via backend/scripts/ci_install_backend.sh (emergentintegrations from public Emergent index, installed --no-deps because it pins openai 1.99.9 vs app's 2.24.0). Workflows ci.yml + quality-gate.yml updated. Production build OK; ruff/bandit/xenon/ESLint clean.
+- Repo hygiene: real Schedule B, QT9410-12 renders, Maintenance Master copy, .lintfix and BFPO test creds removed/untracked; originals in object storage `restricted/`; synthetic fixture tests/mod_quote_fixtures.py. See memory/SECURITY_REPO_AUDIT.md (history rewrite awaits approval).
+- Pricing: per-type rate verification (rate_a / rate_b with amount, source, Schedule B ref, Sage code, printed ref, effective/expiry, approver, version); call-out validated like any priced line; structured commercial exceptions (quote, line, reason, original=proposed=quoted rate, valid_until, authoriser); qty validation (neg/non-int 422, zero excluded with warning).
+- Validity: configurable setting (provisional 30 days); expiry enforced on authorise, verify, handover; extend-validity with reason.
+- Consistency: server-side site/CRM-company resolution, site change blocked on revise, equipment ownership check, staged inserts + idempotency key, edit_seq optimistic lock on revise, publish lock + retry + rollback, PDF checksum verification, DuplicateKeyError-only handling.
+- Handover: Service handover queue + manager set-up → mod_service_contracts Type A (active, proposed annual visit) / Type B (one-off, no annual obligation), idempotent.
+- CRM: company → "MOD Quotations" tab (read-only) + deep link /bfpo?view=quotations&quote_group=.
+- Legacy CRM MOD generate + rate-card write endpoints → 410; CRMMODQuoteWizard removed; legacy test files skipped with reason.
+- Notify: recipient re-type, attachments opt-in, dry-run unless MOD_QUOTE_NOTIFY_LIVE=true.
+- Tests: MOD suites 44+ pass (test_mod_ops_quotes 14, http 13, iter316 17, iter317 8); testing agent iterations 316/317. Regression triage: memory/TEST_FAILURE_TRIAGE.md.
