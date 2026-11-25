@@ -14,6 +14,7 @@ Three classes of finding from the risk register closed in this iter:
     poisoned by a script.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -143,7 +144,7 @@ def test_all_5_webhook_handlers_call_mark_event_processed():
     ``mark_event_processed``. If a new webhook is added without it,
     this test fails and forces the dev to wire dedupe."""
     import pathlib
-    backend = pathlib.Path("/app/backend")
+    backend = pathlib.Path(REPO + "/backend")
     handlers = [
         "routes/stripe_connect.py",
         "routes/svc/engineer_invoice_payments.py",

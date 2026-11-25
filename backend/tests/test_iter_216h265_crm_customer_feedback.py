@@ -28,6 +28,7 @@ P1 — done in this iter:
      below the org's configured floor.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -219,7 +220,7 @@ def test_render_quote_pdf_helper_exists():
 def test_pipeline_opp_listing_includes_quotes():
     """`list_opportunities` should decorate each opp with its quotes
     (the customer's headline complaint)."""
-    src = pathlib.Path("/app/backend/routes/crm_v2.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_v2.py").read_text()
     assert "quoted_value" in src
     assert "quote_count" in src
     assert "opp[\"quotes\"] = attached" in src or 'opp["quotes"] = attached' in src
@@ -232,7 +233,7 @@ def test_create_quote_advances_opp_to_proposal_stage():
     """When a quote is raised on an opp, the opp should jump to at
     least `proposal` stage. Asserting via the source so we don't have
     to wire up the full pipeline."""
-    src = pathlib.Path("/app/backend/routes/crm_v2.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_v2.py").read_text()
     assert "Quote created" in src
     assert '"stage": "proposal"' in src
     # contact lifecycle bumps lead → prospect
@@ -244,7 +245,7 @@ def test_create_quote_advances_opp_to_proposal_stage():
 
 def test_quote_detail_exposes_print_and_email_buttons():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMCPQ.js"
+        REPO + "/frontend/src/pages/CRM/CRMCPQ.js"
     ).read_text())
     assert 'data-testid="quote-print-btn"' in src
     assert 'data-testid="quote-email-btn"' in src
@@ -255,7 +256,7 @@ def test_quote_detail_exposes_print_and_email_buttons():
 
 def test_quote_detail_renders_approval_callout():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMCPQ.js"
+        REPO + "/frontend/src/pages/CRM/CRMCPQ.js"
     ).read_text())
     assert 'data-testid="quote-approval-callout"' in src
     assert "approval_required" in src
@@ -264,7 +265,7 @@ def test_quote_detail_renders_approval_callout():
 
 def test_contact_edit_form_uses_job_title_picklist():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMContacts.js"
+        REPO + "/frontend/src/pages/CRM/CRMContacts.js"
     ).read_text())
     assert "edit-contact-job-title-picklist" in src
     # the free-text job_title row must NOT be in the iterated edit

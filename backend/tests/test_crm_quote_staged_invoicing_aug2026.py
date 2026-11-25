@@ -6,13 +6,14 @@ Covers routes/crm_quote_invoicing.py:
   POST /api/crm/v2/quotes/{id}/schedule/auto
   POST /api/crm/v2/quotes/{id}/stages/{sid}/invoice | pay | credit-note
 """
+from tests._paths import REPO  # noqa: E402
 import os
 
 import pytest
 import requests
 from dotenv import dotenv_values
 
-_env = dotenv_values("/app/frontend/.env")
+_env = dotenv_values(REPO + "/frontend/.env")
 BASE = (os.environ.get("REACT_APP_BACKEND_URL") or _env.get("REACT_APP_BACKEND_URL", "")).rstrip("/")
 if not BASE:
     raise RuntimeError("REACT_APP_BACKEND_URL missing")
@@ -43,7 +44,7 @@ def created_quote_ids():
 def cleanup(created_quote_ids):
     yield
     from pymongo import MongoClient
-    be = dotenv_values("/app/backend/.env")
+    be = dotenv_values(REPO + "/backend/.env")
     mc = MongoClient(be["MONGO_URL"])
     sdb = mc[be["DB_NAME"]]
     for qid in created_quote_ids:

@@ -21,6 +21,7 @@ or a running server. We construct a mock Motor cursor + collection that
 records the projection it received and verify the right fields are
 excluded.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import importlib
 import os
@@ -74,7 +75,7 @@ def test_master_admin_orgs_list_excludes_features_audit():
     Iter 216h178 — the orgs list route was moved to master_admin_orgs.py
     as part of the master_admin decomposition. The projection still
     lives next to its route handler."""
-    src = open('/app/backend/routes/master_admin_orgs.py').read()
+    src = open(REPO + '/backend/routes/master_admin_orgs.py').read()
     assert '_ORG_LIST_EXCLUDE' in src, "expected named projection constant"
     block_start = src.index('_ORG_LIST_EXCLUDE')
     block = src[block_start:block_start + 400]
@@ -83,7 +84,7 @@ def test_master_admin_orgs_list_excludes_features_audit():
 
 def test_svc_cases_list_excludes_detail_only_fields():
     """The case list endpoint must strip 17 known heavy fields."""
-    src = open('/app/backend/routes/svc/cases.py').read()
+    src = open(REPO + '/backend/routes/svc/cases.py').read()
     assert '_CASE_LIST_EXCLUDE' in src
     block_start = src.index('_CASE_LIST_EXCLUDE')
     block = src[block_start:block_start + 1200]
@@ -104,7 +105,7 @@ def test_svc_cases_detail_still_returns_full_doc():
     """Sanity-check that the detail endpoint did NOT inherit the list
     projection — operators rely on AI triage, notes, signatures, etc.
     when opening a case drawer."""
-    src = open('/app/backend/routes/svc/cases.py').read()
+    src = open(REPO + '/backend/routes/svc/cases.py').read()
     detail_block = src.split('async def get_case')[1].split('async def')[0]
     # find_one must NOT pass the heavy projection
     assert '_CASE_LIST_EXCLUDE' not in detail_block, \
@@ -114,7 +115,7 @@ def test_svc_cases_detail_still_returns_full_doc():
 def test_members_list_eliminates_n_plus_1():
     """The bulk-load refactor must replace the per-row find_one with
     two batch finds keyed by $in."""
-    src = open('/app/backend/routes/memberships/members.py').read()
+    src = open(REPO + '/backend/routes/memberships/members.py').read()
     list_block = src.split('async def members_list')[1].split('async def')[0]
     # The old per-row pattern is gone.
     assert 'for r in rows:\n        mm = await db.member_memberships.find_one' not in list_block
@@ -125,7 +126,7 @@ def test_members_list_eliminates_n_plus_1():
 
 
 def test_members_list_projection_does_not_leak_password():
-    src = open('/app/backend/routes/memberships/members.py').read()
+    src = open(REPO + '/backend/routes/memberships/members.py').read()
     list_block = src.split('async def members_list')[1].split('async def')[0]
     # The outer member find must still exclude password.
     assert '"password": 0' in list_block, "password must stay excluded from members list"

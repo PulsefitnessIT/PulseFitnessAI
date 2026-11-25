@@ -7,6 +7,7 @@ cases that came FROM Sicon with no outbound rows count as synced) and
 status pill.
 """
 
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 
@@ -34,7 +35,7 @@ def _login(email: str, password: str) -> requests.Session:
 def _db():
     from dotenv import load_dotenv
     from motor.motor_asyncio import AsyncIOMotorClient
-    load_dotenv("/app/backend/.env")
+    load_dotenv(REPO + "/backend/.env")
     return AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 
@@ -117,7 +118,7 @@ def test_drain_flips_chip_to_dry_run():
 
 
 def test_frontend_renders_chip():
-    src = open("/app/frontend/src/pages/ServiceOps/ServiceDeskPage.js", encoding="utf-8").read()
+    src = open(REPO + "/frontend/src/pages/ServiceOps/ServiceDeskPage.js", encoding="utf-8").read()
     assert "SICON_SYNC_META" in src
     assert "case-sicon-sync-" in src
     assert "sicon_sync_state" in src

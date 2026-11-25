@@ -121,6 +121,16 @@ jobs:
     # MongoDB, no LLM, runs in ~15 s) so a `--no-verify` commit can't
     # bypass it. The sister `quality-gate.yml` still owns the heavier
     # mongo-backed regression directory + production build smoke.
+    # Test modules import the app's database layer, which requires these settings.
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: pulse_ci_regression
+      JWT_SECRET: ci-only-jwt-secret-${{ github.run_id }}-not-for-production
     steps:
       - uses: actions/checkout@v4
 
@@ -137,7 +147,28 @@ jobs:
           bash scripts/ci_install_backend.sh
           pip install pytest pytest-asyncio
 
+      - name: Start backend for API-level tests
+        # Many regression tests call the HTTP API; run the app locally so they never hit a live environment.
+        working-directory: backend
+        env:
+          JWT_ALGORITHM: HS256
+          LOGIN_RATE_LIMIT_MAX: "500"
+          LOGIN_RATE_LIMIT_WINDOW: "60"
+          RATE_LIMIT_BYPASS_SECRET: ci-bypass-${{ github.run_id }}
+          MOD_RATES_ALLOW_SYNTHETIC: "true"
+        run: |
+          nohup python -m uvicorn server:app --host 127.0.0.1 --port 8001 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8001/api/health >/dev/null && echo "backend up" && exit 0
+            sleep 2
+          done
+          tail -n 80 /tmp/backend.log
+          exit 1
+
       - name: Run regression suite
+        env:
+          TEST_API_URL: http://127.0.0.1:8001
+          RATE_LIMIT_BYPASS_SECRET: ci-bypass-${{ github.run_id }}
         # `make regression` is the developer-facing target everyone
         # runs locally before pushing. CI runs it verbatim so there
         # is exactly ONE definition of "did the suite pass".
@@ -159,6 +190,7 @@ jobs:
     env:
       MONGO_URL: mongodb://localhost:27017
       DB_NAME: pulse_ci
+      JWT_SECRET: ci-only-jwt-secret-${{ github.run_id }}-not-for-production
     steps:
       - uses: actions/checkout@v4
 

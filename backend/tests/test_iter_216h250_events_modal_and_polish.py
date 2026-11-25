@@ -21,6 +21,7 @@ Fixes:
 5. MembershipsStartTab: ModuleDiscoveryCard with /pricing CTA.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 
@@ -28,7 +29,7 @@ import pathlib
 # ─── EventsTab: prompts gone, modals in ─────────────────────────────
 
 def test_events_tab_replaces_prompts_with_modals():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/EventsTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/EventsTab.js").read_text()
     # No more *executed* window.prompt() — only allowed in comments.
     # Strip comments, then search.
     import re
@@ -44,7 +45,7 @@ def test_events_tab_replaces_prompts_with_modals():
 
 
 def test_events_tab_modal_testids_present():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/EventsTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/EventsTab.js").read_text()
     # Shared Input uses `testid`, ModalActions uses `testId`. Either prop
     # plus literal `data-testid` are all valid.
     def has(tid):
@@ -66,7 +67,7 @@ def test_events_tab_modal_testids_present():
 # ─── SetupWizard contrast ────────────────────────────────────────────
 
 def test_setup_wizard_inputs_have_visible_fill():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     # The Input component must not use the old invisible fill combo.
     # We check the specific old className that was replaced.
     assert "bg-black/40 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30" not in src, (
@@ -79,7 +80,7 @@ def test_setup_wizard_inputs_have_visible_fill():
 
 
 def test_setup_wizard_heading_is_explicitly_white():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     # Iter 230 — StepShell heading now uses the theme text variable so it
     # stays legible in BOTH light and dark mode (previously forced white).
     assert "color: 'var(--theme-text)' }}>{title}" in src, (
@@ -90,14 +91,14 @@ def test_setup_wizard_heading_is_explicitly_white():
 # ─── Parent portal Preview button ───────────────────────────────────
 
 def test_parent_portal_has_preview_button():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/ParentPortalTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/ParentPortalTab.js").read_text()
     assert 'data-testid="parent-portal-preview-btn"' in src
     assert "window.open(`/m/${slug}`" in src
     assert "/account/organisation" in src, "must fetch the org to get slug"
 
 
 def test_account_organisation_exposes_slug():
-    src = pathlib.Path("/app/backend/routes/account.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/account.py").read_text()
     # _serialise_org returns the slug so the FE can build /m/<slug>.
     assert 'payload["slug"] = org.get("slug", "")' in src
 
@@ -105,7 +106,7 @@ def test_account_organisation_exposes_slug():
 # ─── Module discovery ───────────────────────────────────────────────
 
 def test_memberships_start_has_module_discovery_card():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MembershipsStartTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MembershipsStartTab.js").read_text()
     assert "function ModuleDiscoveryCard()" in src
     assert 'data-testid="mbr-module-discovery"' in src
     assert 'data-testid="mbr-module-discovery-cta"' in src

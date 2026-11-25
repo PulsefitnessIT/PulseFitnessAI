@@ -102,6 +102,7 @@ jobs:
         run: |
           export JWT_SECRET="ci-$(openssl rand -hex 24)"
           export RATE_LIMIT_BYPASS_SECRET="ci-bypass-${{ github.run_id }}"
+          export MOD_RATES_ALLOW_SYNTHETIC=true
           nohup python -m uvicorn server:app --host 127.0.0.1 --port 8001 > /tmp/backend.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:8001/api/health >/dev/null && echo "backend up" && exit 0

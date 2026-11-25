@@ -11,6 +11,7 @@ Endpoints:
   DELETE /api/master-admin/integrity/orphan-users/{user_id}
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -59,7 +60,7 @@ def test_router_wired_into_admin_bundle():
     """The router must be imported AND included in the admin
     `register_admin()` tuple, else the endpoint is unreachable."""
     import pathlib
-    src = pathlib.Path("/app/backend/route_registry/admin.py").read_text()
+    src = pathlib.Path(REPO + "/backend/route_registry/admin.py").read_text()
     assert "master_admin_integrity" in src
     assert "master_admin_integrity_router" in src
 

@@ -3,6 +3,8 @@
 # Common tasks the engineering team runs locally / in CI.
 # Keep this file lean — actual logic lives in scripts/.
 
+ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
 .PHONY: help lint-integrations lint-backend lint-frontend lint smoke regression regression-full security-scan pre-deploy post-deploy lint-health uptime-check install-hooks docs-verify brand-preview e2e e2e-engineer
 
 help:
@@ -29,41 +31,41 @@ help:
 # can't sneak past local commits. Idempotent — re-running just
 # refreshes the symlink.
 install-hooks:
-	@bash /app/scripts/install_hooks.sh
+	@bash $(ROOT)/scripts/install_hooks.sh
 	@echo "  Tip: run 'git commit --no-verify' to bypass in emergencies"
 
 lint-integrations:
-	@python3 /app/backend/scripts/check_integration_mapping.py
+	@python3 $(ROOT)/backend/scripts/check_integration_mapping.py
 
 lint-backend:
-	@cd /app/backend && ruff check .
+	@cd $(ROOT)/backend && ruff check .
 
 lint-frontend:
-	@cd /app/frontend && yarn -s eslint src --ext .js,.jsx --max-warnings 0
+	@cd $(ROOT)/frontend && yarn -s eslint src --ext .js,.jsx --max-warnings 0
 
 # Iter 220m — fail CI if any shipped Markdown doc carries a stale
 # `Iter XXX` status banner. Canonical current iter lives in
 # /app/memory/.current_iter — bump it when you cut a release.
 docs-verify:
-	@cd /app && python3 scripts/docs_verify.py
+	@cd $(ROOT) && python3 scripts/docs_verify.py
 
 # Iter 220m — regenerate /app/BRAND_PALETTE_PREVIEW.html from the
 # canonical brand docs. Run any time BRAND_PALETTE.md or
 # PULSE_BRAND_PALETTE.md changes so the live preview stays in sync.
 brand-preview:
-	@cd /app && python3 scripts/build_brand_preview.py
+	@cd $(ROOT) && python3 scripts/build_brand_preview.py
 
 lint: lint-integrations lint-backend lint-frontend docs-verify brand-preview
 
 smoke:
-	@URL=$$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d'=' -f2); \
+	@URL=$$(grep REACT_APP_BACKEND_URL $(ROOT)/frontend/.env | cut -d'=' -f2); \
 	  curl -fsS "$$URL/api/health" >/dev/null && echo "OK: backend reachable at $$URL/api/health" || echo "FAIL: backend not reachable"
 
 # Iter 216c — focused regression suite that pins the most-recent
 # production bug fixes. Cheap (~3s), no env deps. Run this before every
 # deploy to make sure no fixed bug has silently come back.
 regression:
-	@cd /app/backend && python3 -m pytest \
+	@cd $(ROOT)/backend && python3 -m pytest \
 	  tests/test_iter_216c_branding_org_sync.py \
 	  tests/test_iter_216d_multi_machine_fault_job.py \
 	  tests/test_iter_216e_pulse_spec_auto_pull.py \
@@ -371,13 +373,13 @@ regression:
 
 # Iter 216c — ruff + bandit baseline. Medium+ findings fail.
 security-scan:
-	@bash /app/backend/scripts/security-scan.sh
+	@bash $(ROOT)/backend/scripts/security-scan.sh
 
 # Zero-Trust authorisation gate — BOLA / BFLA (new-endpoint auth gap) /
 # cross-tenant / cross-site / mass-assignment / state-machine / step-up.
 # Same three suites the pre-deploy guard and CI security-gate run.
 security:
-	@cd /app/backend && python3 -m pytest tests/test_auth_matrix.py tests/test_security_authz_matrix.py tests/test_step_up.py tests/test_abuse_guard.py -q --tb=short
+	@cd $(ROOT)/backend && python3 -m pytest tests/test_auth_matrix.py tests/test_security_authz_matrix.py tests/test_step_up.py tests/test_abuse_guard.py -q --tb=short
 
 
 # Iter 216h211 — full trust-recovery regression suite. 84 isolated
@@ -385,7 +387,7 @@ security:
 # MOD, CRM). No live server, no admin tokens, ~1 min runtime. This is
 # the broadest pre-deployment gate — every PR should keep it green.
 regression-full:
-	@cd /app/backend && python3 -m pytest tests/regression -q --tb=line --no-header
+	@cd $(ROOT)/backend && python3 -m pytest tests/regression -q --tb=line --no-header
 
 # Iter 216c — full deploy gate. Runs:
 #   make lint → regression suite → ruff/bandit → Stripe live keys → Mongo ping → frontend lint.
@@ -399,7 +401,7 @@ regression-full:
 # In preview / staging where Stripe is in test mode, prefix with
 #   SKIP_LIVE_CHECK=1 make pre-deploy
 pre-deploy: lint
-	@bash /app/scripts/pre-deploy.sh
+	@bash $(ROOT)/scripts/pre-deploy.sh
 
 # Iter 216h296 — Post-deploy smoke. Fires 6 HTTP probes against
 # `$$POST_DEPLOY_BASE_URL` (or `$$REACT_APP_BACKEND_URL` as fallback)
@@ -418,7 +420,7 @@ pre-deploy: lint
 #
 # Configure recipient: export POST_DEPLOY_NOTIFY_EMAIL=ops@your.co
 post-deploy:
-	@cd /app/backend && python3 /app/scripts/post-deploy.py
+	@cd $(ROOT)/backend && python3 $(ROOT)/scripts/post-deploy.py
 
 # Iter 216h297 — Lint-health weekly snapshot. Captures the current
 # state of the repo's lint/test/complexity metrics, computes trend
@@ -433,7 +435,7 @@ post-deploy:
 #   /app/reports/lint-health-YYYY-WNN.md   (committable Markdown)
 #   /app/reports/lint-health-YYYY-WNN.json  (raw metrics; powers next week's trends)
 lint-health:
-	@cd /app/backend && python3 /app/scripts/lint_health_report.py
+	@cd $(ROOT)/backend && python3 $(ROOT)/scripts/lint_health_report.py
 
 # Iter 216h298 — Uptime monitor. Re-uses the same 6 probes as
 # `make post-deploy` but emails only on state CHANGE (green→red
@@ -444,7 +446,7 @@ lint-health:
 # Suggested cron:
 #   */5 * * * * cd /app && UPTIME_NOTIFY_EMAIL=ops@yourco.com make uptime-check
 uptime-check:
-	@cd /app/backend && python3 /app/scripts/uptime_monitor.py
+	@cd $(ROOT)/backend && python3 $(ROOT)/scripts/uptime_monitor.py
 
 # Iter 220ea — Playwright E2E smoke for the Engineer PWA. Runs the 7
 # tests in `frontend/tests/mobile-regression/engineer-smoke.spec.js`
@@ -455,12 +457,12 @@ uptime-check:
 # Override creds / URL with env vars:
 #   E2E_ADMIN_EMAIL=...  E2E_ADMIN_PASSWORD=...  E2E_BASE_URL=...  make e2e-engineer
 e2e-engineer:
-	@cd /app/frontend && PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
+	@cd $(ROOT)/frontend && PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
 	  npx playwright test tests/mobile-regression/engineer-smoke.spec.js \
 	  --project="iPhone 13 Pro" --reporter=list
 
 # Iter 220ea — full mobile-regression Playwright suite. Engineer
 # smoke + the existing nav-parity / master-admin specs.
 e2e:
-	@cd /app/frontend && PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
+	@cd $(ROOT)/frontend && PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
 	  npx playwright test --config=playwright.config.js --reporter=list

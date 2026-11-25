@@ -6,6 +6,7 @@
   auto-dispatch a fault (supplier has no email / not in directory).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -18,9 +19,9 @@ from pymongo import MongoClient
 
 from conftest import rate_limit_bypass_headers
 
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 OPERATOR_EMAIL = "jack.ottey@thirdspace.london"
 OPERATOR_PW = "Test123!"
 MONGO_URL = os.environ["MONGO_URL"]
@@ -102,9 +103,9 @@ def test_dispatch_readiness_flags_blocked_machines(mongo, operator):
 
 
 def test_readiness_and_badge_wiring_present():
-    iss = open("/app/backend/routes/issues.py").read()
+    iss = open(REPO + "/backend/routes/issues.py").read()
     assert '"supplier_name": 1' in iss  # list enrichment carries it
-    faults = open("/app/frontend/src/pages/Dashboard/FaultsTab.js").read()
+    faults = open(REPO + "/frontend/src/pages/Dashboard/FaultsTab.js").read()
     assert "issue-supplier-sent-" in faults and "Sent to" in faults
-    sup = open("/app/frontend/src/components/shared/AccountSettings/suppliers.js").read()
+    sup = open(REPO + "/frontend/src/components/shared/AccountSettings/suppliers.js").read()
     assert "dispatch-readiness" in sup and "won" in sup  # warning banner

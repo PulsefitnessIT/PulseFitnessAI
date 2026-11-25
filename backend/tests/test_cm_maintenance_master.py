@@ -1,5 +1,6 @@
 """Maintenance Master bridge — fictional multi-customer workbook end to end.
 Prefix ``mmt_`` / contract numbers ``MMT-``; everything removed afterwards."""
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import subprocess
@@ -83,8 +84,8 @@ def _cleanup():
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
     _cleanup()
     mdb.crm2_companies.insert_many([
         {"id": "mmt_alpha", "organization_id": OP, "name": "MMT Alpha Gym", "sage_account": "00990001"},
@@ -324,16 +325,16 @@ def test_resolution_daily_invoice_and_backup():
 
     # Scenario J — backup → restore into a scratch DB → verify contract, history, relationships.
     import json as _json
-    env = {**os.environ, "PYTHONPATH": "/app/backend"}
+    env = {**os.environ, "PYTHONPATH": REPO + "/backend"}
     scratch = os.environ["DB_NAME"] + "_cm_restore_test"
     sdb = MongoClient(os.environ["MONGO_URL"])[scratch]
     try:
-        subprocess.run(["python", "scripts/cm_backup.py", "backup", "--org", OP, "--out", "/tmp/cm_bk_test"], cwd="/app/backend", env=env, check=True, capture_output=True)
+        subprocess.run(["python", "scripts/cm_backup.py", "backup", "--org", OP, "--out", "/tmp/cm_bk_test"], cwd=REPO + "/backend", env=env, check=True, capture_output=True)
         assert subprocess.run(["python", "scripts/cm_backup.py", "restore", "--src", "/tmp/cm_bk_test", "--target-db", os.environ["DB_NAME"]],
-                              cwd="/app/backend", env=env, capture_output=True).returncode != 0  # live restore refused
-        subprocess.run(["python", "scripts/cm_backup.py", "restore", "--src", "/tmp/cm_bk_test", "--target-db", scratch], cwd="/app/backend", env=env, check=True, capture_output=True)
+                              cwd=REPO + "/backend", env=env, capture_output=True).returncode != 0  # live restore refused
+        subprocess.run(["python", "scripts/cm_backup.py", "restore", "--src", "/tmp/cm_bk_test", "--target-db", scratch], cwd=REPO + "/backend", env=env, check=True, capture_output=True)
         v = _json.loads(subprocess.run(["python", "scripts/cm_backup.py", "verify", "--src", "/tmp/cm_bk_test", "--target-db", scratch],
-                                       cwd="/app/backend", env=env, check=True, capture_output=True, text=True).stdout)
+                                       cwd=REPO + "/backend", env=env, check=True, capture_output=True, text=True).stdout)
         assert v["ok"], v
         ra = sdb.crm2_contracts.find_one({"id": alpha["id"]})
         assert ra["annual_value"] == 1600 and ra["company_id"] == "mmt_alpha"

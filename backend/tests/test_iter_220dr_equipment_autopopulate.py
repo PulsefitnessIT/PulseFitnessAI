@@ -31,6 +31,7 @@ Frontend:
     with asset name, fault summary, customer photos + files.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -48,7 +49,7 @@ def _of():
 # ── 1 · Summary tab no longer mounts PhotosTab ─────────────────────
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

@@ -1,4 +1,5 @@
 # Email HTML palette regression: banned legacy colours must not appear in rendered email bodies.
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import glob
 import os
@@ -8,11 +9,11 @@ import sys
 import pytest
 import requests
 
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    for line in open("/app/frontend/.env"):
+    for line in open(REPO + "/frontend/.env"):
         if line.startswith("REACT_APP_BACKEND_URL="):
             BASE_URL = line.split("=", 1)[1].strip().rstrip("/")
 
@@ -78,7 +79,7 @@ def test_wrapped_reminder_palette():
 def test_static_scan_email_strings():
     hits = []
     pat = re.compile(r"#(0055FF|0F172A|64748B|E5E7EB|6B7280|2563EB|7C3AED|6366F1)\b", re.I)
-    for f in glob.glob("/app/backend/**/*.py", recursive=True):
+    for f in glob.glob(REPO + "/backend/**/*.py", recursive=True):
         if "/tests/" in f or "/scripts/" in f:
             continue
         for i, line in enumerate(open(f, errors="ignore"), 1):
@@ -91,7 +92,7 @@ def test_static_scan_email_strings():
 def test_no_core_blue_link_text():
     hits = []
     pat = re.compile(r"<a[^>]*style=\"(?![^\"]*background)[^\"]*(?<![-\w])color:\s*#19CDFF", re.I)
-    for f in glob.glob("/app/backend/**/*.py", recursive=True):
+    for f in glob.glob(REPO + "/backend/**/*.py", recursive=True):
         if "/tests/" in f or f.endswith("routes/contact.py"):  # contact.py rows render inside a #1B1C1D email (dark)
             continue
         src = open(f, errors="ignore").read()

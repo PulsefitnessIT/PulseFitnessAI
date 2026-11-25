@@ -10,6 +10,7 @@ Also runs two regression logins:
 - admin@gymaxisai.com (master admin — must not be routed to partner Apply)
 """
 
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import pytest
@@ -21,7 +22,7 @@ def _load_frontend_env_url() -> str:
     if url:
         return url.rstrip("/")
     try:
-        with open("/app/frontend/.env") as fh:
+        with open(REPO + "/frontend/.env") as fh:
             for line in fh:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     return line.split("=", 1)[1].strip().rstrip("/")

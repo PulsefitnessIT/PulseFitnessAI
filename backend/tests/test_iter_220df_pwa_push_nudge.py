@@ -18,6 +18,7 @@ This file pins:
     test IDs and respects the 14-day cooldown.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -71,7 +72,7 @@ def test_vapid_key_endpoint_returns_public_key():
 
 def test_engineer_shell_nudge_component_exists():
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAppShellNudge.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerAppShellNudge.js"
     ).read_text()
     assert "export default function EngineerAppShellNudge" in src
     # Test IDs are stable.
@@ -85,7 +86,7 @@ def test_engineer_shell_nudge_component_exists():
 
 def test_engineer_shell_nudge_calls_correct_endpoints():
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAppShellNudge.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerAppShellNudge.js"
     ).read_text()
     assert "/svc/engineer/push/vapid-key" in src
     assert "/svc/engineer/push/subscribe" in src
@@ -96,7 +97,7 @@ def test_engineer_shell_nudge_calls_correct_endpoints():
 
 def test_engineer_shell_nudge_mounted_on_home():
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text()
     assert "import EngineerAppShellNudge" in src
     assert "<EngineerAppShellNudge />" in src
@@ -106,7 +107,7 @@ def test_nudge_respects_14_day_cooldown():
     """Pin the dismiss-cooldown key + window so an accidental change
     doesn't make the nudge spam engineers."""
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAppShellNudge.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerAppShellNudge.js"
     ).read_text()
     assert "engineer_shell_nudge_dismissed_at" in src
     assert "14 * 24 * 60 * 60 * 1000" in src
@@ -116,15 +117,15 @@ def test_existing_pwa_install_prompt_still_mounted_globally():
     """The new engineer-app nudge is additive — the global
     PWAInstallPrompt must remain so non-engineer routes still get the
     promotion."""
-    src = Path("/app/frontend/src/App.js").read_text()
+    src = Path(REPO + "/frontend/src/App.js").read_text()
     assert "import PWAInstallPrompt" in src
     assert "<PWAInstallPrompt />" in src
 
 
 def test_manifest_and_sw_present():
     """Belt-and-braces: PWA infrastructure files exist."""
-    assert Path("/app/frontend/public/manifest.json").exists()
-    sw = Path("/app/frontend/public/sw.js").read_text()
+    assert Path(REPO + "/frontend/public/manifest.json").exists()
+    sw = Path(REPO + "/frontend/public/sw.js").read_text()
     # Push event handler is wired so notifications actually display.
     assert "addEventListener('push'" in sw
     assert "addEventListener('notificationclick'" in sw

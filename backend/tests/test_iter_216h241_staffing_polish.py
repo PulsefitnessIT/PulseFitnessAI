@@ -18,6 +18,7 @@ production review of the HR / Staffing console:
    placeholder kept so the parent flex wrappers stay valid).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import inspect
 import pathlib
@@ -67,7 +68,7 @@ def test_phase_subheadings_removed_from_staffing_tabs():
     earlier (h241) hidden-placeholder approach left a lone icon next
     to the empty `<p>` — iter h242 removed the whole wrapper. So the
     test now just asserts no visible `>Phase S` strings remain."""
-    base = pathlib.Path("/app/frontend/src/pages/LiteDashboard/staffing")
+    base = pathlib.Path(REPO + "/frontend/src/pages/LiteDashboard/staffing")
     targets = ["HRTab.js", "CommsTab.js", "OperationsTab.js", "AIWorkforceTab.js", "TimeClockTab.js"]
     for fname in targets:
         text = (base / fname).read_text(encoding="utf-8")
@@ -79,9 +80,9 @@ def test_enterprise_crm_subheadings_removed():
     """Iter 216h242 — the 'Enterprise CRM' eyebrow above Territory &
     coverage / Forecast & quotas / Reports & analytics was removed."""
     for path in (
-        "/app/frontend/src/pages/CRM/CRMForecast.js",
-        "/app/frontend/src/pages/CRM/CRMReports.js",
-        "/app/frontend/src/pages/CRM/CRMTerritories.js",
+        REPO + "/frontend/src/pages/CRM/CRMForecast.js",
+        REPO + "/frontend/src/pages/CRM/CRMReports.js",
+        REPO + "/frontend/src/pages/CRM/CRMTerritories.js",
     ):
         text = pathlib.Path(path).read_text(encoding="utf-8")
         assert ">Enterprise CRM<" not in text, f"{path}: 'Enterprise CRM' eyebrow still present"
@@ -89,7 +90,7 @@ def test_enterprise_crm_subheadings_removed():
 
 def test_datepicker_exports_parse_typed_date():
     """DatePicker must export parseTypedDate (used for typed DD/MM/YYYY)."""
-    src = pathlib.Path("/app/frontend/src/components/shared/DatePicker.jsx").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/components/shared/DatePicker.jsx").read_text()
     assert "parseTypedDate" in src
     assert "export { formatDDMMYYYY, dateToIso, isoToDate, parseTypedDate }" in src
 
@@ -97,7 +98,7 @@ def test_datepicker_exports_parse_typed_date():
 def test_staffing_console_has_hrs_per_week_column():
     """The Staff list must surface contracted hrs AND hourly rate as
     separate columns to remove the column-label ambiguity."""
-    src = pathlib.Path("/app/frontend/src/pages/LiteDashboard/StaffingConsole.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js").read_text()
     assert "Hrs/wk" in src
     assert "Hourly rate" in src
     assert "Hourly cost £" not in src  # old placeholder gone
@@ -110,7 +111,7 @@ def test_staffing_console_modal_uses_portal():
     inset-0 backdrop covers the whole viewport (parent transforms
     were creating a new containing block and leaving 1/3 of the
     screen un-dimmed). Also asserts explicit labels are present."""
-    src = pathlib.Path("/app/frontend/src/pages/LiteDashboard/StaffingConsole.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js").read_text()
     assert "createPortal" in src
     assert "document.body" in src
     # Explicit labels above the two number inputs.

@@ -14,7 +14,7 @@ import time
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 PULSE_ORG_ID = "8cd02d8c-e5a2-4c13-bdb9-8b143b85455f"
 
 

@@ -8,6 +8,8 @@ path mirrors the proven crm_modes pattern and can't be exercised without
 a real card).
 """
 
+import os
+
 import requests
 
 from tests.conftest import _test_backend_url
@@ -16,7 +18,7 @@ BASE_URL = _test_backend_url()
 
 PROVIDER = ("sp.fe.1781277405@example.com", "Str0ngPass!23")
 MASTER_ADMIN = ("admin@gymaxisai.com", "MasterAdmin123!")
-ORIGIN = "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com"
+ORIGIN = (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")
 
 
 def _login(email, password):

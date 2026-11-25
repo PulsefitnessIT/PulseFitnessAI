@@ -15,12 +15,13 @@ What changed:
   the ServiceDeskPage guard and the Master Admin sidebar switch.
 """
 
+from tests._paths import REPO  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url
 
 BASE_URL = _test_backend_url()
-SRC = "/app/frontend/src"
+SRC = REPO + "/frontend/src"
 
 PULSE_ADMIN = ("pulse.admin.test@pulsefitness.com", "PulseAdmin123!")
 MASTER_ADMIN = ("admin@gymaxisai.com", "MasterAdmin123!")
@@ -118,22 +119,22 @@ def test_desk_agent_allocates_case_and_engineer_sees_it():
 # ── service_org_id provisioning + backfill wiring ────────────────
 
 def test_backfill_helper_exists_and_seed_calls_it():
-    src = open("/app/backend/bootstrap/seed.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/bootstrap/seed.py", encoding="utf-8").read()
     assert "async def backfill_service_org_ids" in src
     assert "await backfill_service_org_ids()" in src
 
 
 def test_provisioning_paths_attach_service_org():
-    sd_admin = open("/app/backend/routes/service_desk_admin.py", encoding="utf-8").read()
+    sd_admin = open(REPO + "/backend/routes/service_desk_admin.py", encoding="utf-8").read()
     assert sd_admin.count("service_org_id") >= 2, "create + grant must attach service_org_id"
-    pma = open("/app/backend/routes/pulse_master_admin.py", encoding="utf-8").read()
+    pma = open(REPO + "/backend/routes/pulse_master_admin.py", encoding="utf-8").read()
     assert '"service_org_id"' in pma, "pulse admin provisioning must attach service_org_id"
 
 
 def test_svc_org_scope_falls_back_to_service_org_id():
     import glob
     missing = []
-    for f in glob.glob("/app/backend/routes/svc/*.py"):
+    for f in glob.glob(REPO + "/backend/routes/svc/*.py"):
         src = open(f, encoding="utf-8").read()
         if 'user["organization_id"]' in src:
             missing.append(f)

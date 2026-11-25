@@ -18,6 +18,7 @@ current event loop in thread 'MainThread'` once any earlier
 `asyncio.run(...)` cleans up the global loop. The helper installs a
 fresh loop if needed and returns the coroutine's result.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import pytest
@@ -190,7 +191,7 @@ def _patch_requests_with_ratelimit_bypass():
     backend's .env file so there's no separate env plumbing needed.
     """
     secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
-    env_path = "/app/backend/.env"
+    env_path = REPO + "/backend/.env"
     try:
         if secret:
             raise OSError
@@ -317,7 +318,7 @@ def rate_limit_bypass_headers() -> dict:
     secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     if not secret:
         try:
-            env_path = "/app/backend/.env"
+            env_path = REPO + "/backend/.env"
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:

@@ -24,6 +24,7 @@ Three fixes:
    • `MembershipsStartTab` renders an inline logo upload modal.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -98,7 +99,7 @@ def test_studio_onboarding_marks_logo_done_when_present():
 # ─── Frontend code assertions ──────────────────────────────────────
 
 def test_trial_signup_modal_routes_by_module():
-    src = pathlib.Path("/app/frontend/src/pages/Marketing/TrialSignupModal.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Marketing/TrialSignupModal.js").read_text()
     # The hardcoded /dashboard navigation must be replaced.
     assert "navigate('/dashboard'" not in src, (
         "TrialSignupModal must not hard-navigate every signup to /dashboard"
@@ -113,19 +114,19 @@ def test_trial_signup_modal_routes_by_module():
 
 
 def test_app_logout_routes_pulse_to_pulse_portal():
-    src = pathlib.Path("/app/frontend/src/App.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/App.js").read_text()
     assert "const wasPulse = ['pulse_pro', 'lite'].includes(user?.account_type);" in src
     assert "window.location.replace('/pulse')" in src
 
 
 def test_dashboard_suppresses_welcomehero_for_non_ops_trials():
-    src = pathlib.Path("/app/frontend/src/pages/DashboardPage.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/DashboardPage.js").read_text()
     # The guard checks user.primary_module is set and != 'operations'.
     assert "user?.primary_module && user.primary_module !== 'operations'" in src
 
 
 def test_memberships_start_tab_has_logo_upload_modal():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MembershipsStartTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MembershipsStartTab.js").read_text()
     assert "LogoUploadModal" in src
     assert 'data-testid="mbr-logo-modal"' in src
     assert "/account/logo" in src
@@ -134,7 +135,7 @@ def test_memberships_start_tab_has_logo_upload_modal():
 
 
 def test_auth_response_exposes_primary_module():
-    src = pathlib.Path("/app/backend/routes/auth.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/auth.py").read_text()
     # /auth/login response includes primary_module.
     occurrences = src.count('"primary_module": (org or {}).get(\'primary_module\') or \'\'')
     assert occurrences >= 2, (

@@ -6,6 +6,7 @@ Covers:
   tz override, then revert to GB so the shared admin org isn't left as US.
 - Engineer invoice payload snapshots currency + tax vocabulary from the market.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 
@@ -21,7 +22,7 @@ def _bypass():
     s = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     if not s:
         try:
-            with open("/app/backend/.env", encoding="utf-8") as fh:
+            with open(REPO + "/backend/.env", encoding="utf-8") as fh:
                 for line in fh:
                     if line.startswith("RATE_LIMIT_BYPASS_SECRET="):
                         s = line.split("=", 1)[1].strip().strip('"').strip("'")

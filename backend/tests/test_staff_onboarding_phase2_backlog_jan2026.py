@@ -8,6 +8,7 @@
  - AI consistency (/cases/{id}/ai/consistency) — uses Emergent LLM key
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import io
 import os
@@ -18,7 +19,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE_URL = line.split("=", 1)[1].strip().rstrip("/")

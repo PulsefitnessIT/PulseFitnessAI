@@ -10,6 +10,7 @@ Google requirements: a crawlable favicon, multiple of 48x48px, linked
 from the homepage <head>.
 """
 
+from tests._paths import REPO  # noqa: E402
 import os
 
 import requests
@@ -17,7 +18,7 @@ import requests
 from tests.conftest import _test_backend_url
 
 BASE_URL = _test_backend_url()
-PUBLIC = "/app/frontend/public"
+PUBLIC = REPO + "/frontend/public"
 
 FAVICON_FILES = [
     "favicon.ico", "favicon-48.png", "favicon-96.png",

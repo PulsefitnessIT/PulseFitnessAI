@@ -21,6 +21,7 @@ Pins (from operator feedback on the Treadmill-slip screenshot, Feb 2026):
      this visit?" gate that drives ``return-to-fix``.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -36,7 +37,7 @@ def _user(org="org-1", uid="eng-1"):
             "full_name": "Eng One", "email": "e@x.test"}
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

@@ -31,12 +31,13 @@ Live verification: banner top is now 96px (cleared the 81px
 navbar by 15px of breathing room) and the dismiss × is clickable.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 
 
 def _crm_app() -> str:
-    return pathlib.Path("/app/frontend/src/pages/CRM/CRMApp.js").read_text()
+    return pathlib.Path(REPO + "/frontend/src/pages/CRM/CRMApp.js").read_text()
 
 
 def test_cross_module_banner_wrapper_has_pt24():
@@ -82,9 +83,9 @@ def test_other_module_pages_keep_their_pt24():
     `pt-24` on the parent main — those must NOT regress. Their
     banner is the first child inside a padded `<main>`."""
     for path in (
-        "/app/frontend/src/pages/Memberships/MembershipsConsole.js",
-        "/app/frontend/src/pages/MarketingSuite.js",
-        "/app/frontend/src/pages/LiteDashboardPage.js",
+        REPO + "/frontend/src/pages/Memberships/MembershipsConsole.js",
+        REPO + "/frontend/src/pages/MarketingSuite.js",
+        REPO + "/frontend/src/pages/LiteDashboardPage.js",
     ):
         src = pathlib.Path(path).read_text()
         assert "CrossModuleTipsBanner" in src, f"{path}: banner import gone?"

@@ -7,11 +7,12 @@
    Memberships weekly digest (per-recipient language).
 """
 
+from tests._paths import REPO  # noqa: E402
 import sys
 
 import requests
 
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 
 from tests.conftest import _test_backend_url
 
@@ -66,12 +67,12 @@ def test_digest_html_localized_per_lang():
         html = _build_html(org, {}, {}, [], None, lang=lang)
         assert marker in html, f"{lang} digest missing {marker!r}"
     # Subject strings + per-recipient grouping are wired in the sender.
-    src = open("/app/backend/utils/memberships_digest.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/utils/memberships_digest.py", encoding="utf-8").read()
     assert "user_lang(u)" in src and "tr(lang, 'digest_subject')" in src
 
 
 def test_frontend_applies_and_persists_language():
-    app = open("/app/frontend/src/App.js", encoding="utf-8").read()
+    app = open(REPO + "/frontend/src/App.js", encoding="utf-8").read()
     assert "i18n.changeLanguage(lang)" in app, "App must apply user.language on hydrate"
-    nav = open("/app/frontend/src/components/shared/Navbar.js", encoding="utf-8").read()
+    nav = open(REPO + "/frontend/src/components/shared/Navbar.js", encoding="utf-8").read()
     assert "{ language: lang.code }" in nav, "Navbar must persist the language to the profile"

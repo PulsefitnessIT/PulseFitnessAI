@@ -1,4 +1,5 @@
 # Engineer report fields (svc + MOD jobs + MOD PPM), case detail/signoff, PPM calendar visits, Service Desk asset list (all sites + PDF)
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import uuid
@@ -10,8 +11,8 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from pypdf import PdfReader
 
-load_dotenv("/app/frontend/.env")
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/frontend/.env")
+load_dotenv(REPO + "/backend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 BYPASS = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 mdb = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]

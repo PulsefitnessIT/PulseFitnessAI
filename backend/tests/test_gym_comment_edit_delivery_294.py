@@ -1,5 +1,6 @@
 # Iter 294: gym comment edit/delete (15-min, own only), author_user_id on POST, delivery-status endpoint + access rules.
 # Requires: python tests/_seed_comment_edit_delivery_294.py seed (and `send` for the delivered tick check).
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import time
@@ -11,7 +12,7 @@ from dotenv import load_dotenv
 BK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BK)
 load_dotenv(os.path.join(BK, ".env"))
-load_dotenv("/app/frontend/.env")
+load_dotenv(REPO + "/frontend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 API = f"{BASE_URL}/api"
 PW = "TestCmt294#2026"

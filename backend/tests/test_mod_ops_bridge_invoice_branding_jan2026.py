@@ -1,4 +1,5 @@
 """MOD Operations fault bridge (every MOD intake path → /bfpo) + Pulse invoice header/footer on PDFs."""
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import uuid
@@ -11,7 +12,7 @@ import requests
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 BYPASS = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 MOD_SITE_ORG = "abfdabd9-ae11-4877-a44d-a36fea7f1f4e"  # MOD Test Site
@@ -207,14 +208,14 @@ def _pdf_images(pdf_bytes):
 class TestInvoiceBranding:
     def test_assets_present(self):
         for f in ("pulse-invoice-header.png", "pulse-invoice-footer.png"):
-            assert os.path.exists(f"/app/backend/assets/{f}")
+            assert os.path.exists(f"{REPO}/backend/assets/{f}")
         for f in ("pulse-invoice-header.png", "pulse-invoice-footer.png"):
             r = requests.get(f"{BASE_URL}/brand/{f}", timeout=30)
             assert r.status_code == 200 and r.headers.get("content-type", "").startswith("image/")
 
     def test_make_pulse_doc_uses_header_footer(self):
         import sys
-        sys.path.insert(0, "/app/backend")
+        sys.path.insert(0, REPO + "/backend")
         from reportlab.platypus import Paragraph, Spacer
         from utils.pulse_doc_template import (make_pulse_doc, pulse_header, pulse_styles,
                                               pulse_footer_factory, INVOICE_BOTTOM_MARGIN)

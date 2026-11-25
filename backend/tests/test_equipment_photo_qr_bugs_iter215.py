@@ -14,7 +14,7 @@ import io
 from PIL import Image
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
-RATE_LIMIT_BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "test-bypass-secret-for-ci-runs-only-2026")
+RATE_LIMIT_BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", os.environ.get("RATE_LIMIT_BYPASS_SECRET", ""))
 
 # Test credentials
 OPERATOR_EMAIL = "lee.somers@pulsefitness.com"

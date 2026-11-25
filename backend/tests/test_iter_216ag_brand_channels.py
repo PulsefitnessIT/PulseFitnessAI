@@ -9,6 +9,7 @@ Tests:
 5. _branding_for_member helper returns correct values for various scenarios
 6. Frontend live preview component exists with correct data-testid
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -440,7 +441,7 @@ class TestFrontendLivePreviewComponent:
     def test_site_branding_override_component_has_preview_testid(self):
         """SiteBrandingOverride.js should have site-branding-preview-{id} data-testid"""
         import os
-        component_path = "/app/frontend/src/components/sites/SiteBrandingOverride.js"
+        component_path = REPO + "/frontend/src/components/sites/SiteBrandingOverride.js"
         
         if not os.path.exists(component_path):
             pytest.skip("SiteBrandingOverride.js not found")
@@ -461,7 +462,7 @@ class TestFrontendLivePreviewComponent:
     
     def test_brand_preview_shows_pay_button_with_color(self):
         """BrandPreview should show Pay button with primary color"""
-        component_path = "/app/frontend/src/components/sites/SiteBrandingOverride.js"
+        component_path = REPO + "/frontend/src/components/sites/SiteBrandingOverride.js"
         
         if not os.path.exists(component_path):
             pytest.skip("SiteBrandingOverride.js not found")

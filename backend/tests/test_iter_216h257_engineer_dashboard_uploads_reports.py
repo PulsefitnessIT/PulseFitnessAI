@@ -24,6 +24,7 @@ User feedback (production, Feb 20, 2026):
 error message from prod, the code path looks correct.)
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -39,7 +40,7 @@ def _run(coro):
 def test_earnings_hero_card_removed():
     import re
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text()
     # Strip JSX/JS comments + JSDoc so the docstring header doesn't trip us.
     stripped = re.sub(r"/\*.*?\*/", "", src, flags=re.DOTALL)
@@ -119,7 +120,7 @@ def test_analytics_endpoint_rejects_bad_range():
 
 def test_analytics_page_exists_and_route_wired():
     page = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAnalyticsPage.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerAnalyticsPage.js"
     ).read_text()
     assert "function EngineerAnalyticsPage" in page
     assert "/svc/engineer/analytics" in page
@@ -135,7 +136,7 @@ def test_analytics_page_exists_and_route_wired():
             f'testid="{tid}"' in page or f'data-testid="{tid}"' in page
         ), f"missing test id {tid}"
 
-    routes = pathlib.Path("/app/frontend/src/routes/AppRoutes.js").read_text()
+    routes = pathlib.Path(REPO + "/frontend/src/routes/AppRoutes.js").read_text()
     assert "/svc/engineer/analytics" in routes
     assert "EngineerAnalyticsPage" in routes
 
@@ -144,7 +145,7 @@ def test_analytics_page_exists_and_route_wired():
 
 def test_kpi_tiles_have_onclick_navigation():
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text()
     # Awaiting customer + invoiced now navigate.
     assert "/svc/engineer/quotes?status=sent" in src
@@ -153,7 +154,7 @@ def test_kpi_tiles_have_onclick_navigation():
 
 def test_dashboard_has_analytics_quickaction():
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text()
     assert 'testid="qa-analytics"' in src
     assert "/svc/engineer/analytics" in src
@@ -164,7 +165,7 @@ def test_dashboard_has_analytics_quickaction():
 def test_files_upload_allows_video_mime_for_service_media():
     """Ensure the per-category allow-list now exists and covers the
     engineer's `service-media` category with both images + videos."""
-    src = pathlib.Path("/app/backend/routes/files.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/files.py").read_text()
     assert "MIME_VIDEOS" in src
     # Per-category branching present.
     assert 'category in ("service-media", "case-media", "engineer-media")' in src
@@ -173,7 +174,7 @@ def test_files_upload_allows_video_mime_for_service_media():
 
 def test_engineer_uploader_uses_service_media_and_surfaces_error():
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
     ).read_text()
     # Iter 220e9 — uploads now go through `chunkedUpload`, which
     # routes the same `service-media` category (string param instead
@@ -189,7 +190,7 @@ def test_engineer_uploader_uses_service_media_and_surfaces_error():
 
 def test_complete_tab_has_report_actions():
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
     ).read_text()
     assert "function ReportActionsCard" in src
     assert "/service-report.pdf" in src
@@ -204,7 +205,7 @@ def test_complete_tab_has_report_actions():
 
 def test_quote_builder_shows_convert_to_invoice_for_sent_and_accepted():
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js"
     ).read_text()
     assert "form.status === 'accepted' || form.status === 'sent'" in src
     # Renamed label.

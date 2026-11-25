@@ -10,6 +10,7 @@ Tests for the "We've missed you" win-back email feature:
 - Auth hardening: member tokens rejected with 403
 """
 
+from tests._paths import REPO  # noqa: E402
 import pytest
 import requests
 import os
@@ -25,7 +26,7 @@ def rate_limit_bypass_headers() -> dict:
     secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     if not secret:
         try:
-            env_path = "/app/backend/.env"
+            env_path = REPO + "/backend/.env"
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:

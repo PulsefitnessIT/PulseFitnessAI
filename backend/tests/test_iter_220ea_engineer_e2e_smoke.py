@@ -12,13 +12,14 @@ The spec itself lives at
 and is invoked via ``yarn test:mobile-regression``.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-SPEC = Path("/app/frontend/tests/mobile-regression/engineer-smoke.spec.js")
-GLOBAL_SETUP = Path("/app/frontend/tests/mobile-regression/global-setup.js")
-PW_CONFIG = Path("/app/frontend/playwright.config.js")
+SPEC = Path(REPO + "/frontend/tests/mobile-regression/engineer-smoke.spec.js")
+GLOBAL_SETUP = Path(REPO + "/frontend/tests/mobile-regression/global-setup.js")
+PW_CONFIG = Path(REPO + "/frontend/playwright.config.js")
 
 
 def _spec_src() -> str:
@@ -128,7 +129,7 @@ def test_playwright_config_resolves_baseurl_from_dotenv():
 
 
 def test_package_json_exposes_mobile_regression_script():
-    pkg = Path("/app/frontend/package.json").read_text()
+    pkg = Path(REPO + "/frontend/package.json").read_text()
     assert "test:mobile-regression" in pkg
     assert "playwright" in pkg
 
@@ -137,7 +138,7 @@ def test_makefile_exposes_e2e_targets():
     """Engineer App smoke must be reachable via `make e2e-engineer`
     and the broader Playwright suite via `make e2e`, so the muscle
     memory matches `make regression`."""
-    mk = Path("/app/Makefile").read_text()
+    mk = Path(REPO + "/Makefile").read_text()
     assert "e2e-engineer:" in mk
     assert "\ne2e:" in mk
     # .PHONY entry so the targets aren't shadowed by accidental files.

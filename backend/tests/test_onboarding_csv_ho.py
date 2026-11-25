@@ -6,6 +6,7 @@ Covers:
 - /api/master-admin/head-offices (HO picker source)
 - /api/master-admin/organizations/{org_id}/sites (branch site create) + confirm import w/ site_id
 """
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import uuid
@@ -14,7 +15,7 @@ import requests
 
 def _read_frontend_env():
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     return line.split("=", 1)[1].strip()

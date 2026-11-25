@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import os
 import re
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -103,7 +104,13 @@ def parse_schedule_b(content: bytes) -> dict:
             issues.append({"kind": "reference_conflict", "uid": e["uid"], "schedule_b_ref": e["tl_ref"],
                            "printed_ref": hist[0],
                            "message": f"{e['uid']}: Schedule B lists {e['tl_ref']} but issued quotations print {hist[0]}"})
-    return {"sheet": ws.title, "entries": entries, "issues": issues}
+    synthetic = any("synthetic test data" in str(c.value or "").lower()
+                    for row in ws.iter_rows(min_row=1, max_row=min(header_row, 10)) for c in row)
+    return {"sheet": ws.title, "entries": entries, "issues": issues, "synthetic": synthetic}
+
+
+def synthetic_rates_allowed() -> bool:
+    return os.environ.get("MOD_RATES_ALLOW_SYNTHETIC", "").lower() == "true"
 
 
 def diff_against_card(entries: list[dict], card: list[dict]) -> list[dict]:
@@ -144,6 +151,8 @@ def apply_entry(card_entry: dict, e: dict, approval: dict | None = None) -> dict
         upd[f"poa_{key}"] = False
         upd[f"type_{key}_price"] = e["price"]
         upd[f"price_status_{key}"] = "verified" if approval else "unverified"
+    if approval and approval.get("synthetic"):
+        upd[f"rate_{key}_synthetic"] = True
     upd[f"rate_{key}"] = {
         "amount": e["price"], "currency": "GBP", "source": (approval or {}).get("source"),
         "schedule_b_uid": e["uid"], "schedule_b_ref": e["tl_ref"], "sage_code": e["sage_code"],
@@ -158,6 +167,8 @@ def apply_entry(card_entry: dict, e: dict, approval: dict | None = None) -> dict
 def rate_is_verified(entry: dict, key: str, on_date: str) -> bool:
     """A rate is customer-ready only if its own type was approved and is in its rate period."""
     rate = entry.get(f"rate_{key}") or {}
+    if entry.get(f"rate_{key}_synthetic") and not synthetic_rates_allowed():
+        return False
     if entry.get(f"price_status_{key}") != "verified" or rate.get("status") != "verified":
         return False
     if rate.get("amount") is None or float(rate["amount"]) != float(entry.get(f"type_{key}_price") or -1):
@@ -187,7 +198,8 @@ def _row_line(row: dict, entry: dict, t: str, on_date: str) -> tuple[dict | None
         "unit_price": float(money(price)), "total": float(money(price) * qty),
         "coverage": t, "rate_card_id": entry["id"], "row_id": row.get("row_id"),
         "schedule_b_uid": entry.get(f"schedule_b_uid_{key}"), "printed_ref": entry.get(f"printed_ref_{key}"),
-        "price_status": "verified" if rate_is_verified(entry, key, on_date) else (entry.get(f"price_status_{key}") or "unverified"),
+        "price_status": "verified" if rate_is_verified(entry, key, on_date) else (
+            "test_data" if entry.get(f"rate_{key}_synthetic") else (entry.get(f"price_status_{key}") or "unverified")),
         "rate_version": (entry.get(f"rate_{key}") or {}).get("version"),
         "printed_ref_source": entry.get(f"printed_ref_source_{key}") or "unmapped",
     }, None

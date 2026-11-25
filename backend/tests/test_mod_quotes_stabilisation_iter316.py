@@ -1,5 +1,6 @@
 """Iter 316 – MOD Quotation founder stabilisation sprint: site truth, idempotency, revision race, Sage ref,
 validity/extension/expiry, notify dry-run, handover setup, retired CRM endpoints. Does NOT import/approve rate lists."""
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import threading
@@ -10,8 +11,8 @@ import pytest
 import requests
 from dotenv import load_dotenv
 
-load_dotenv("/app/frontend/.env")
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/frontend/.env")
+load_dotenv(REPO + "/backend/.env")
 sys.path.insert(0, os.path.dirname(__file__))
 from mod_quotes_test_helpers import delete_groups, run  # noqa: E402
 

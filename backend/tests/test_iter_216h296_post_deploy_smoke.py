@@ -24,6 +24,7 @@ Pins covered
 * `make help` advertises the new target
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import importlib.util
@@ -33,8 +34,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-SCRIPT_PATH = Path("/app/scripts/post-deploy.py")
-MAKEFILE = Path("/app/Makefile")
+SCRIPT_PATH = Path(REPO + "/scripts/post-deploy.py")
+MAKEFILE = Path(REPO + "/Makefile")
 
 
 def _load_script_module():

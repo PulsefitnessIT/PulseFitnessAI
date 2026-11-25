@@ -17,6 +17,7 @@ don't spam the new supplier with an onboarding email until the
 manager is ready.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 import re
@@ -34,7 +35,7 @@ def _strip_js(src: str) -> str:
 
 def test_picker_chip_uses_distinct_styling_in_single_mode():
     src = pathlib.Path(
-        "/app/frontend/src/components/shared/SupplierMultiPicker.jsx"
+        REPO + "/frontend/src/components/shared/SupplierMultiPicker.jsx"
     ).read_text()
     # Single-mode chip should use a soft outlined style, not the
     # default slate-900 pill (which was invisible in dark Pulse Pro).
@@ -46,7 +47,7 @@ def test_picker_chip_uses_distinct_styling_in_single_mode():
 
 def test_picker_wrapper_supports_dark_mode():
     src = pathlib.Path(
-        "/app/frontend/src/components/shared/SupplierMultiPicker.jsx"
+        REPO + "/frontend/src/components/shared/SupplierMultiPicker.jsx"
     ).read_text()
     # The outer field wrapper now responds to dark mode so it doesn't
     # render as a stark white rectangle on Pulse Pro modals.
@@ -59,7 +60,7 @@ def test_picker_wrapper_supports_dark_mode():
 
 def test_supplier_editor_accepts_new_props():
     src = pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js"
+        REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js"
     ).read_text()
     assert "onSupplierAdded" in src
     assert "authToken" in src
@@ -69,7 +70,7 @@ def test_supplier_editor_accepts_new_props():
 
 def test_supplier_editor_renders_email_input_when_missing_from_directory():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js"
+        REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js"
     ).read_text())
     assert 'data-testid="lite-equip-supplier-add-email"' in src
     assert 'data-testid="lite-equip-supplier-add-to-directory"' in src
@@ -80,7 +81,7 @@ def test_supplier_editor_posts_with_send_welcome_false():
     """Don't spam the supplier — we just want them in the directory so
     fault emails route. The manager can trigger /send-welcome later."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js"
+        REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js"
     ).read_text()
     assert "/api/suppliers" in src or "API_BASE}/suppliers" in src
     assert "send_welcome: false" in src
@@ -88,7 +89,7 @@ def test_supplier_editor_posts_with_send_welcome_false():
 
 def test_supplier_editor_validates_email_shape():
     src = pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js"
+        REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js"
     ).read_text()
     # Loose but useful client-side guard
     assert "[^\\s@]+@[^\\s@]+\\.[^\\s@]+" in src
@@ -96,7 +97,7 @@ def test_supplier_editor_validates_email_shape():
 
 def test_warning_callout_remains_in_place():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/LiteDialogs.js"
+        REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js"
     ).read_text())
     # The old warning message must still be present so engineers
     # understand WHY they're being asked for an email.

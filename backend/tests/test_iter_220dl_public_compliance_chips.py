@@ -22,6 +22,7 @@ Pins:
     ``data-testid`` per kind.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -172,7 +173,7 @@ def test_summary_queries_are_org_and_case_scoped():
 def test_public_payload_includes_compliance_block():
     """Sanity guard that the public_tracking response surfaces the
     new ``compliance`` key alongside ``eta`` and ``events``."""
-    src = Path("/app/backend/routes/svc/public_tracking.py").read_text()
+    src = Path(REPO + "/backend/routes/svc/public_tracking.py").read_text()
     assert '"compliance": compliance' in src
     assert "_public_compliance_summary" in src
 
@@ -182,7 +183,7 @@ def test_public_payload_includes_compliance_block():
 
 def test_frontend_compliance_chips_mounted_and_wired():
     src = Path(
-        "/app/frontend/src/pages/PublicTracking/PublicTrackingPage.js"
+        REPO + "/frontend/src/pages/PublicTracking/PublicTrackingPage.js"
     ).read_text()
     # Imports.
     assert "ShieldCheck" in src

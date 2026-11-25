@@ -3,9 +3,10 @@
 Pins that the Phase B + Phase C UI surfaces actually exist in the
 React source so they can't silently disappear during refactors.
 """
+from tests._paths import REPO  # noqa: E402
 from pathlib import Path
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

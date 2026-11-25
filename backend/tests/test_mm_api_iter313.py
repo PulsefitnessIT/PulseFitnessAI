@@ -1,5 +1,6 @@
 """Iteration 313 — Maintenance Master resolution centre, daily view, invoice-run preview (public URL).
 Run after `mm_ui_seed.py seed`. Real upload e7a84748 is only READ (never committed)."""
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import time
@@ -8,7 +9,7 @@ import openpyxl
 import pytest
 import requests
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split()[0]).rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split()[0]).rstrip("/")
 MM = f"{BASE}/api/crm/v2/aftersales/maintenance-master"
 REAL = "e7a84748-9c0d-4415-ba64-d66c621d3dae"
 PW = "CmTest2026!"

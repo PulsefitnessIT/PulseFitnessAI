@@ -15,6 +15,7 @@ case_type-aware, so the per-machine auto-load is live without any
 frontend change.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -168,7 +169,7 @@ def test_machine_row_carries_saved_values_for_prefill():
 
 
 def test_machine_row_custom_fields_uses_for_machine_row_endpoint():
-    src = (Path("/app/frontend/src")
+    src = (Path(REPO + "/frontend/src")
            / "pages/ServiceOps/Engineer/MachineRowCustomFields.js"
            ).read_text(encoding="utf-8")
     # Endpoint pinned + still scoped per-row.

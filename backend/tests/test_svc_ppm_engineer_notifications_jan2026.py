@@ -18,7 +18,7 @@ import requests
 from datetime import date
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
-BYPASS = "test-bypass-secret-for-ci-runs-only-2026"
+BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
 
 OWNER_EMAIL = "owner@isodemo.com"
 OWNER_PASSWORD = "IsoDemo123!"

@@ -24,6 +24,7 @@ Frontend pins (source-level):
     sessionStorage on every application post.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import os
@@ -185,7 +186,7 @@ def test_public_apply_doc_includes_utm_fields_in_source():
     """Source-level pin — the persisted application doc must
     include the utm_* fields so master admin can filter on them."""
     import pathlib
-    src = pathlib.Path("/app/backend/routes/partners.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/partners.py").read_text()
     # The block that builds the application doc must reference each.
     for name in ("utm_source", "utm_medium", "utm_campaign",
                  "utm_content", "utm_term", "referrer_url"):
@@ -199,7 +200,7 @@ def test_public_apply_doc_includes_utm_fields_in_source():
 
 def test_use_utm_attribution_hook_exists_with_first_touch_semantics():
     import pathlib
-    src = pathlib.Path("/app/frontend/src/hooks/useUtmAttribution.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/hooks/useUtmAttribution.js").read_text()
     assert "useUtmAttribution" in src
     # First-touch — only overwrite session storage if no existing
     # attribution. Pins the rule against silent regression.
@@ -220,7 +221,7 @@ def test_apply_form_reads_session_storage_key():
     the contract so a rename of the key in one file can't silently
     break attribution end-to-end."""
     import pathlib
-    apply_src = pathlib.Path("/app/frontend/src/pages/Marketing/PartnerApplyPublic.js").read_text()
+    apply_src = pathlib.Path(REPO + "/frontend/src/pages/Marketing/PartnerApplyPublic.js").read_text()
     assert "gx_utm_attribution" in apply_src, (
         "Apply form must read the landing-page's sessionStorage key"
     )
@@ -235,7 +236,7 @@ def test_partner_engineer_landing_swaps_hero_for_instagram():
     expose `data-attribution-source` on the outer section so an E2E
     can verify the swap fired."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/pages/Marketing/PartnerEngineerLanding.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Marketing/PartnerEngineerLanding.js").read_text()
     assert "useUtmAttribution" in src
     assert "isInstagram" in src
     assert 'data-attribution-source' in src, (

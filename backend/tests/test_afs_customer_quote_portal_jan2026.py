@@ -6,12 +6,13 @@ Covers:
 - Guards: double accept -> 410, decline-after-accept -> 410, accept-after-decline -> 410.
 """
 
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
 from dotenv import load_dotenv
 
-load_dotenv("/app/frontend/.env")
+load_dotenv(REPO + "/frontend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 assert BASE_URL, "REACT_APP_BACKEND_URL missing"
 

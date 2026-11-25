@@ -1,5 +1,6 @@
 # Regression: vehicle photo cookie auth, operator-staff routing opt-in,
 # driver notes + extra photos, weekly reminder email (cron + manager).
+from tests._paths import REPO  # noqa: E402
 import os
 import io
 import pytest
@@ -16,7 +17,7 @@ DEMO_MGR = ("portal.manager@pulsedemo.test", "Manager123!")
 
 
 def _cron_secret():
-    for line in open("/app/backend/.env"):
+    for line in open(REPO + "/backend/.env"):
         if line.startswith("WEBHOOK_CRON_SECRET="):
             return line.split("=", 1)[1].strip().strip('"')
 

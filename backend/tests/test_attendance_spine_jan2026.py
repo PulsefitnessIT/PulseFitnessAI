@@ -8,6 +8,7 @@ Covers:
 - Manager correction: manual_override + history, missing reason -> 400, override survives leave revocation
 - Attendance board summary + not_confirmed rows
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import uuid
@@ -232,7 +233,7 @@ def test_cleanup(hdrs, created_leave, owner_staff_id, leave_dates):
     """Best-effort cleanup: remove test leave + payroll number + created daily rows."""
     import asyncio
     import sys
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # noqa
 
     async def _cleanup():

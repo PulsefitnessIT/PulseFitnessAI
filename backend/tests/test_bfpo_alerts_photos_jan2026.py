@@ -4,6 +4,7 @@ Covers GET /api/bfpo/alerts scoping, POST /api/bfpo/alerts/{id}/ack per-user,
 GET /api/bfpo/jobs/{id}/site-photos[/index] streaming + scoping.
 Seeded case ids come from /tmp/test_alert_ids.txt ("<issue_id> <case_id>").
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -12,14 +13,14 @@ import requests
 def _base():
     v = os.environ.get("REACT_APP_BACKEND_URL")
     if not v:
-        for line in open("/app/frontend/.env"):
+        for line in open(REPO + "/frontend/.env"):
             if line.startswith("REACT_APP_BACKEND_URL="):
                 v = line.split("=", 1)[1].strip()
     return v.rstrip("/")
 
 
 BASE = _base() + "/api"
-BYPASS = {"x-ratelimit-bypass": "test-bypass-secret-for-ci-runs-only-2026"}
+BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 OPEN = {"new", "triaged", "assigned"}
 
 
@@ -113,7 +114,7 @@ class TestAlerts:
         try:
             from pymongo import MongoClient
             from dotenv import load_dotenv
-            load_dotenv("/app/backend/.env")
+            load_dotenv(REPO + "/backend/.env")
             MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]].bfpo_alert_acks.delete_many(
                 {"case_id": CASE_ID, "$or": [{"user_id": "bfpo-staff"}, {"user_key": "staff@bfpo.pulsefitness.test"}]})
         except Exception:

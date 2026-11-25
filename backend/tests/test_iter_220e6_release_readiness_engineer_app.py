@@ -9,6 +9,7 @@ Pins:
 * Entitlement endpoint hides the panel for contract-less tenants (#11).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -19,7 +20,7 @@ def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

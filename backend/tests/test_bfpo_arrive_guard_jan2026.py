@@ -1,4 +1,5 @@
 """BFPO /arrive guard (409 on 'new') + legacy ack user_key backfill — Jan 2026."""
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
@@ -10,14 +11,14 @@ from dotenv import dotenv_values
 def _base():
     v = os.environ.get("REACT_APP_BACKEND_URL")
     if not v:
-        for line in open("/app/frontend/.env"):
+        for line in open(REPO + "/frontend/.env"):
             if line.startswith("REACT_APP_BACKEND_URL="):
                 v = line.split("=", 1)[1].strip()
     return v.rstrip("/")
 
 
 BASE = _base() + "/api"
-ENV = dotenv_values("/app/backend/.env")
+ENV = dotenv_values(REPO + "/backend/.env")
 BYPASS = {"x-ratelimit-bypass": ENV.get("RATE_LIMIT_BYPASS_SECRET")}
 DB = MongoClient(ENV["MONGO_URL"])[ENV["DB_NAME"]]
 TEMPLATE_ID = "354c9636-8507-4e19-bf7e-003ca47badd8"

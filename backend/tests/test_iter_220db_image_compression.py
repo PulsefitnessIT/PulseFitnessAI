@@ -12,12 +12,13 @@ static-source-level guard that:
   * The progress bar UI renders with the expected ``data-testid``s.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-JOB_DETAIL = Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js")
-COMPRESS_UTIL = Path("/app/frontend/src/utils/compressImage.js")
+JOB_DETAIL = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js")
+COMPRESS_UTIL = Path(REPO + "/frontend/src/utils/compressImage.js")
 
 
 def test_compress_image_helper_exports_canonical_defaults():
@@ -52,7 +53,7 @@ def test_photos_tab_tracks_upload_progress():
     ):
         assert f'data-testid="{tid}"' in src, f"missing test-id: {tid}"
     # Underlying axios progress hook still wired inside the helper.
-    chunked = Path("/app/frontend/src/utils/chunkedUpload.js").read_text()
+    chunked = Path(REPO + "/frontend/src/utils/chunkedUpload.js").read_text()
     assert "onUploadProgress" in chunked
 
 

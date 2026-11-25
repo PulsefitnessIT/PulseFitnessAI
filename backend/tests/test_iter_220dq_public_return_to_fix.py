@@ -12,6 +12,7 @@ closes the customer-side loop:
     are they coming back?".
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -179,7 +180,7 @@ def test_public_track_return_skipped_when_return_at_missing():
 # ── 2 · Frontend banner pinned in the page source ────────────────
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

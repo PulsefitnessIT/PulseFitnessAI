@@ -24,6 +24,7 @@ Anti-bug invariants:
     trigger dispatch — only escalations go to the engineer.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import os
@@ -355,7 +356,7 @@ def test_pulse_score_card_imports_useauth_for_brand_switch():
     future refactor that drops `useAuth` here can't silently revert the
     brand-aware label."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/components/PulseScoreCard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/components/PulseScoreCard.js").read_text()
     assert "useAuth" in src, "PulseScoreCard must read auth context for brand"
     assert "BRAND_COPY" in src, "Brand-copy constants must be present"
     assert "'Gym Health'" in src, "GymAxis brand label must be wired in"
@@ -372,7 +373,7 @@ def test_ai_triage_tab_wired_into_dashboard_for_both_brands():
     operator dashboard — it was previously imported nowhere and only
     surfaced per-fault inside IssueDetailPanel."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/pages/LiteDashboardPage.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/LiteDashboardPage.js").read_text()
     assert "PulseAIDiagnosisTab" in src, "AI Triage tab must be imported"
     assert "ai-triage" in src, "ai-triage tab id must be registered"
     # Brand-aware label switch must be present.
@@ -387,7 +388,7 @@ def test_pulse_landing_has_no_fabricated_customer_names():
     'Gym Manager', 'Example Gym') — not a plausible real name that a
     visitor could mistake for a customer reference."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/pages/PulseLandingPage.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/PulseLandingPage.js").read_text()
     # The previous-iter names that the user flagged as misleading.
     banned = ["Sarah Johnson", "Lee Somers", "Tottenham Green"]
     found = [b for b in banned if b in src]
@@ -408,7 +409,7 @@ def test_supplier_dashboard_endpoint_returns_auto_dispatch_fields():
     + the routing toggle. Pinned at the source level so a future
     refactor that drops the decoration can't regress the feature."""
     import pathlib
-    src = pathlib.Path("/app/backend/routes/supplier_portal.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/supplier_portal.py").read_text()
     assert "auto_created_from_referral" in src
     assert "auto_dispatch" in src
     assert "is_primary_supplier" in src
@@ -427,7 +428,7 @@ def test_supplier_dashboard_card_renders_auto_referral_badge():
     `supplier.auto_created_from_referral === true`. Also pins the
     'Primary' badge when `is_primary_supplier` is set."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/pages/SupplierDashboardTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/SupplierDashboardTab.js").read_text()
     assert "auto_created_from_referral" in src, (
         "SupplierDashboardTab must read auto_created_from_referral from the API"
     )

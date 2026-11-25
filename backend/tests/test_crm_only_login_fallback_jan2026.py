@@ -2,6 +2,7 @@
 
 Backend URL from REACT_APP_BACKEND_URL; uses X-RateLimit-Bypass header.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import uuid
@@ -9,7 +10,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:8001').rstrip('/')
-BYPASS = os.environ.get('RATE_LIMIT_BYPASS_SECRET', 'test-bypass-secret-for-ci-runs-only-2026')
+BYPASS = os.environ.get('RATE_LIMIT_BYPASS_SECRET', os.environ.get("RATE_LIMIT_BYPASS_SECRET", ""))
 HDRS = {"X-RateLimit-Bypass": BYPASS, "Content-Type": "application/json"}
 
 CRM_EMAIL = "crmonly.manager@pulsedemo.test"
@@ -82,7 +83,7 @@ class TestForgotResetCrmOnly:
         # Re-seed to reset password before reset flow
         import subprocess
         subprocess.run(
-            ["python", "/app/backend/scripts/seed_crm_only_login_demo.py"],
+            ["python", REPO + "/backend/scripts/seed_crm_only_login_demo.py"],
             capture_output=True, timeout=30,
         )
         r = _post("/api/auth/forgot-password", {"email": CRM_EMAIL})
@@ -93,11 +94,11 @@ class TestForgotResetCrmOnly:
         import subprocess
         # Re-seed first so account is in known state
         subprocess.run(
-            ["python", "/app/backend/scripts/seed_crm_only_login_demo.py"],
+            ["python", REPO + "/backend/scripts/seed_crm_only_login_demo.py"],
             capture_output=True, timeout=30,
         )
         p = subprocess.run(
-            ["python", "/app/backend/scripts/verify_crm_login_fix.py"],
+            ["python", REPO + "/backend/scripts/verify_crm_login_fix.py"],
             capture_output=True, timeout=60, text=True,
         )
         combined = (p.stdout or "") + (p.stderr or "")

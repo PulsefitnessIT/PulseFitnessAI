@@ -3,6 +3,7 @@
 Public endpoints, NO auth, NO rate-limit bypass header (the point is to prove
 the two limiters use DIFFERENT buckets).
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import uuid
@@ -11,7 +12,7 @@ import pytest
 import requests
 from dotenv import dotenv_values
 
-frontend_env = dotenv_values("/app/frontend/.env")
+frontend_env = dotenv_values(REPO + "/frontend/.env")
 base_url = os.environ.get("REACT_APP_BACKEND_URL") or frontend_env.get("REACT_APP_BACKEND_URL")
 if not base_url:
     raise RuntimeError("REACT_APP_BACKEND_URL is missing")
@@ -29,7 +30,7 @@ def client():
 def clean_reset_buckets():
     """Reset the shared per-IP reset buckets so burst tests are deterministic
     (previous manual curl runs otherwise pre-consume the allowance)."""
-    backend_env = dotenv_values("/app/backend/.env")
+    backend_env = dotenv_values(REPO + "/backend/.env")
     mongo_url = os.environ.get("MONGO_URL") or backend_env.get("MONGO_URL")
     db_name = os.environ.get("DB_NAME") or backend_env.get("DB_NAME")
     if not mongo_url or not db_name:

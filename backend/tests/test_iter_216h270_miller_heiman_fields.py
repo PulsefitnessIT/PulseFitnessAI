@@ -21,6 +21,7 @@ Frontend adds a "Strategic" tab on the contact detail and surfaces
 adoption sentiment + buying influence as header badges.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -223,7 +224,7 @@ def test_patch_endpoint_validates_reports_to_exists_in_same_org():
 
 def test_contacts_strategic_tab_added():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMContacts.js"
+        REPO + "/frontend/src/pages/CRM/CRMContacts.js"
     ).read_text())
     # Tab definition present in the tabs array
     assert "'overview', 'strategic'" in src
@@ -235,7 +236,7 @@ def test_contacts_strategic_tab_added():
 
 def test_strategic_panel_calls_catalogue_and_patch_endpoints():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMContacts.js"
+        REPO + "/frontend/src/pages/CRM/CRMContacts.js"
     ).read_text())
     assert "/crm/stakeholders/miller-heiman-catalogues" in src
     assert "/crm/contacts/${contact.id}/miller-heiman" in src
@@ -245,7 +246,7 @@ def test_strategic_panel_calls_catalogue_and_patch_endpoints():
 
 def test_strategic_panel_renders_all_five_field_controls():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMContacts.js"
+        REPO + "/frontend/src/pages/CRM/CRMContacts.js"
     ).read_text())
     # Pills + select + textarea + save button — every input has a testid
     assert 'data-testid="mh-coverage-row"' in src
@@ -258,7 +259,7 @@ def test_strategic_panel_renders_all_five_field_controls():
 
 def test_contact_header_shows_strategic_badges():
     src = pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMContacts.js"
+        REPO + "/frontend/src/pages/CRM/CRMContacts.js"
     ).read_text()
     assert 'data-testid="contact-header-sentiment-badge"' in src
     assert 'data-testid="contact-header-influence-badge"' in src
@@ -271,7 +272,7 @@ def test_contact_header_shows_strategic_badges():
 
 
 def test_create_contact_accepts_miller_heiman_fields():
-    src = pathlib.Path("/app/backend/routes/crm_v2.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_v2.py").read_text()
     create_block = src.split('@router.post("/contacts")')[1].split('@router')[0]
     # Each new field is persisted onto the contact doc
     for f in ("buying_influence_level", "adoption_sentiment", "coverage_confidence", "reports_to_id", "personal_wins"):
@@ -281,7 +282,7 @@ def test_create_contact_accepts_miller_heiman_fields():
 
 
 def test_get_contact_hydrates_reports_to_link():
-    src = pathlib.Path("/app/backend/routes/crm_v2.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_v2.py").read_text()
     get_block = src.split('@router.get("/contacts/{contact_id}")')[1].split('@router')[0]
     assert "reports_to_id" in get_block
     assert '"reports_to"' in get_block

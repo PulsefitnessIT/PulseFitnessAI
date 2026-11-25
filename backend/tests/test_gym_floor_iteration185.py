@@ -15,6 +15,7 @@ Test coverage:
 - POST /api/gym-floor/fault without staff_id returns 422
 - GET /api/issues/{id} returns created_by_name, created_by_email, created_by_mobile
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -32,7 +33,7 @@ def rate_limit_bypass_headers() -> dict:
     secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     if not secret:
         try:
-            env_path = "/app/backend/.env"
+            env_path = REPO + "/backend/.env"
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:

@@ -8,6 +8,7 @@ We avoid live HTTP in CI: instead we seed the `manufacturer_catalogue`
 collection directly and assert the lookup picks the right row.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -22,13 +23,13 @@ def anyio_backend():
     return "asyncio"
 
 
-API_BASE = os.environ.get("API_BASE") or (
-    open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=", 1)[1].split("\n", 1)[0].strip() + "/api"
-)
+from tests.conftest import _test_backend_url  # noqa: E402
+
+API_BASE = os.environ.get("API_BASE") or (_test_backend_url() + "/api")
 
 
 def _login(email: str, password: str) -> str:
-    headers = {"X-RateLimit-Bypass": "test-bypass-secret-for-ci-runs-only-2026"}
+    headers = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
     r = requests.post(f"{API_BASE}/auth/login", json={"email": email, "password": password}, headers=headers, timeout=15)
     r.raise_for_status()
     return r.json()["token"]
@@ -80,7 +81,7 @@ async def test_catalogue_lookup_keyword_overlap_match(anyio_backend, monkeypatch
     mongo_url = os.environ.get("MONGO_URL")
     db_name = os.environ.get("DB_NAME") or "test_database"
     if not mongo_url:
-        env_text = open("/app/backend/.env").read()
+        env_text = open(REPO + "/backend/.env").read()
         for line in env_text.splitlines():
             if line.startswith("MONGO_URL"):
                 mongo_url = line.split("=", 1)[1].strip().strip('"')

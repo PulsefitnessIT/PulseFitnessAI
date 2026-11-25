@@ -30,17 +30,18 @@ Pins covered
   no frontend display change was needed (sanity-pin via grep)
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import json
 from pathlib import Path
 
 import pytest
 
-LITE_DIALOGS = Path("/app/frontend/src/pages/LiteDashboard/LiteDialogs.js")
-LITE_PAGE = Path("/app/frontend/src/pages/LiteDashboardPage.js")
-ISSUES_SCHEMA = Path("/app/backend/models/schemas.py")
-ISSUES_ROUTE = Path("/app/backend/routes/issues.py")
-ISSUE_DETAIL = Path("/app/frontend/src/pages/IssueDetailPanel.js")
+LITE_DIALOGS = Path(REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js")
+LITE_PAGE = Path(REPO + "/frontend/src/pages/LiteDashboardPage.js")
+ISSUES_SCHEMA = Path(REPO + "/backend/models/schemas.py")
+ISSUES_ROUTE = Path(REPO + "/backend/routes/issues.py")
+ISSUE_DETAIL = Path(REPO + "/frontend/src/pages/IssueDetailPanel.js")
 
 
 # ── Submission flow source pins ────────────────────────────────────

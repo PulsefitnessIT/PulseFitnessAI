@@ -1,4 +1,5 @@
 """Auth playbook checks: bcrypt format, httpOnly cookies, CORS, brute-force lockout."""
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 
@@ -6,8 +7,8 @@ import pytest
 import requests
 from dotenv import dotenv_values
 
-fe = dotenv_values("/app/frontend/.env")
-be = dotenv_values("/app/backend/.env")
+fe = dotenv_values(REPO + "/frontend/.env")
+be = dotenv_values(REPO + "/backend/.env")
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or fe.get("REACT_APP_BACKEND_URL")).rstrip("/")
 BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET") or be.get("RATE_LIMIT_BYPASS_SECRET") or ""
 CREDS = {"email": "owner@isodemo.com", "password": "IsoDemo123!"}

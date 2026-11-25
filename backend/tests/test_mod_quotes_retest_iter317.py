@@ -1,5 +1,6 @@
 """Iter 317 – narrow retest of iter316 fixes: date typing (extend/setup), concurrent revise guard, regex escape,
 portal published_at + Sage number as quote_number. Cleans up only the groups it creates."""
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import threading
@@ -8,8 +9,8 @@ import pytest
 import requests
 from dotenv import load_dotenv
 
-load_dotenv("/app/frontend/.env")
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/frontend/.env")
+load_dotenv(REPO + "/backend/.env")
 sys.path.insert(0, os.path.dirname(__file__))
 from mod_quotes_test_helpers import delete_groups, run  # noqa: E402
 from test_mod_quotes_stabilisation_iter316 import CUSTOMER, ROWS, _exceptions_for  # noqa: E402

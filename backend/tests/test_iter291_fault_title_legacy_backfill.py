@@ -1,5 +1,6 @@
 # Iter 291: GET /api/issues legacy machine_name backfill now runs before equipment enrichment.
 # Seeds TEST_ rows directly in test_database; removed by id at teardown. No email sent.
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import uuid
@@ -19,7 +20,7 @@ from utils.auth import hash_password  # noqa: E402
 def _base_url():
     url = os.environ.get("REACT_APP_BACKEND_URL")
     if not url:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     url = line.split("=", 1)[1].strip()

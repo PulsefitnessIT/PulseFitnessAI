@@ -1,4 +1,5 @@
 # New wide Pulse logo: service report PDF header, fire-station certificate banner, frontend asset.
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import pytest
@@ -7,8 +8,8 @@ import fitz  # PyMuPDF
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 BYPASS = {"X-RateLimit-Bypass": "test-bypass-secret-for-ci-runs-only"}
-WIDE = "/app/backend/assets/pulse-logo-wide.jpg"
-LIGHT = "/app/backend/assets/pulse-logo-wide-light.png"
+WIDE = REPO + "/backend/assets/pulse-logo-wide.jpg"
+LIGHT = REPO + "/backend/assets/pulse-logo-wide-light.png"
 
 
 def _login(email, pw):

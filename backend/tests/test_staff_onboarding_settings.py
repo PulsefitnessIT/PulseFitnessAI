@@ -4,7 +4,7 @@ import time
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 
 
 @pytest.fixture(scope="module")

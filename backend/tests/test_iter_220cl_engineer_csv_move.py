@@ -25,6 +25,7 @@ Frontend pins:
     inside the active customer drawer.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -321,7 +322,7 @@ def test_module_exports():
 # ── 5 · Frontend pins ─────────────────────────────────────────────────
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

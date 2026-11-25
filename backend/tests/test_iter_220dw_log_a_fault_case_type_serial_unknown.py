@@ -16,11 +16,12 @@ them into the user-facing form, the empty-form scaffold, and pins
 the contract.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

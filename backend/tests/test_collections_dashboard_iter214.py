@@ -8,6 +8,7 @@ Verifies GET /api/master-admin/collections/dashboard:
   • Master-admin gating returns 403 for non-master.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import os
@@ -59,7 +60,7 @@ def overdue_invoice_with_reminder(master_admin_token_session):
     )
     inv = r.json()["invoice"]
 
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # noqa: E402
 
     past_due = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()

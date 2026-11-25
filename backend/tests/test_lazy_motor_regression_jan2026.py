@@ -7,6 +7,7 @@ confirm the refactor did NOT regress core flows that share the `db`/`client`
 objects across auth, master-admin, operator, CRM, and a write path.
 """
 
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import requests
@@ -15,7 +16,7 @@ import pytest
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     # fallback for pytest local run
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE_URL = line.split("=", 1)[1].strip().rstrip("/")

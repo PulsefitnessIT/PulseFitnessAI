@@ -12,6 +12,7 @@
      org tagged account_type='mod_site' + mod_force=<force> that appears
      in GET /api/master-admin/mod-estate/site-readiness (cleaned up).
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import re
 import sys
@@ -29,7 +30,7 @@ ADMIN_EMAIL = "admin@pulsefitness.com"
 ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
 
 # Make backend package importable for direct unit test of the PDF builder.
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 
 
 # ── Shared auth (single login, respect rate-limit) ─────────────────────

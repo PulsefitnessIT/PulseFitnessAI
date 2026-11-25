@@ -19,6 +19,7 @@ Frontend pins:
     Equipment) with the canonical test IDs.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import re
@@ -167,7 +168,7 @@ def test_create_customer_persists_structured_fields():
 # ── 3 · Frontend wizard wiring pins ───────────────────────────────────
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

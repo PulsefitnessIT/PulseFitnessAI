@@ -1,4 +1,5 @@
 """Dealer Warranty Parts Phase 3 — usage / stores-dashboard / RMA."""
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import pytest
@@ -7,7 +8,7 @@ import requests
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
     # fallback to frontend .env
-    with open('/app/frontend/.env') as f:
+    with open(REPO + '/frontend/.env') as f:
         for ln in f:
             if ln.startswith('REACT_APP_BACKEND_URL='):
                 BASE_URL = ln.split('=', 1)[1].strip().rstrip('/')

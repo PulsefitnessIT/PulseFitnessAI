@@ -32,6 +32,7 @@ Pins covered
   prevention" path that doesn't require booting React).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import sys
@@ -183,8 +184,8 @@ def test_public_equipment_fallback_order_auto_before_spec():
 # ── Bug 1: Log-Fault modal disappears (static source check) ────────
 
 
-LITE_PAGE = Path("/app/frontend/src/pages/LiteDashboardPage.js")
-LITE_DIALOGS = Path("/app/frontend/src/pages/LiteDashboard/LiteDialogs.js")
+LITE_PAGE = Path(REPO + "/frontend/src/pages/LiteDashboardPage.js")
+LITE_DIALOGS = Path(REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js")
 
 
 def test_log_fault_for_equipment_defers_dialog_open():

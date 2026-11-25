@@ -18,11 +18,12 @@ covered there). What we are guarding here is the WIRING — the
 seams that would otherwise drift silently.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 CHUNKED  = FRONTEND / "utils/chunkedUpload.js"
 STASH    = FRONTEND / "utils/engineerUploadStash.js"
 PILL     = FRONTEND / "pages/ServiceOps/Engineer/PausedUploadsPill.js"

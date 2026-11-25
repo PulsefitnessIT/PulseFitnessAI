@@ -240,10 +240,20 @@ async def run_integrity_boot() -> dict:
     hist = await db.mod_sor_rate_card.update_many(
         {"price_status": "verified", "verified_by": {"$in": [None, ""]}, "price_source": {"$in": [None, ""]}},
         {"$set": {"price_status": "historical"}})
+    # Rates approved from synthetic test workbooks (or by test accounts) are never commercial prices.
+    test_marked = 0
+    for k in ("a", "b"):
+        res = await db.mod_sor_rate_card.update_many(
+            {f"rate_{k}_synthetic": {"$ne": True}, "$or": [
+                {f"rate_{k}.approved_by": {"$regex": r"\(test\)\s*$"}},
+                {f"rate_{k}.source": {"$regex": r"^(SYNTHETIC TEST DATA|Schedule B import sor\.xlsx )"}}]},
+            {"$set": {f"rate_{k}_synthetic": True}})
+        test_marked += res.modified_count
     _ = _re
     from utils.cm_actions import ensure_indexes
     await ensure_indexes()
     from utils.cm_quote_import import ensure_indexes as _qi_indexes
     await _qi_indexes()
     return {"fabricated_sicon_refs_removed": fixed_sicon, "fabricated_sage_refs_removed": fixed_sage,
-            "mod_rates_classified": classified, "mod_rates_marked_historical": hist.modified_count}
+            "mod_rates_classified": classified, "mod_rates_marked_historical": hist.modified_count,
+            "mod_rates_marked_synthetic": test_marked}

@@ -9,6 +9,7 @@
   logged as INFO 'already satisfied', libmagic message is WARNING (not ERROR)
 """
 
+from tests._paths import REPO  # noqa: E402
 import os
 import re
 import pytest
@@ -18,7 +19,7 @@ def _load_backend_url():
     u = os.environ.get("REACT_APP_BACKEND_URL", "")
     if not u:
         try:
-            with open("/app/frontend/.env") as f:
+            with open(REPO + "/frontend/.env") as f:
                 for line in f:
                     if line.startswith("REACT_APP_BACKEND_URL="):
                         u = line.split("=", 1)[1].strip()

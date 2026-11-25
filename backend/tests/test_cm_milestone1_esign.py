@@ -3,6 +3,7 @@ automatic activation, welcome pack, coordinator ownership, overdue PPM.
 
 Fictional data only (prefix ``cm_m1_``); everything is removed afterwards.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import io
 import os
@@ -77,8 +78,8 @@ def _open(key):
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
     _saved_terms.extend(mdb.crm2_afs_terms.find({"organization_id": OP, "status": "approved"}, {"_id": 0, "id": 1}))
     mdb.crm2_afs_terms.update_many({"organization_id": OP, "status": "approved"}, {"$set": {"status": "m1_parked"}})
     for c in ("a", "b", "c", "d"):

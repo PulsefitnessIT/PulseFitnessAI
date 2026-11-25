@@ -1,4 +1,5 @@
 """Phase 4 — Pulse Fitness AI Comms Centre: ESP import, webhooks, API keys, public REST API, Resend inbound."""
+from tests._paths import REPO  # noqa: E402
 import io
 import json
 import os
@@ -7,7 +8,7 @@ import time
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = "admin@pulsefitness.com"
 ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
 
@@ -252,7 +253,7 @@ def test_zzz_cleanup(auth_headers):
     try:
         import asyncio
         import sys
-        sys.path.insert(0, "/app/backend")
+        sys.path.insert(0, REPO + "/backend")
         from utils.database import db  # noqa
 
         async def _purge():

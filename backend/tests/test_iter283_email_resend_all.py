@@ -1,4 +1,5 @@
 """Iter 283 — Failed email Resend (single + Resend-all) contract tests."""
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import uuid
@@ -9,9 +10,9 @@ import requests
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
-load_dotenv("/app/backend/.env")
-load_dotenv("/app/frontend/.env")
-sys.path.insert(0, "/app/backend")
+load_dotenv(REPO + "/backend/.env")
+load_dotenv(REPO + "/frontend/.env")
+sys.path.insert(0, REPO + "/backend")
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 API = f"{BASE_URL}/api"

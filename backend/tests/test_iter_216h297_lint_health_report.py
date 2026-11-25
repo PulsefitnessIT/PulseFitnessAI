@@ -22,6 +22,7 @@ Pins covered
 * Script is executable
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import importlib.util
 import json
@@ -32,8 +33,8 @@ from unittest.mock import patch
 
 import pytest
 
-SCRIPT_PATH = Path("/app/scripts/lint_health_report.py")
-MAKEFILE = Path("/app/Makefile")
+SCRIPT_PATH = Path(REPO + "/scripts/lint_health_report.py")
+MAKEFILE = Path(REPO + "/Makefile")
 
 
 def _load_module():
@@ -212,7 +213,7 @@ def _make_snap(script, **overrides):
         backend_regression_passed=547,
         backend_regression_skipped=14,
         top_complex_files=[
-            {"file": "/app/backend/utils/churn_signals.py", "max_cc": 69, "worst_block": "detect"},
+            {"file": REPO + "/backend/utils/churn_signals.py", "max_cc": 69, "worst_block": "detect"},
         ],
         notes=[],
     )

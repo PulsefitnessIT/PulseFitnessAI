@@ -1,10 +1,11 @@
 """Helper for UI testing: seed (upload only, no commit) a fictional mmt_ui_ workbook, or report state / cleanup.
 Usage: python tests/mm_ui_seed.py state|seed|cleanup"""
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 
-sys.path.insert(0, "/app/backend")
-sys.path.insert(0, "/app/backend/tests")
+sys.path.insert(0, REPO + "/backend")
+sys.path.insert(0, REPO + "/backend/tests")
 from test_cm_maintenance_master import mdb, _h, _upload, workbook, MM, _cleanup  # noqa: E402
 
 REAL = "e7a84748-9c0d-4415-ba64-d66c621d3dae"

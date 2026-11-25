@@ -8,6 +8,7 @@ Features tested:
 5. GET /api/staffing/staff — Auto-backfill from db.users to db.staff_members
 6. POST /api/files/upload — PDF compression with original_size + compression_ratio fields
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -15,7 +16,7 @@ import uuid
 from datetime import datetime
 
 # Base URL from environment
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 
 # Test credentials
 MASTER_ADMIN_EMAIL = "admin@gymaxisai.com"
@@ -34,7 +35,7 @@ def rate_limit_bypass_headers() -> dict:
     """Rate-limit bypass header for test runs."""
     secret = ""
     try:
-        env_path = "/app/backend/.env"
+        env_path = REPO + "/backend/.env"
         if os.path.exists(env_path):
             with open(env_path) as f:
                 for line in f:

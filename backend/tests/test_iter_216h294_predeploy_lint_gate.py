@@ -15,12 +15,13 @@ Pins covered
   promoted to a file target)
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import re
 import subprocess
 from pathlib import Path
 
-MAKEFILE = Path("/app/Makefile")
+MAKEFILE = Path(REPO + "/Makefile")
 
 
 def _read() -> str:
@@ -94,7 +95,7 @@ def test_make_dry_run_lists_lint_before_pre_deploy():
     appear in the output."""
     result = subprocess.run(
         ["make", "-n", "pre-deploy"],
-        cwd="/app",
+        cwd=REPO,
         capture_output=True,
         text=True,
         timeout=30,

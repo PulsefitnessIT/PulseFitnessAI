@@ -66,7 +66,7 @@ LEGACY_HEXES = [
     ("#1B1D1D", "Pulse soft black — use #0F172A on GymAxis instead"),
 ]
 
-ROOT = pathlib.Path("/app")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT_PATH = ROOT / "BRAND_PALETTE_PREVIEW.html"
 
 

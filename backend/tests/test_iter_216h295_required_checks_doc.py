@@ -23,15 +23,16 @@ Pins covered
   CI surface so the historical context isn't lost
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 import pytest
 import yaml
 
-DOC = Path("/app/docs/CI_REQUIRED_CHECKS.md")
-CI_YML = Path("/app/.github/workflows/ci.yml")
-QG_YML = Path("/app/.github/workflows/quality-gate.yml")
+DOC = Path(REPO + "/docs/CI_REQUIRED_CHECKS.md")
+CI_YML = Path(REPO + "/.github/workflows/ci.yml")
+QG_YML = Path(REPO + "/.github/workflows/quality-gate.yml")
 
 
 @pytest.fixture(scope="module")

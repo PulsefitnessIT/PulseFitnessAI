@@ -6,6 +6,7 @@ the IndexedDB outbox and replays it on reconnect. A stable Idempotency-Key
 replay never duplicates the quote.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import pathlib
@@ -15,10 +16,10 @@ import requests
 
 from conftest import rate_limit_bypass_headers
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 ADMIN_PW = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
-FRONT = pathlib.Path("/app/frontend/src")
+FRONT = pathlib.Path(REPO + "/frontend/src")
 
 
 def _token() -> str:
@@ -71,7 +72,7 @@ def test_quote_create_without_key_is_unique():
 # ─── Wiring guards ──────────────────────────────────────────────────
 
 def test_backend_create_quote_accepts_idempotency_header():
-    src = (pathlib.Path("/app/backend/routes/svc/engineer_quotes.py")).read_text()
+    src = (pathlib.Path(REPO + "/backend/routes/svc/engineer_quotes.py")).read_text()
     assert 'alias="Idempotency-Key"' in src
     assert '"idempotency_key"' in src or "idempotency_key" in src
 

@@ -1,11 +1,12 @@
 """Iter311: edit contract_amount + comments on fictional MMT-1006, verify updated Master workbook writes them in original cells."""
+from tests._paths import REPO  # noqa: E402
 import io
 import sys
 
 import openpyxl
 import requests
 
-sys.path.insert(0, "/app/backend/tests")
+sys.path.insert(0, REPO + "/backend/tests")
 from test_mm_api_iter311 import MM, _h, mdb  # noqa: E402
 
 

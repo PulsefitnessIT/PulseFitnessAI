@@ -14,6 +14,7 @@ Widget behaviour:
   • Request-contact creates an audit-trailed `partner_contact_requests` row
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -25,7 +26,7 @@ from pymongo import MongoClient
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com"
+    or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")
 ).rstrip("/")
 
 OPERATOR_EMAIL = "e1.agent@gymaxisai.com"
@@ -192,7 +193,7 @@ class TestPulseIsolation:
         org_id = pulse_user["org_id"]
         script = f"""
 import asyncio, json, sys
-sys.path.insert(0, '/app/backend')
+sys.path.insert(0, REPO + '/backend')
 from routes.partners import attach_referral_to_org
 result = asyncio.run(attach_referral_to_org(
     organization_id='{org_id}', ref_code='AGQZKPAP',
@@ -225,7 +226,7 @@ print(json.dumps({{'result': result}}))
         )
         script = f"""
 import asyncio, json, sys
-sys.path.insert(0, '/app/backend')
+sys.path.insert(0, REPO + '/backend')
 from routes.partners import accrue_commission_on_invoice_paid
 invoice = {{
     'id': '{invoice_id}', 'customer': '{cus_id}', 'amount_paid': 6900,

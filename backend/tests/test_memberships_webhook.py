@@ -21,6 +21,7 @@ rest of the reconciliation path.
 Requires STRIPE_WEBHOOK_SECRET in /app/backend/.env (already set).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import hmac
@@ -34,7 +35,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import requests
 
-sys.path.insert(0, "/app/backend")  # so we can reach utils.database
+sys.path.insert(0, REPO + "/backend")  # so we can reach utils.database
 
 from tests.conftest import _test_backend_url
 
@@ -42,7 +43,7 @@ from tests.conftest import _test_backend_url
 def _load_env() -> dict:
     env = {}
     try:
-        with open("/app/backend/.env") as fh:
+        with open(REPO + "/backend/.env") as fh:
             for line in fh:
                 line = line.strip()
                 if not line or line.startswith("#") or "=" not in line:

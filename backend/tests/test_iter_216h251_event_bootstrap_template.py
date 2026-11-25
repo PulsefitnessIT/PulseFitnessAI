@@ -5,6 +5,7 @@ kind, saving the operator (especially dance-studio prospects setting
 up a recital) ~15–20 minutes of manual data entry.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -176,7 +177,7 @@ def test_bootstrap_404_for_unknown_event():
 # ─── Frontend assertions ───────────────────────────────────────────
 
 def test_create_event_modal_offers_template_toggle():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/EventsTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/EventsTab.js").read_text()
     # Toggle state present.
     assert "useTemplate" in src
     # Default templated kinds include the 3 high-value ones.
@@ -188,7 +189,7 @@ def test_create_event_modal_offers_template_toggle():
 
 
 def test_bootstrap_endpoint_registered():
-    src = pathlib.Path("/app/backend/routes/memberships/events.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/memberships/events.py").read_text()
     assert '/memberships/events/{event_id}/bootstrap-from-kind' in src
     assert 'class BootstrapIn(BaseModel)' in src
     # Templates list the expected kinds.

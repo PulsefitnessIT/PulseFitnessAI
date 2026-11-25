@@ -24,11 +24,12 @@ This file pins the redirect routes + scans the codebase to catch any
 new link that points at the killed wizard path.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
-ROUTES_FILE = Path("/app/frontend/src/routes/AppRoutes.js")
-WIZARD_FILE = Path("/app/frontend/src/pages/PartnerEngineer/PartnerApplyWizard.js")
+ROUTES_FILE = Path(REPO + "/frontend/src/routes/AppRoutes.js")
+WIZARD_FILE = Path(REPO + "/frontend/src/pages/PartnerEngineer/PartnerApplyWizard.js")
 
 
 def _routes() -> str:
@@ -61,7 +62,7 @@ def test_duplicate_wizard_file_deleted():
 
 def test_no_imports_of_deleted_wizard():
     """No JS/JSX file should still import the deleted PartnerApplyWizard."""
-    root = Path("/app/frontend/src")
+    root = Path(REPO + "/frontend/src")
     offenders: list[str] = []
     for js in root.rglob("*.js"):
         text = js.read_text(encoding="utf-8", errors="ignore")
@@ -78,7 +79,7 @@ def test_canonical_apply_link_is_the_only_active_target():
     must have been replaced with the canonical `/partners/engineers/apply`.
     AppRoutes.js itself is allowed to keep the path because the redirect
     lives there."""
-    root = Path("/app/frontend/src")
+    root = Path(REPO + "/frontend/src")
     offenders: list[tuple[str, int]] = []
     for js in root.rglob("*.js"):
         if js.name == "AppRoutes.js":

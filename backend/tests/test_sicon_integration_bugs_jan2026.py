@@ -13,6 +13,7 @@ Bug4 Sicon integration_logs are queryable (Event Log expand renders payload
      or fallback on the frontend; backend just needs to expose entries).
 """
 
+from tests._paths import REPO  # noqa: E402
 import os
 import asyncio
 import pytest
@@ -31,7 +32,7 @@ PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
 def _mfa_code() -> str:
     """Return a fresh TOTP code for the enrolled master admin."""
     import sys
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # type: ignore
     from utils.mfa import decrypt_secret  # type: ignore
 

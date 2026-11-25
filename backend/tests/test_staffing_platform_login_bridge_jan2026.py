@@ -7,6 +7,7 @@ Covers:
 - POST /staffing/reconcile-roles
 - GET /master-admin/users surfaces no-login staff (login_status='none')
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import time
@@ -15,7 +16,7 @@ import pytest
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE:
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE = line.strip().split("=", 1)[1].rstrip("/")

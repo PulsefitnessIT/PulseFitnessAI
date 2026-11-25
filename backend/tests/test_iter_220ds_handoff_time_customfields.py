@@ -19,11 +19,12 @@ the read-only handoff panel can filter the current engineer's own
 notes out.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:
@@ -64,7 +65,7 @@ def test_summary_handoff_panel_hidden_when_no_previous_notes():
 
 
 def test_engineer_get_case_pins_viewer_user_id():
-    src = (Path("/app/backend/routes/svc/engineer.py")).read_text(encoding="utf-8")
+    src = (Path(REPO + "/backend/routes/svc/engineer.py")).read_text(encoding="utf-8")
     assert '"viewer_user_id": user.get("id")' in src
 
 

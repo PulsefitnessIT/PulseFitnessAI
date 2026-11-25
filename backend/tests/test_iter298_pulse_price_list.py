@@ -1,4 +1,5 @@
 # Iter 298 — Pulse parts price list import, engineer price hiding, quote auto-fill from price list, report fallback
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import uuid
@@ -16,7 +17,7 @@ KNOWN_SKU = "105-275-4"  # price list row: Sales Price 10.45, CV Parts, Orchis
 
 
 def _env(key):
-    for line in open("/app/backend/.env"):
+    for line in open(REPO + "/backend/.env"):
         if line.startswith(key + "="):
             return line.split("=", 1)[1].strip().strip('"')
 
@@ -105,7 +106,7 @@ class TestPriceListImport:
     def test_seed_is_idempotent(self):
         import asyncio
         import sys
-        sys.path.insert(0, "/app/backend")
+        sys.path.insert(0, REPO + "/backend")
         from tests.conftest import drive_async
         from utils.parts_price_list import seed_pulse_price_list
         assert drive_async(seed_pulse_price_list()) == 0

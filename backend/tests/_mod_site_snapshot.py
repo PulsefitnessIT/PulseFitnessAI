@@ -1,10 +1,11 @@
 # Snapshot / restore MOD Test Site supplier state (usage: python _mod_site_snapshot.py save|restore)
+from tests._paths import REPO  # noqa: E402
 import pickle
 import os
 import sys
 from dotenv import load_dotenv
 from pymongo import MongoClient
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 SITE = "abfdabd9-ae11-4877-a44d-a36fea7f1f4e"
 P = "/tmp/mod_site_snap.pkl"

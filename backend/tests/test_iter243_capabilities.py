@@ -10,6 +10,7 @@ Root pattern (3rd occurrence): features hand-listed roles
   pulse admins (was a LIVE bug — Pulse Settings → fault templates).
 """
 
+from tests._paths import REPO  # noqa: E402
 import uuid
 
 import requests
@@ -17,7 +18,7 @@ import requests
 from tests.conftest import _test_backend_url
 
 BASE_URL = _test_backend_url()
-SRC = "/app/frontend/src"
+SRC = REPO + "/frontend/src"
 
 
 def _login(email: str, password: str) -> requests.Session:
@@ -46,7 +47,7 @@ def test_pulse_admin_can_manage_org_fault_templates():
 
 
 def test_backend_privileged_roles_include_pulse_admin():
-    src = open("/app/backend/routes/fault_templates.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/routes/fault_templates.py", encoding="utf-8").read()
     assert '"pulse_master_admin"' in src
     assert 'user.get("is_pulse_admin")' in src
 

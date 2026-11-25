@@ -13,12 +13,13 @@ the guard immediately bounced the user back to Start.
 Fix: add ``'instructors'`` to the allowed Studio-Mode tab set.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 
 
 def test_studio_tab_ids_includes_instructors():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
     # Locate the STUDIO_TAB_IDS literal and confirm 'instructors' is in it.
     marker = "const STUDIO_TAB_IDS = useMemo(() => new Set(["
     idx = src.index(marker)
@@ -32,5 +33,5 @@ def test_studio_tab_ids_includes_instructors():
 
 def test_studio_tab_guard_still_present():
     """Guard effect itself must remain — we only changed the allow-list."""
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
     assert "if (studio.studioMode && !STUDIO_TAB_IDS.has(tab)) setTab('start');" in src

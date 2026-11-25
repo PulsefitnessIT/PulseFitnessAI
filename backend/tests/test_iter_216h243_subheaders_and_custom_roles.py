@@ -19,6 +19,7 @@ Validates:
    dynamic dropdown.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import inspect
 import pathlib
@@ -26,7 +27,7 @@ import re
 
 
 def test_list_panel_suppresses_title_block():
-    src = pathlib.Path("/app/frontend/src/components/shared/ListPanel.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/components/shared/ListPanel.js").read_text()
     assert "const showTitleBlock = false" in src, "ListPanel title block must be suppressed"
     # Title + subtitle props must still be accepted on the API for backward compat.
     assert "title" in src and "subtitle" in src
@@ -36,13 +37,13 @@ def test_crm_subpages_h1_and_description_removed():
     """The three CRM sub-pages in the user's screenshots must no
     longer carry their old H1 + description blocks."""
     for fname, h1_text, desc_substr in (
-        ("/app/frontend/src/pages/CRM/CRMTerritories.js",
+        (REPO + "/frontend/src/pages/CRM/CRMTerritories.js",
             "Territory & coverage",
             "Define geographic coverage areas"),
-        ("/app/frontend/src/pages/CRM/CRMForecast.js",
+        (REPO + "/frontend/src/pages/CRM/CRMForecast.js",
             "Forecast & quotas",
             "Track per-rep attainment"),
-        ("/app/frontend/src/pages/CRM/CRMReports.js",
+        (REPO + "/frontend/src/pages/CRM/CRMReports.js",
             "Reports & analytics",
             "Pipeline health, quote conversion"),
     ):
@@ -51,9 +52,9 @@ def test_crm_subpages_h1_and_description_removed():
         assert desc_substr not in text, f"{fname}: description '{desc_substr}…' still present"
     # Page padding tightened.
     for fname in (
-        "/app/frontend/src/pages/CRM/CRMTerritories.js",
-        "/app/frontend/src/pages/CRM/CRMForecast.js",
-        "/app/frontend/src/pages/CRM/CRMReports.js",
+        REPO + "/frontend/src/pages/CRM/CRMTerritories.js",
+        REPO + "/frontend/src/pages/CRM/CRMForecast.js",
+        REPO + "/frontend/src/pages/CRM/CRMReports.js",
     ):
         text = pathlib.Path(fname).read_text(encoding="utf-8")
         assert re.search(r'py-3 space-y-3', text), f"{fname}: tight padding not applied"
@@ -96,7 +97,7 @@ def test_add_staff_role_validation_paths():
 
 
 def test_staffing_console_dropdown_loads_dynamic_roles():
-    src = pathlib.Path("/app/frontend/src/pages/LiteDashboard/StaffingConsole.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js").read_text()
     assert "/staffing/roles" in src
     assert "+ Add new role" in src
     assert '__add_new__' in src
@@ -104,7 +105,7 @@ def test_staffing_console_dropdown_loads_dynamic_roles():
 
 
 def test_hr_profile_renders_primary_role_dropdown():
-    src = pathlib.Path("/app/frontend/src/pages/LiteDashboard/staffing/HRTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/LiteDashboard/staffing/HRTab.js").read_text()
     assert "/staffing/roles" in src
     assert 'data-testid="hr-primary-role"' in src
     assert "primary_role" in src

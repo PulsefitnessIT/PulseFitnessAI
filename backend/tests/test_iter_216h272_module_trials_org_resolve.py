@@ -35,6 +35,7 @@ The chain:
   Belt + braces — survives the seeder failing too.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -116,7 +117,7 @@ def test_seeder_self_heals_missing_master_admin_org():
 
     Iter 220dy — the seeder moved to ``bootstrap.seed``; we now read
     the body from there instead of ``server.py``."""
-    src = pathlib.Path("/app/backend/bootstrap/seed.py").read_text()
+    src = pathlib.Path(REPO + "/backend/bootstrap/seed.py").read_text()
     seeder_block = src.split("async def seed_master_admin")[1].split("async def seed_services")[0]
     # Self-heal must:
     #   - read the existing user's organization_id
@@ -141,7 +142,7 @@ def test_resolve_org_safety_net_is_master_admin_only():
     """The synth stub is gated explicitly behind `is_master_admin`.
     A bug that flipped the check (or removed the guard) would mask
     real tenant data corruption for paying customers."""
-    src = pathlib.Path("/app/backend/routes/module_trials.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/module_trials.py").read_text()
     block = src.split("async def _resolve_org")[1].split("\n\n\n")[0]
     assert 'user.get("is_master_admin")' in block, (
         "safety net must check is_master_admin"

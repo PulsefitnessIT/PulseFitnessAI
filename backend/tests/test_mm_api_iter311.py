@@ -1,15 +1,16 @@
 """Iteration 311 — Maintenance Master API checks via PUBLIC URL against the mmt_ui_ upload committed in the UI
 (run after `python tests/mm_ui_seed.py` / UI commit). Never touches the real upload except read-only + 403 commit check."""
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 
 import pytest
 import requests
 
-sys.path.insert(0, "/app/backend/tests")
+sys.path.insert(0, REPO + "/backend/tests")
 from test_cm_maintenance_master import _h, mdb  # noqa: E402
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL") or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split()[0]
+BASE = os.environ.get("REACT_APP_BACKEND_URL") or open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split()[0]
 MM = f"{BASE.rstrip('/')}/api/crm/v2/aftersales/maintenance-master"
 REAL = "e7a84748-9c0d-4415-ba64-d66c621d3dae"
 

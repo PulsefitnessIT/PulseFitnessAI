@@ -1,4 +1,5 @@
 """Nov 2026 — auto-allocate new MOD faults to a provider's sole engineer."""
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import uuid
@@ -23,7 +24,7 @@ def _db():
 @pytest.fixture(scope="module", autouse=True)
 def seed():
     from dotenv import load_dotenv
-    load_dotenv("/app/backend/.env")
+    load_dotenv(REPO + "/backend/.env")
     asyncio.set_event_loop(LOOP)
     import utils.esp_engineer as esp
     import utils.svc_state as st

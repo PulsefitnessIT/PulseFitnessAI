@@ -17,6 +17,7 @@ Three connected fixes off a live user report:
 """
 
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -26,7 +27,7 @@ from pathlib import Path
 import pytest
 
 
-FRONTEND   = Path("/app/frontend/src")
+FRONTEND   = Path(REPO + "/frontend/src")
 JOB_DETAIL = FRONTEND / "pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
 MACHINES   = FRONTEND / "pages/ServiceOps/Engineer/WorkVisitMachinesCard.js"
 SETTINGS   = FRONTEND / "pages/ServiceOps/Engineer/EngineerAccountSettings.js"
@@ -132,10 +133,10 @@ def test_safety_waive_endpoint_marks_case_and_unblocks_timer():
 
 
 def test_safety_waive_route_registered_in_safety_module():
-    src = (Path("/app/backend/routes/svc/safety.py")).read_text()
+    src = (Path(REPO + "/backend/routes/svc/safety.py")).read_text()
     assert '@router.post("/svc/engineer/jobs/{case_id}/safety/waive")' in src
     assert "engineer_safety_waive" in src
     # And the on-site timer gate honours the waiver flag.
-    eng = (Path("/app/backend/routes/svc/engineer.py")).read_text()
+    eng = (Path(REPO + "/backend/routes/svc/engineer.py")).read_text()
     assert 'not case.get("safety_signoff_waived")' in eng
     assert 'safety_waived = bool(case.get("safety_signoff_waived"))' in eng

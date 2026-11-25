@@ -18,6 +18,7 @@ Covers:
 4. Source pins — header brand + legacy-tile gating wired in the frontend.
 """
 
+from tests._paths import REPO  # noqa: E402
 import uuid
 
 import requests
@@ -95,7 +96,7 @@ def test_partner_engineer_me_keeps_partner_flag():
 
 def test_frontend_wiring_pins():
     """Source pins — header brand hook + legacy gating must stay wired."""
-    base = "/app/frontend/src/pages/ServiceOps/Engineer"
+    base = REPO + "/frontend/src/pages/ServiceOps/Engineer"
     hook = open(f"{base}/hooks/useEngineerOrgBrand.js", encoding="utf-8").read()
     assert "organization_name" in hook and "internal_engineer" in hook
 

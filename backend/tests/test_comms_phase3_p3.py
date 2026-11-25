@@ -7,6 +7,7 @@ Coverage:
   • Surveys (forms with kind=survey, rating/radio aggregation)
   • Marketing Journeys CRUD (Flows tab surfaces this)
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import uuid
@@ -14,12 +15,12 @@ import asyncio
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = "admin@pulsefitness.com"
 ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
 
 # Allow importing backend modules + DB access
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 
 
 # ───── Shared fixtures ─────

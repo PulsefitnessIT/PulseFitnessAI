@@ -53,6 +53,9 @@ def mgr():
     r = s.post(f"{API}/mod-ops/quotes/rates/import-preview", files={"file": ("sor.xlsx", synthetic_sor_bytes())})
     assert r.status_code == 200, r.text
     r = s.post(f"{API}/mod-ops/quotes/rates/{r.json()['price_list_id']}/approve", json={"effective_from": "2026-01-01", "confirm": True})
+    if r.status_code == 409 and "SYNTHETIC" in r.text:
+        pytest.skip("Target server protects its live rate card from synthetic data; "
+                    "run against a test server started with MOD_RATES_ALLOW_SYNTHETIC=true")
     assert r.status_code == 200, r.text
     yield s
 

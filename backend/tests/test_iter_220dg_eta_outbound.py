@@ -19,6 +19,7 @@ Pins:
   * Default ``engineer_en_route`` template uses the new tokens.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -393,7 +394,7 @@ def test_default_en_route_template_uses_new_tokens():
 
 def test_frontend_eta_chip_mounted_and_wired():
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
     ).read_text()
     assert "EtaUpdateChip" in src
     assert "/svc/engineer/jobs/${caseId}/eta-update" in src

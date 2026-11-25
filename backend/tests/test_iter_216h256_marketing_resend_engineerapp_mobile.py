@@ -14,6 +14,7 @@ User feedback (Feb 20, 2026, production):
    engineers"
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 import re
@@ -37,7 +38,7 @@ def test_see_it_in_action_removed_from_marketing():
         "PricingMarketingPage.js",
     ):
         src = _strip_comments(
-            pathlib.Path(f"/app/frontend/src/pages/Marketing/{name}").read_text()
+            pathlib.Path(f"{REPO}/frontend/src/pages/Marketing/{name}").read_text()
         )
         assert "See it in action" not in src, (
             f"{name} still renders 'See it in action' outside comments"
@@ -49,7 +50,7 @@ def test_see_it_in_action_removed_from_marketing():
 def test_contact_page_no_fake_contact_details():
     src = _strip_comments(
         pathlib.Path(
-            "/app/frontend/src/pages/Marketing/ContactMarketingPage.js"
+            REPO + "/frontend/src/pages/Marketing/ContactMarketingPage.js"
         ).read_text()
     )
     assert "hello@gymaxisai.com" not in src
@@ -60,7 +61,7 @@ def test_contact_page_no_fake_contact_details():
 # ─── 3. Resend domain normalisation ─────────────────────────────────
 
 def test_sender_email_env_is_lowercase():
-    env = pathlib.Path("/app/backend/.env").read_text()
+    env = pathlib.Path(REPO + "/backend/.env").read_text()
     # Specifically check the SENDER_EMAIL line.
     for line in env.splitlines():
         if line.startswith("SENDER_EMAIL="):
@@ -99,7 +100,7 @@ def test_sender_email_runtime_normalised():
 # ─── 4. Service Desk mobile optimisation ────────────────────────────
 
 def test_service_desk_has_mobile_drawer():
-    src = pathlib.Path("/app/frontend/src/pages/ServiceDeskPage.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/ServiceDeskPage.js").read_text()
     # Hamburger trigger.
     assert 'data-testid="desk-sidebar-open"' in src
     # Drawer close button.
@@ -117,7 +118,7 @@ def test_service_desk_has_mobile_drawer():
 
 def test_master_admin_has_engineer_app_switch():
     src = pathlib.Path(
-        "/app/frontend/src/pages/MasterAdmin/AdminSidebar.js"
+        REPO + "/frontend/src/pages/MasterAdmin/AdminSidebar.js"
     ).read_text()
     assert 'data-testid="portal-switch-engineer-app"' in src
     assert "/svc/engineer" in src

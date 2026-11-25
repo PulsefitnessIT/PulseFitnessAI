@@ -3,6 +3,7 @@ idempotent activation, truthful renewal comms, sales → coordinator handover.
 
 Fictional data only (prefix ``cm_ab_``); everything is removed afterwards.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import subprocess
@@ -30,8 +31,8 @@ def _crm(uid):
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
     yield
     rx = {"$regex": f"^{T}"}
     for coll in ("crm2_contracts", "crm2_companies", "crm2_contacts", "organizations", "sites", "equipment",

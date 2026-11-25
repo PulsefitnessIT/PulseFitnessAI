@@ -5,9 +5,10 @@ wizard (Step 1) AND as a one-click toggle pill on the contract
 Detail header — so contract coordinators don't have to dig into the
 Edit modal to enable the autopilot.
 """
+from tests._paths import REPO  # noqa: E402
 from pathlib import Path
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

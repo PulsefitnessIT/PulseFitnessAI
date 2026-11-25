@@ -14,6 +14,7 @@ specific scenarios from the review request:
    campaigns, /sites, CRM v2 companies) and /sites/leaderboard works.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 
@@ -25,7 +26,7 @@ def _resolve_base_url() -> str:
     if url:
         return url.rstrip("/")
     # Fallback: read frontend/.env so pytest picks up the public ingress url.
-    env_path = "/app/frontend/.env"
+    env_path = REPO + "/frontend/.env"
     if os.path.exists(env_path):
         with open(env_path) as f:
             for line in f:

@@ -18,11 +18,12 @@ Summary tab + Time tab in `EngineerJobDetailV2.js`:
 """
 
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-FRONTEND   = Path("/app/frontend/src")
+FRONTEND   = Path(REPO + "/frontend/src")
 JOB_DETAIL = FRONTEND / "pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
 
 

@@ -9,13 +9,14 @@ Tests:
 5. POST /api/memberships/billing/monthly-invoice/preview — multi-course grouping
 6. Regression: existing course with tz-aware fix still works
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
 import uuid
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 
 # Test credentials
 OPERATOR_EMAIL = "lee.somers@pulsefitness.com"
@@ -35,7 +36,7 @@ def rate_limit_bypass_headers() -> dict:
     secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     if not secret:
         try:
-            env_path = "/app/backend/.env"
+            env_path = REPO + "/backend/.env"
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:

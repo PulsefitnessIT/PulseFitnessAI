@@ -16,6 +16,7 @@ Tests for:
 3. Cross-site security:
    - army-catterick fetching RAF attachment → 403
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -52,7 +53,7 @@ class TestInlineAttachmentBlockEdgeCases:
     def test_nonexistent_storage_path_gracefully_skipped(self):
         """Non-existent storage path should be silently skipped, not raise."""
         import sys
-        sys.path.insert(0, '/app/backend')
+        sys.path.insert(0, REPO + '/backend')
         from routes.mod_portal import _inline_attachment_block
 
         # Doc with non-existent path
@@ -70,7 +71,7 @@ class TestInlineAttachmentBlockEdgeCases:
     def test_video_attachment_produces_placeholder(self):
         """Video attachment should produce a placeholder tile, not inline video."""
         import sys
-        sys.path.insert(0, '/app/backend')
+        sys.path.insert(0, REPO + '/backend')
         from routes.mod_portal import _inline_attachment_block
 
         # We need to mock get_object to return video content
@@ -93,7 +94,7 @@ class TestInlineAttachmentBlockEdgeCases:
     def test_empty_attachment_urls_returns_empty(self):
         """Empty attachment_urls should return empty string."""
         import sys
-        sys.path.insert(0, '/app/backend')
+        sys.path.insert(0, REPO + '/backend')
         from routes.mod_portal import _inline_attachment_block
 
         # Test with empty list
@@ -116,7 +117,7 @@ class TestInlineAttachmentBlockEdgeCases:
     def test_escalation_email_with_attachments(self):
         """Test _escalation_email_html includes attachment block when present."""
         import sys
-        sys.path.insert(0, '/app/backend')
+        sys.path.insert(0, REPO + '/backend')
         from routes.mod_portal import _escalation_email_html
 
         site = {"name": "Demo Air Station Gym"}
@@ -143,7 +144,7 @@ class TestInlineAttachmentBlockEdgeCases:
     def test_escalation_email_without_attachments_no_header(self):
         """Escalation email with no attachments should not have Attachments header."""
         import sys
-        sys.path.insert(0, '/app/backend')
+        sys.path.insert(0, REPO + '/backend')
         from routes.mod_portal import _escalation_email_html
 
         site = {"name": "Test Site"}
@@ -311,7 +312,7 @@ class TestAttachmentViewerUrl:
     def test_attachment_viewer_url_format(self):
         """Test that _attachment_viewer_url produces correct format."""
         import sys
-        sys.path.insert(0, '/app/backend')
+        sys.path.insert(0, REPO + '/backend')
         from routes.mod_portal import _attachment_viewer_url
 
         path = "gymaxis-ai/mod-attachments/test/file.webp"
@@ -329,7 +330,7 @@ class TestAttachmentViewerUrl:
     def test_attachment_viewer_url_encodes_special_chars(self):
         """Test that special characters in path are URL-encoded."""
         import sys
-        sys.path.insert(0, '/app/backend')
+        sys.path.insert(0, REPO + '/backend')
         from routes.mod_portal import _attachment_viewer_url
 
         path = "gymaxis-ai/mod-attachments/test/file with spaces.webp"

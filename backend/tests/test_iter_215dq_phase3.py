@@ -15,6 +15,7 @@ Tests:
 - Scoring formula verification
 - Sicon outbox payload verification (EquipmentIDs, EquipmentSerials, Parts, RequiredSkills)
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
@@ -24,7 +25,7 @@ from tests.conftest import rate_limit_bypass_headers
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    BASE_URL = "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com"
+    BASE_URL = (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")
 
 # Session-scoped login to avoid rate limiting
 _SESSION_TOKEN = None
@@ -867,7 +868,7 @@ class TestFieldMappingDoc:
 
     def test_mapping_doc_has_parts_sections(self):
         """Verify SVC_FIELD_MAPPING.md has §12, §13, §14."""
-        path = "/app/memory/SVC_FIELD_MAPPING.md"
+        path = REPO + "/memory/SVC_FIELD_MAPPING.md"
         assert os.path.exists(path), f"Missing: {path}"
 
         with open(path) as f:

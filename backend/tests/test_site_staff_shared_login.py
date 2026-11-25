@@ -8,6 +8,7 @@ Covers:
 - Permissions: shared login blocked from managing staff and from another site's active list
 - Multi-site isolation: staff in one site don't appear in another
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import uuid
@@ -18,7 +19,7 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     # Fallback to frontend env file
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     BASE_URL = line.split("=", 1)[1].strip().rstrip("/")

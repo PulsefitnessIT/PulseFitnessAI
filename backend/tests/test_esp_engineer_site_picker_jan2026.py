@@ -8,6 +8,7 @@ Covers:
 - PATCH engineer site_ids persistence
 - Regression: territory engineer (engineer.gib) + lead unrestricted /bfpo/sites
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
@@ -16,11 +17,11 @@ from pymongo import MongoClient
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    for line in open("/app/frontend/.env"):
+    for line in open(REPO + "/frontend/.env"):
         if line.startswith("REACT_APP_BACKEND_URL="):
             BASE_URL = line.split("=", 1)[1].strip().rstrip("/")
 API = f"{BASE_URL}/api"
-BYPASS = {"x-ratelimit-bypass": "test-bypass-secret-for-ci-runs-only-2026"}
+BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 
 ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
 GIB = ("engineer.gib@bfpo.pulsefitness.test", "BfpoEng123!")
@@ -36,7 +37,7 @@ TEMP_PW = f"TempPw!{RUN}"
 
 
 def _env(key):
-    for line in open("/app/backend/.env"):
+    for line in open(REPO + "/backend/.env"):
         if line.startswith(key + "="):
             return line.split("=", 1)[1].strip().strip('"')
 

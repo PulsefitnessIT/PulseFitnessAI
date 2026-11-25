@@ -7,14 +7,15 @@ Covers routes/crm_quote_handover.py:
 Seeded fixture (left in place): crm2_companies 'HANDOVER-TEST-CO' (iso-demo-org)
 -> tenant_org_id 'handover-test-portal' (org 'Handover Test Gym').
 """
+from tests._paths import REPO  # noqa: E402
 import os
 
 import pytest
 import requests
 from dotenv import dotenv_values
 
-_env = dotenv_values("/app/frontend/.env")
-_be = dotenv_values("/app/backend/.env")
+_env = dotenv_values(REPO + "/frontend/.env")
+_be = dotenv_values(REPO + "/backend/.env")
 BASE = (os.environ.get("REACT_APP_BACKEND_URL") or _env.get("REACT_APP_BACKEND_URL", "")).rstrip("/")
 if not BASE:
     raise RuntimeError("REACT_APP_BACKEND_URL missing")

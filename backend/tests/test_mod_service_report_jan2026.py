@@ -1,5 +1,6 @@
 # MOD Service Report consistency (Jan 2026): BFPO job-sheet -> standard Service Report,
 # MOD site fault service-report download, non-MOD calibration regression, PPM schedule is_mod flag.
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import uuid
@@ -10,8 +11,8 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from pypdf import PdfReader
 
-load_dotenv("/app/frontend/.env")
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/frontend/.env")
+load_dotenv(REPO + "/backend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 BYPASS = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 

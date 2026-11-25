@@ -7,6 +7,7 @@ NOTE: /api/auth/login is rate-limited. We reuse tokens aggressively via
 module-scoped fixtures and space fresh logins by ~35 s.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import time
@@ -19,7 +20,7 @@ def _load_backend_url() -> str:
     url = os.environ.get("REACT_APP_BACKEND_URL", "").strip()
     if not url:
         try:
-            with open("/app/frontend/.env", encoding="utf-8") as fh:
+            with open(REPO + "/frontend/.env", encoding="utf-8") as fh:
                 for line in fh:
                     if line.startswith("REACT_APP_BACKEND_URL="):
                         url = line.split("=", 1)[1].strip().strip('"').strip("'")

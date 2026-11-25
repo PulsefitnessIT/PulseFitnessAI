@@ -37,6 +37,7 @@ Frontend pin (source-level):
     token flow — they're already dispatched).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import os
@@ -167,7 +168,7 @@ def test_my_gyms_filters_to_open_statuses_only():
     only actively-open work. Pin the Mongo filter at the source level
     so a future tweak to the open-status list can't silently regress."""
     import pathlib
-    src = pathlib.Path("/app/backend/routes/svc/engineer_queue.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/svc/engineer_queue.py").read_text()
     # The endpoint must enumerate open statuses + filter with $in.
     assert "open_statuses" in src
     for status in ["new", "in_progress", "awaiting_parts", "scheduled"]:
@@ -183,7 +184,7 @@ def test_engineer_queue_imports_and_renders_view_switcher():
     Partner Engineers) and must call `/queue/my-gyms` to pre-populate
     the badge count."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js").read_text()
     assert "/svc/engineer/queue/my-gyms" in src, (
         "Queue must fetch the my-gyms endpoint on mount"
     )
@@ -200,7 +201,7 @@ def test_engineer_queue_row_handles_my_gyms_view():
     """My-gyms rows route to the supplier-portal token URL, NOT the
     normal claim modal — those cases are already dispatched."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js").read_text()
     assert "isMyGymRow" in src or "viewMode === 'my-gyms'" in src, (
         "Row must branch on view mode"
     )
@@ -223,11 +224,11 @@ def test_engineer_queue_my_gyms_uses_brand_gradient_not_legacy_cyan():
     navy→purple gradient — NEVER the legacy Pulse cyan. Pin against
     a brand regression."""
     import pathlib
-    src = pathlib.Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerQueue.js").read_text()
     # The gradient is set inline on the active pill button
     assert "#2563EB" in src and "#9D4CDD" in src, (
         "My-gyms pill must use the canonical navy→purple gradient — see "
-        "/app/BRAND_PALETTE.md"
+        "/BRAND_PALETTE.md"
     )
     # Sanity: no legacy Pulse cyan literal sneaking into the pill area.
     # (We allow #19CDFF only in legacy / Pulse files — this is GymAxis ops.)

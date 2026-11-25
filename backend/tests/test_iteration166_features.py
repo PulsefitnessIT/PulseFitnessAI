@@ -5,6 +5,7 @@
 
 Uses the seeded demo data from memberships_seed.py.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import sys
 import uuid
@@ -13,7 +14,7 @@ from datetime import datetime, timezone
 import pytest
 import requests
 
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 from tests.conftest import _test_backend_url, rate_limit_bypass_headers
 
 BASE_URL = _test_backend_url()
@@ -32,7 +33,7 @@ MEMBER_OLIVER_PASSWORD = "Member2026!"
 def _load_env() -> dict:
     env = {}
     try:
-        with open("/app/backend/.env") as fh:
+        with open(REPO + "/backend/.env") as fh:
             for line in fh:
                 line = line.strip()
                 if not line or line.startswith("#") or "=" not in line:

@@ -12,6 +12,7 @@ Plus a frontend wiring smoke check for ``BarcodeScanModal`` + the
 ``QrCode`` scan button mounted in ``EngineerEquipment``.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -179,8 +180,8 @@ def test_lookup_400s_on_oversize_code():
 
 
 def test_frontend_barcode_scan_modal_mounted():
-    eq = Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerEquipment.js").read_text()
-    modal = Path("/app/frontend/src/pages/ServiceOps/Engineer/BarcodeScanModal.js").read_text()
+    eq = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerEquipment.js").read_text()
+    modal = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/BarcodeScanModal.js").read_text()
 
     assert "BarcodeScanModal" in eq, "modal not imported into EngineerEquipment"
     assert 'data-testid="equipment-scan-btn"' in eq

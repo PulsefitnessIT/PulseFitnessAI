@@ -7,14 +7,15 @@ Creates a CPQ v2 quote for the seeded linked company HANDOVER-TEST-CO
 Usage:  python tests/_seed_fe_handover_quote.py            # seed
         python tests/_seed_fe_handover_quote.py --cleanup  # remove TEST data
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 
 import requests
 from dotenv import dotenv_values
 
-_env = dotenv_values("/app/frontend/.env")
-_be = dotenv_values("/app/backend/.env")
+_env = dotenv_values(REPO + "/frontend/.env")
+_be = dotenv_values(REPO + "/backend/.env")
 BASE = (os.environ.get("REACT_APP_BACKEND_URL") or _env.get("REACT_APP_BACKEND_URL", "")).rstrip("/")
 V2 = f"{BASE}/api/crm/v2"
 EMAIL, PASSWORD = "owner@isodemo.com", "IsoDemo123!"

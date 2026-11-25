@@ -30,10 +30,11 @@ variant (non-AI tenants — `isPro === false`):
    Lite gets neutral copy ("gives the engineer a head start").
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
-LITE_DIALOGS = Path("/app/frontend/src/pages/LiteDashboard/LiteDialogs.js")
+LITE_DIALOGS = Path(REPO + "/frontend/src/pages/LiteDashboard/LiteDialogs.js")
 
 
 # ── Bug 1: submission button must not pass the event to handler ────

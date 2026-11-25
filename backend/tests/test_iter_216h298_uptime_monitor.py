@@ -21,6 +21,7 @@ Pins covered
 * Script is executable
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import importlib.util
@@ -32,8 +33,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-SCRIPT_PATH = Path("/app/scripts/uptime_monitor.py")
-MAKEFILE = Path("/app/Makefile")
+SCRIPT_PATH = Path(REPO + "/scripts/uptime_monitor.py")
+MAKEFILE = Path(REPO + "/Makefile")
 
 
 def _load_module():

@@ -12,6 +12,7 @@ Lightweight live-endpoint smoke at the bottom: the underlying API
 must remain reachable (it's the prerequisite for the admin page).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -26,7 +27,7 @@ def _run(coro):
 
 
 def test_compliance_admin_component_exists():
-    src = Path("/app/frontend/src/pages/ServiceOps/ComplianceAdmin.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceOps/ComplianceAdmin.js").read_text()
     # Two named sub-components keep code-review legible.
     assert "function PtwAdmin" in src
     assert "function CoshhAdmin" in src
@@ -34,7 +35,7 @@ def test_compliance_admin_component_exists():
 
 
 def test_compliance_admin_wires_correct_endpoints():
-    src = Path("/app/frontend/src/pages/ServiceOps/ComplianceAdmin.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceOps/ComplianceAdmin.js").read_text()
     # All four backend endpoints from Iter 220de.
     assert "/svc/compliance/ptw/templates" in src
     assert "/svc/compliance/coshh" in src
@@ -49,7 +50,7 @@ def test_compliance_admin_wires_correct_endpoints():
 
 
 def test_compliance_admin_has_stable_test_ids():
-    src = Path("/app/frontend/src/pages/ServiceOps/ComplianceAdmin.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceOps/ComplianceAdmin.js").read_text()
     # Literal data-testid attributes in JSX.
     literal_ids = (
         "compliance-admin", "compliance-admin-tabs",
@@ -73,7 +74,7 @@ def test_compliance_admin_has_stable_test_ids():
 
 
 def test_service_desk_page_mounts_compliance_tab():
-    src = Path("/app/frontend/src/pages/ServiceDeskPage.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceDeskPage.js").read_text()
     # Lazy import.
     assert "OpsCompliance" in src
     assert "./ServiceOps/ComplianceAdmin" in src

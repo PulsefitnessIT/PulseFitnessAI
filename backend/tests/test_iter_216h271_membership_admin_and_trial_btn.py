@@ -38,6 +38,7 @@ and the button appeared empty.
   theme tokens. Same brand gradient as the hero CTA.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -57,7 +58,7 @@ def test_revenue_oversight_handles_org_without_name():
     fixture per pipeline stage). The live curl in the iter notes
     covers the actual endpoint behaviour."""
     src = pathlib.Path(
-        "/app/backend/routes/master_admin_memberships.py"
+        REPO + "/backend/routes/master_admin_memberships.py"
     ).read_text()
     # The fix must guard the dict comp + skip orgs with no id
     rev_block = src.split("revenue_oversight")[1].split("@router")[0]
@@ -73,7 +74,7 @@ def test_instructor_oversight_handles_org_without_name():
     builds the same `org_names` dict and was crashing on the same
     KeyError shape."""
     src = pathlib.Path(
-        "/app/backend/routes/master_admin_memberships.py"
+        REPO + "/backend/routes/master_admin_memberships.py"
     ).read_text()
     # No more bare dict-access — must use .get() with a default
     assert 'o["name"] for o' not in src, (
@@ -85,7 +86,7 @@ def test_no_more_brittle_org_name_dict_access():
     """Sweep — every org dict-access in this file must be guarded.
     Catches both the line 175 alert path and any future regressions."""
     src = pathlib.Path(
-        "/app/backend/routes/master_admin_memberships.py"
+        REPO + "/backend/routes/master_admin_memberships.py"
     ).read_text()
     # Only legitimate strict access is on aggregations like `_id`
     bad_lines = [
@@ -101,7 +102,7 @@ def test_no_more_brittle_org_name_dict_access():
 def test_memberships_admin_hook_uses_promise_allsettled():
     """Single endpoint failure must NOT nuke the whole page."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/MasterAdmin/AdminMemberships/useMembershipsAdmin.js"
+        REPO + "/frontend/src/pages/MasterAdmin/AdminMemberships/useMembershipsAdmin.js"
     ).read_text()
     assert "Promise.allSettled" in src
     assert "Promise.all(" not in src.replace("Promise.allSettled", ""), (
@@ -114,7 +115,7 @@ def test_memberships_admin_hook_reports_failed_sections():
     """When one or more sections fail, the toast should tell the
     operator which ones — not just a generic 'failed to load'."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/MasterAdmin/AdminMemberships/useMembershipsAdmin.js"
+        REPO + "/frontend/src/pages/MasterAdmin/AdminMemberships/useMembershipsAdmin.js"
     ).read_text()
     assert "failed.join(" in src
     # The toast wording must mention "section" so operators understand
@@ -134,8 +135,8 @@ def test_mobile_trial_button_has_explicit_gradient_and_white_text():
     # screenshot is the marketing one (gx-nav-mobile-trial) but we
     # pin both so a future refactor can't regress either.
     for path, testid in [
-        ("/app/frontend/src/components/shared/Navbar.js", "mobile-trial-btn"),
-        ("/app/frontend/src/pages/Marketing/MarketingShell.js", "gx-nav-mobile-trial"),
+        (REPO + "/frontend/src/components/shared/Navbar.js", "mobile-trial-btn"),
+        (REPO + "/frontend/src/pages/Marketing/MarketingShell.js", "gx-nav-mobile-trial"),
     ]:
         src = pathlib.Path(path).read_text()
         block = src.split(f'data-testid="{testid}"')[0].rsplit('<', 1)[1]
@@ -147,7 +148,7 @@ def test_mobile_trial_button_has_explicit_gradient_and_white_text():
 def test_mobile_trial_button_still_opens_signup_modal():
     """Sanity — the click handler shouldn't have changed."""
     src = pathlib.Path(
-        "/app/frontend/src/components/shared/Navbar.js"
+        REPO + "/frontend/src/components/shared/Navbar.js"
     ).read_text()
     block = src.split('data-testid="mobile-trial-btn"')[0].rsplit('<Button', 1)[1]
     assert "setIsLogin(false)" in block

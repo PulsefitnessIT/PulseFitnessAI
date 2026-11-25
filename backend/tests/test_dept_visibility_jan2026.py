@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 PWD = "IsoDemo123!"
 MGR_STAFF_ID = "996e6ae6-2ea4-4ead-a3e3-ebf7f43ed396"
 LEAD_STAFF_ID = "deptdemo-lead"

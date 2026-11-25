@@ -1,6 +1,7 @@
 # MOD service process end-to-end: MOD fault log -> ESP + Pulse notified -> ESP engineer
 # claims & completes in engineer app with customer sign-off -> MOD fault shows engineer
 # report -> Pulse close-out email for Sicon. Runs sequentially; shared state in module dict.
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 from datetime import datetime, timezone
@@ -11,7 +12,7 @@ from pymongo import MongoClient
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for ln in f:
             if ln.startswith("REACT_APP_BACKEND_URL="):
                 BASE_URL = ln.split("=", 1)[1].strip().strip('"').rstrip("/")
@@ -19,7 +20,7 @@ API = f"{BASE_URL}/api"
 
 
 def _env(key):
-    with open("/app/backend/.env") as f:
+    with open(REPO + "/backend/.env") as f:
         for ln in f:
             if ln.startswith(key + "="):
                 return ln.split("=", 1)[1].strip().strip('"')

@@ -8,6 +8,7 @@ health, impersonation. GymAxis master admins remain platform-wide.
 Out-of-scope orgs return 404 (indistinguishable from non-existent).
 """
 
+from tests._paths import REPO  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url
@@ -108,6 +109,6 @@ def test_supplier_health_reports_scope():
 # ── Frontend wiring ──────────────────────────────────────────────
 
 def test_desk_customers_shows_scope_badge():
-    src = open("/app/frontend/src/pages/ServiceDesk/DeskCustomers.js", encoding="utf-8").read()
+    src = open(REPO + "/frontend/src/pages/ServiceDesk/DeskCustomers.js", encoding="utf-8").read()
     assert "scoped_to_pulse" in src
     assert "desk-scope-pulse-badge" in src

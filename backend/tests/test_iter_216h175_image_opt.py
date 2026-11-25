@@ -14,12 +14,13 @@ Verifies:
   4. Member-facing portal `<img>` tags carry `loading=` / `decoding=`
      hints so the browser knows when to defer them.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import re
 
 
-PUBLIC = '/app/frontend/public'
-SRC = '/app/frontend/src'
+PUBLIC = REPO + '/frontend/public'
+SRC = REPO + '/frontend/src'
 
 
 def test_brand_webp_assets_present():

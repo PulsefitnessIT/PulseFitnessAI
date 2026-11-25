@@ -1,6 +1,7 @@
 # Iter 295: MOD fault photo back-fill, scoped photo serve, MOD email ".ai" sanitiser,
 # delivery-status parallel lookups / array_filters / supplier 'pending'. NO real emails (resend mocked).
 # Requires: python tests/_seed_fault_photos_295.py seed ; run with -p no:xdist
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import json
@@ -15,7 +16,7 @@ from dotenv import load_dotenv
 BK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BK)
 load_dotenv(os.path.join(BK, ".env"))
-load_dotenv("/app/frontend/.env")
+load_dotenv(REPO + "/frontend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 API = f"{BASE_URL}/api"
 PW = "TestPhoto295#2026"

@@ -15,11 +15,12 @@ Tests verify:
      `require_master_admin`) still live in `routes.master_admin`.
   5. Both new routers are registered in `route_registry/admin.py`.
 """
+from tests._paths import REPO  # noqa: E402
 import importlib
 import os
 
 
-BACKEND = '/app/backend'
+BACKEND = REPO + '/backend'
 
 
 def _route_pairs(router) -> set:

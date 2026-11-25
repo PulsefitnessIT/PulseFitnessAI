@@ -6,14 +6,15 @@ spec_sheets with curated faults/PM-task editorial; gated on a minimum
 real-machine count so thin types 404 (no doorway pages).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import pathlib
 
 import requests
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
-FRONT = pathlib.Path("/app/frontend/src/pages/Marketing/Landing")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
+FRONT = pathlib.Path(REPO + "/frontend/src/pages/Marketing/Landing")
 
 
 # ─── Backend constants ──────────────────────────────────────────────
@@ -98,8 +99,8 @@ def test_equipment_index_component():
 
 
 def test_routes_and_footer_wired():
-    routes = pathlib.Path("/app/frontend/src/routes/AppRoutes.js").read_text()
+    routes = pathlib.Path(REPO + "/frontend/src/routes/AppRoutes.js").read_text()
     assert "EquipmentIndex" in routes and "EquipmentLanding" in routes
     assert '"/equipment"' in routes and '"/equipment/:slug"' in routes
-    shell = pathlib.Path("/app/frontend/src/pages/Marketing/MarketingShell.js").read_text()
+    shell = pathlib.Path(REPO + "/frontend/src/pages/Marketing/MarketingShell.js").read_text()
     assert 'to="/equipment"' in shell

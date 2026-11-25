@@ -19,6 +19,7 @@ This iter wires up:
   → specialised flow per the same customer-feedback batch.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -270,7 +271,7 @@ def test_expand_unknown_product_raises_404():
 
 def test_products_form_has_bundle_editor():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMProductsSection.js"
+        REPO + "/frontend/src/pages/CRM/CRMProductsSection.js"
     ).read_text())
     assert 'data-testid="products-is-bundle"' in src
     assert 'data-testid="products-bundle-editor"' in src
@@ -285,7 +286,7 @@ def test_products_bundle_picker_uses_products_state_not_undefined_items():
     """Regression: an earlier draft referenced `items.filter(...)` but
     the state variable is `products`. That would crash the modal."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMProductsSection.js"
+        REPO + "/frontend/src/pages/CRM/CRMProductsSection.js"
     ).read_text()
     # The picker must iterate `products`, never the undefined `items`
     assert "products.filter(p => !p.is_bundle" in src
@@ -294,7 +295,7 @@ def test_products_bundle_picker_uses_products_state_not_undefined_items():
 
 def test_products_submit_payload_excludes_empty_bundle_items_when_not_bundle():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMProductsSection.js"
+        REPO + "/frontend/src/pages/CRM/CRMProductsSection.js"
     ).read_text())
     # The payload should clamp bundle_items to [] when not is_bundle
     assert "is_bundle: !!form.is_bundle" in src
@@ -308,7 +309,7 @@ def test_crm_nav_reordered_records_first_then_sales():
     """Companies should come before Pipeline; Quotes + Forecast must
     sit in the sales-flow group, not buried behind Workflows."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMApp.js"
+        REPO + "/frontend/src/pages/CRM/CRMApp.js"
     ).read_text()
     nav_block = src.split("const NAV_ITEMS = [")[1].split("];")[0]
     # ordering check via index-of

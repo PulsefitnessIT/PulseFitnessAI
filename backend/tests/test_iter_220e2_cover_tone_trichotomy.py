@@ -17,6 +17,7 @@ and the Public Tracking chip:
   * `green` → comfortably covered.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -28,7 +29,7 @@ def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

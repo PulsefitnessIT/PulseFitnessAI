@@ -2,6 +2,7 @@
 Covers period generate/create/update/delete, workspace, submit/approve/return,
 lock/snapshot, adjustments, validation, export CSV with field mapping,
 and staff portal (submit as employee)."""
+from tests._paths import REPO  # noqa: E402
 import os
 import io
 import csv
@@ -11,7 +12,7 @@ import requests
 from datetime import date, timedelta
 
 def _load_env():
-    p = "/app/frontend/.env"
+    p = REPO + "/frontend/.env"
     try:
         for line in open(p):
             if line.startswith("REACT_APP_BACKEND_URL="):

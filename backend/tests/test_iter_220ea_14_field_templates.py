@@ -12,6 +12,7 @@ Strength PPM, Installation hand-over).
 """
 
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -22,7 +23,7 @@ import pytest
 
 
 API_URL = (os.environ.get("REACT_APP_BACKEND_URL")
-           or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+           or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = "admin@gymaxisai.com"
 ADMIN_PASS = "MasterAdmin123!"
 
@@ -201,7 +202,7 @@ def test_apply_template_validates_job_types(auth_token):
 
 def test_admin_ui_has_templates_button():
     from pathlib import Path
-    src = Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerWorkReportFields.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerWorkReportFields.js").read_text()
     # Header CTA + empty-state CTA.
     assert 'data-testid="wrf-templates-btn"' in src
     assert 'data-testid="wrf-empty-templates-btn"' in src
@@ -212,7 +213,7 @@ def test_admin_ui_has_templates_button():
 
 def test_admin_ui_calls_apply_template_endpoint():
     from pathlib import Path
-    src = Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerWorkReportFields.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerWorkReportFields.js").read_text()
     assert "/svc/work-report-fields/templates" in src
     assert "/svc/work-report-fields/apply-template" in src
     # And the modal reloads the field list on success so the

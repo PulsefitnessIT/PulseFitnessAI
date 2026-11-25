@@ -13,8 +13,8 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
-BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "test-bypass-secret-for-ci-runs-only-2026")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
+BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", os.environ.get("RATE_LIMIT_BYPASS_SECRET", ""))
 
 MASTER = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
 OWNER = ("owner@isodemo.com", "IsoDemo123!")

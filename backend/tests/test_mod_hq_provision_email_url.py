@@ -1,4 +1,5 @@
 # MOD HQ "site login provisioned" email — env-driven MOD login link (MOD_PORTAL_URL / FRONTEND_URL)
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import uuid
@@ -15,7 +16,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 def _frontend_backend_url():
     url = os.environ.get("REACT_APP_BACKEND_URL")
     if not url:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     url = line.split("=", 1)[1].strip()

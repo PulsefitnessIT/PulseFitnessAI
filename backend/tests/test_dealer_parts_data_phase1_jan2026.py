@@ -6,12 +6,13 @@ Covers /api/dealer-parts/data/* endpoints:
  - machines + machine-parts, settings, chunked upload skeleton
  - RBAC (dealer_user blocked)
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import pytest
 import requests
 
-BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0]).rstrip("/")
+BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0]).rstrip("/")
 API = f"{BASE_URL}/api"
 
 STAFF_EMAIL = "owner@isodemo.com"

@@ -15,6 +15,7 @@ Frontend wiring pinned:
     panel with ``Backordered`` / ``ETA {date}`` chips.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -182,7 +183,7 @@ def test_eta_endpoint_409s_when_request_was_rejected_or_cancelled():
 
 def test_frontend_engineer_parts_tab_renders_eta_chips():
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
     ).read_text()
     assert "incomingRequests" in src
     assert 'data-testid="parts-incoming-requests"' in src

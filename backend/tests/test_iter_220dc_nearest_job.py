@@ -10,6 +10,7 @@ Pins ``GET /api/svc/engineer/queue/my-nearest``:
   * Org-scoped + engineer-scoped (the calling engineer's own jobs).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -162,7 +163,7 @@ def test_my_nearest_empty_when_no_jobs():
 
 
 def test_frontend_nearest_chip_mounted():
-    src = Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js").read_text()
     assert "NearestJobChip" in src
     for tid in (
         "nearest-job-chip", "nearest-job-find", "nearest-job-card",

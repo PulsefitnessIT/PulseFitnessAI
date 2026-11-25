@@ -3,6 +3,7 @@
 Covers /api/new-starter/portal/{my-day, day/timesheet, day/punch,
 my-time, report-absence} against the Attendance Spine.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 from datetime import date, timedelta
 
@@ -14,7 +15,7 @@ def _load_backend_url():
     if v:
         return v.rstrip("/")
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     return line.split("=", 1)[1].strip().rstrip("/")

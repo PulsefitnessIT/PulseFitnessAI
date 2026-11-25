@@ -18,6 +18,7 @@ Frontend:
     the recent quotes/invoices inline with clickable links.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -256,7 +257,7 @@ def test_customers_page_has_csv_buttons():
     the drawer + assert the API contracts the buttons hit are still
     the same. Both backend routes haven't moved."""
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js"
     ).read_text())
     assert 'testid="engineer-settings-template-row"' in src
     assert 'testid="engineer-settings-import-row"' in src
@@ -266,7 +267,7 @@ def test_customers_page_has_csv_buttons():
 
 def test_customers_page_renders_history_inline():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js"
     ).read_text())
     assert "recent_quotes" in src
     assert "recent_invoices" in src

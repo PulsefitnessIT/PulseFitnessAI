@@ -4,6 +4,7 @@ Verifies the fix for runaway duplicate emails (48 copies/hour) caused by a
 broken $ne filter on the per-ISO-week claim in system_jobs. The corrected
 implementation uses $setOnInsert keyed on (job, week_tag).
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import sys
@@ -12,7 +13,7 @@ from datetime import datetime, timezone
 import pytest
 
 # Ensure /app/backend is importable
-BACKEND_DIR = "/app/backend"
+BACKEND_DIR = REPO + "/backend"
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 

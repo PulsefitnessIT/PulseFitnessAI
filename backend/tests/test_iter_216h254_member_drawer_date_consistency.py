@@ -12,12 +12,13 @@ Visual audit pass across the Memberships module:
       "(custom)" fallback for legacy free-text values).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 
 
 def test_member_edit_drawer_uses_shared_datepicker_for_dob():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MemberEditDrawer.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MemberEditDrawer.js").read_text()
     # Shared DatePicker imported.
     assert "import DatePicker from '@/components/shared/DatePicker';" in src
     # The native date input is gone.
@@ -28,7 +29,7 @@ def test_member_edit_drawer_uses_shared_datepicker_for_dob():
 
 
 def test_member_edit_drawer_country_is_select():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MemberEditDrawer.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MemberEditDrawer.js").read_text()
     # Free-text country gone.
     assert 'placeholder="Country" testid="member-drawer-country"' not in src
     # datalist removed.
@@ -40,10 +41,10 @@ def test_member_edit_drawer_country_is_select():
 
 def test_sell_pack_modal_has_no_native_date_inputs():
     """Sanity check — no regressions should reintroduce native date inputs."""
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/modals/SellPackAtDeskModal.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/modals/SellPackAtDeskModal.js").read_text()
     assert 'type="date"' not in src
 
 
 def test_class_action_drawer_has_no_native_date_inputs():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/ClassActionDrawer.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/ClassActionDrawer.js").read_text()
     assert 'type="date"' not in src

@@ -11,6 +11,7 @@ Covers:
    ready / failed).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import pathlib
@@ -172,7 +173,7 @@ def test_route_module_exports_legacy_and_video_endpoints():
     """Lock in the route surface so future refactors don't drop the
     new endpoints we just shipped."""
     src = pathlib.Path(
-        "/app/backend/routes/marketing/social_autopilot.py",
+        REPO + "/backend/routes/marketing/social_autopilot.py",
     ).read_text(encoding="utf-8")
     for token in (
         "/posts/{post_id}/generate-video",

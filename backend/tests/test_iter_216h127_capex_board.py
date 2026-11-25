@@ -10,7 +10,7 @@ import os
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL") or
-       "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+       (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 
 JACK_EMAIL = "jack.ottey@thirdspace.london"
 JACK_PASSWORD = "Test123!"

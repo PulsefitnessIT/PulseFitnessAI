@@ -2,6 +2,7 @@
 Verification of PulseFitness Sicon WebAPI Bruno collection + mapping artifacts.
 Independently validates the 12 acceptance criteria listed in the review request.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import re
 import csv
@@ -11,14 +12,14 @@ import pathlib
 import pytest
 import requests
 
-ROOT = pathlib.Path("/app/integrations/bruno_sicon_v1/PulseFitness Sicon WebAPI")
-CSV_PATH = pathlib.Path("/app/integrations/Pulse-Sicon-Field-Mapping.csv")
-MD_PATH = pathlib.Path("/app/integrations/FIELD_MAPPING.md")
-ZIP_PATH = pathlib.Path("/app/integrations/PulseFitness-Sicon-WebAPI.zip")
+ROOT = pathlib.Path(REPO + "/integrations/bruno_sicon_v1/PulseFitness Sicon WebAPI")
+CSV_PATH = pathlib.Path(REPO + "/integrations/Pulse-Sicon-Field-Mapping.csv")
+MD_PATH = pathlib.Path(REPO + "/integrations/FIELD_MAPPING.md")
+ZIP_PATH = pathlib.Path(REPO + "/integrations/PulseFitness-Sicon-WebAPI.zip")
 
 # Load backend URL for download endpoint tests
 def _load_backend_url():
-    env = pathlib.Path("/app/frontend/.env").read_text()
+    env = pathlib.Path(REPO + "/frontend/.env").read_text()
     for line in env.splitlines():
         if line.startswith("REACT_APP_BACKEND_URL="):
             return line.split("=", 1)[1].strip().strip('"').rstrip("/")
@@ -249,7 +250,7 @@ def test_backend_imports_clean():
     import importlib
     mods = ["routes.public_downloads", "route_registry.features"]
     import sys
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     for m in mods:
         try:
             importlib.import_module(m)

@@ -1,11 +1,12 @@
 """Test master-admin org list returns owner_email with fallback (iter Jan 2026)."""
+from tests._paths import REPO  # noqa: E402
 import os
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     # Fallback for local: read frontend/.env
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE_URL = line.split("=", 1)[1].strip().rstrip("/")

@@ -4,9 +4,10 @@ Pins that the FE plumbing matches the backend endpoints already
 present on ``routes/svc/notifications.py``. No new backend endpoints —
 this is pure FE wire-up of the existing push infrastructure.
 """
+from tests._paths import REPO  # noqa: E402
 from pathlib import Path
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:
@@ -64,6 +65,6 @@ def test_service_worker_supports_push_and_click():
     # Already shipped, just guard the regression — `sw.js` must keep
     # both push + notificationclick listeners so the FE wire-up
     # actually reaches the user's lock screen.
-    sw = (Path("/app/frontend/public") / "sw.js").read_text(encoding="utf-8")
+    sw = (Path(REPO + "/frontend/public") / "sw.js").read_text(encoding="utf-8")
     assert "addEventListener('push'" in sw
     assert "addEventListener('notificationclick'" in sw

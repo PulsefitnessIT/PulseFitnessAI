@@ -1,5 +1,6 @@
 """Regression: external provider → MOD site supplier sync, machine assignment,
 fault emails to Pulse + provider."""
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import uuid
@@ -7,7 +8,7 @@ import uuid
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 
 
 def test_provider_sync_assigns_machines_and_fault_emails(monkeypatch):

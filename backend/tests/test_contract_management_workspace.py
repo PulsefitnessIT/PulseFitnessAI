@@ -4,6 +4,7 @@ Uses the fictional cm.*@pulsefitness.test staff seeded by
 scripts/seed_cm_workspace_test_users.py (run automatically below).
 Tokens are minted directly so the login rate-limit never interferes.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import subprocess
 
@@ -21,8 +22,8 @@ USERS = {
 
 @pytest.fixture(scope="module", autouse=True)
 def seed():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
 
 
 def _main(key):

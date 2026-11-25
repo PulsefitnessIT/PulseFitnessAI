@@ -17,13 +17,14 @@ Pins covered
 * Both workflows fire on `pull_request` so checks gate the merge
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 import pytest
 
-CI_YML = Path("/app/.github/workflows/ci.yml")
-QG_YML = Path("/app/.github/workflows/quality-gate.yml")
+CI_YML = Path(REPO + "/.github/workflows/ci.yml")
+QG_YML = Path(REPO + "/.github/workflows/quality-gate.yml")
 
 
 @pytest.fixture(scope="module")

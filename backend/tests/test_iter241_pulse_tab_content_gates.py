@@ -12,9 +12,10 @@ the INVARIANT that content visibility derives from the same TABS list as
 the pills via `tabVisible(id)` — they can never diverge again.
 """
 
+from tests._paths import REPO  # noqa: E402
 import re
 
-PAGE = "/app/frontend/src/pages/LiteDashboardPage.js"
+PAGE = REPO + "/frontend/src/pages/LiteDashboardPage.js"
 
 
 def _src() -> str:
@@ -42,7 +43,7 @@ def test_is_managerial_includes_pulse_admins():
     # Iter 243 — isManagerial is now derived from the central capability
     # helper; pulse-admin inclusion is asserted against capabilities.js.
     assert "const isManagerial = can(user, 'manage_operations', { role: userRole })" in src
-    caps = open("/app/frontend/src/utils/capabilities.js", encoding="utf-8").read()
+    caps = open(REPO + "/frontend/src/utils/capabilities.js", encoding="utf-8").read()
     assert "user?.is_master_admin || isPulseAdmin(user)" in caps
     # The staffing label, site switcher and nudge banner all ride the flag.
     assert src.count("isManagerial") >= 4

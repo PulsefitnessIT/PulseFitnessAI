@@ -14,6 +14,7 @@ This iter wires up:
   Create Company dialog — pastes a URL → fills the form fields.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -285,7 +286,7 @@ def test_website_recognize_router_registered_with_crm_bundle():
     """Sanity check that the new router is wired into route_registry/crm.py
     so the endpoint is actually reachable at /api/crm/v2/...."""
     src = pathlib.Path(
-        "/app/backend/route_registry/crm.py"
+        REPO + "/backend/route_registry/crm.py"
     ).read_text()
     assert "crm_website_recognize" in src
     assert "crm_website_recognize_router" in src
@@ -296,7 +297,7 @@ def test_website_recognize_router_registered_with_crm_bundle():
 
 def test_companies_form_has_website_first_panel():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMCompanies.js"
+        REPO + "/frontend/src/pages/CRM/CRMCompanies.js"
     ).read_text())
     assert 'data-testid="company-website-recognise-panel"' in src
     assert 'data-testid="company-website-url-input"' in src
@@ -309,7 +310,7 @@ def test_companies_form_maps_website_extract_into_form_fields():
     """The frontend extractor handler must spread the extracted
     payload into the form state so the right typing flows through."""
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMCompanies.js"
+        REPO + "/frontend/src/pages/CRM/CRMCompanies.js"
     ).read_text())
     # The new handler must map at least these fields
     for fld in ("name", "phone", "email", "website", "city", "postcode", "description"):
@@ -320,6 +321,6 @@ def test_companies_form_keeps_companies_house_path_as_secondary():
     """Companies House autocomplete should still be available but
     framed as a fallback (\"Or type a name to search Companies House\")."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMCompanies.js"
+        REPO + "/frontend/src/pages/CRM/CRMCompanies.js"
     ).read_text()
     assert 'Or type a name to search Companies House' in src

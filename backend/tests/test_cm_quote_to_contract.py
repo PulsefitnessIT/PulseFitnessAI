@@ -3,6 +3,7 @@ activation → service plan + billing, with one Action Centre item per stage.
 
 Fictional data only (prefix ``cm_qc_``); everything is removed afterwards.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import subprocess
 
@@ -39,8 +40,8 @@ def _quote(qid, **kw):
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
     mdb.organizations.insert_one({"id": f"{T}cust", "name": "QC Leisure Ltd"})
     mdb.crm2_companies.insert_one({"id": f"{T}co", "organization_id": OP, "name": "QC Leisure",
                                    "legal_name": "QC Leisure Ltd", "linked_organization_id": f"{T}cust",

@@ -1,5 +1,6 @@
 # CRM MOD follow-ups retest: location role gate, rename/delete location, totals.sites,
 # MOD contracts excluded from generic contracts list (and compliance feed check).
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
@@ -9,7 +10,7 @@ from dotenv import dotenv_values
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE:
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE = line.split("=", 1)[1].strip().rstrip("/")
@@ -19,7 +20,7 @@ ORG = "abfdabd9-ae11-4877-a44d-a36fea7f1f4e"
 PULSE_ORG = "3ece2d0c-57ea-4acd-a6b4-d748478ed117"
 MAIN_GYM = "b71c80cb-e5e2-4e7c-aac1-bd79418dddd4"
 FITNESS_SUITE = "b84f5a44-86f5-4682-a42e-6864ad4fe3aa"
-ENV = dotenv_values("/app/backend/.env")
+ENV = dotenv_values(REPO + "/backend/.env")
 DB = MongoClient(ENV["MONGO_URL"])[ENV["DB_NAME"]]
 REP_EMAIL = "test_rep_modfollow@pulsefitness.test"
 REP_PW = "RepTest123!"
@@ -39,7 +40,7 @@ def H():
 @pytest.fixture(scope="module")
 def REP():
     import sys
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from routes.crm_auth import crm_hash_password
     DB.crm_users.delete_many({"email": REP_EMAIL})
     DB.crm_users.insert_one({"id": f"TEST_{uuid.uuid4()}", "email": REP_EMAIL, "full_name": "TEST Rep",

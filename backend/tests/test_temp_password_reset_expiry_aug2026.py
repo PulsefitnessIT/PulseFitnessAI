@@ -12,6 +12,7 @@ Covered here (backend only):
   3. Regression: reset response shape + old password now fails as INVALID
      credentials (not "expired").
 """
+from tests._paths import REPO  # noqa: E402
 import base64
 import hashlib
 import os
@@ -22,8 +23,8 @@ import pyotp
 import requests
 from dotenv import dotenv_values
 
-frontend_env = dotenv_values("/app/frontend/.env")
-backend_env = dotenv_values("/app/backend/.env")
+frontend_env = dotenv_values(REPO + "/frontend/.env")
+backend_env = dotenv_values(REPO + "/backend/.env")
 base_url = os.environ.get("REACT_APP_BACKEND_URL") or frontend_env.get("REACT_APP_BACKEND_URL")
 if not base_url:
     raise RuntimeError("REACT_APP_BACKEND_URL is missing from env and /app/frontend/.env")

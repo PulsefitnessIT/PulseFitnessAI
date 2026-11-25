@@ -11,6 +11,7 @@ counts and last-activity timestamp. The configured default is always
 included even if it hasn't sent anything yet.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -108,7 +109,7 @@ def test_email_health_skips_empty_sender_addresses():
 
 def test_modal_renders_senders_list():
     src = pathlib.Path(
-        "/app/frontend/src/pages/MasterAdmin/EmailHealthPill.js"
+        REPO + "/frontend/src/pages/MasterAdmin/EmailHealthPill.js"
     ).read_text()
     # New list container and per-sender row test ids.
     assert 'data-testid="email-health-senders"' in src

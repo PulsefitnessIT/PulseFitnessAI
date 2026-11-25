@@ -12,11 +12,12 @@ Verifies:
   6. `react-window` is listed in package.json so production builds
      don't silently break on missing dep.
 """
+from tests._paths import REPO  # noqa: E402
 import json
 import os
 
 
-FE = '/app/frontend'
+FE = REPO + '/frontend'
 
 
 def test_sw_cache_name_bumped():

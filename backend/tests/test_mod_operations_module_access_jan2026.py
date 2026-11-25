@@ -11,6 +11,7 @@ Strategy:
     granted-but-non-bfpo user (owner@isodemo.com) whose module_overrides
     flag we flip directly in Mongo for the test (cleaned up afterwards).
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import asyncio
@@ -18,7 +19,7 @@ import time
 import requests
 import pytest
 
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 
 from utils.database import db  # noqa: E402
 from routes.master_admin_users import (  # noqa: E402
@@ -29,7 +30,7 @@ from routes.master_admin_users import (  # noqa: E402
 from fastapi import HTTPException  # noqa: E402
 
 BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
-RL_BYPASS = {"x-ratelimit-bypass": "test-bypass-secret-for-ci-runs-only-2026"}
+RL_BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 TARGET_USER_ID = "3355e0bb-e71a-4811-85e9-1c08c06dc362"  # Lee Somers (Pulse staff)
 
 ADMIN_USER = {

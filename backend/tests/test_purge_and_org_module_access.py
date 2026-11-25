@@ -2,6 +2,7 @@
 - BUG 1: Master Admin purge test-data — sites detection + scoped deletion
 - BUG 2: /auth/me exposes org_module_access alongside module_access (master bypass)
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
@@ -11,7 +12,7 @@ _ENV = os.environ.get("REACT_APP_BACKEND_URL")
 if not _ENV:
     # load from /app/frontend/.env
     try:
-        with open("/app/frontend/.env") as _f:
+        with open(REPO + "/frontend/.env") as _f:
             for _line in _f:
                 if _line.startswith("REACT_APP_BACKEND_URL="):
                     _ENV = _line.strip().split("=", 1)[1]

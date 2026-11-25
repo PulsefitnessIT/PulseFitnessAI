@@ -11,6 +11,7 @@ separately (live LLM) and is not asserted here to keep the suite
 hermetic.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import pathlib
@@ -20,11 +21,11 @@ import requests
 
 from conftest import rate_limit_bypass_headers
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 ADMIN_PW = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
 
-FRONT = pathlib.Path("/app/frontend/src/pages/ServiceOps/Engineer")
+FRONT = pathlib.Path(REPO + "/frontend/src/pages/ServiceOps/Engineer")
 
 
 def _token() -> str:
@@ -150,7 +151,7 @@ def test_wizard_component_exists_with_steps():
 
 
 def test_route_registered():
-    src = pathlib.Path("/app/frontend/src/routes/AppRoutes.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/routes/AppRoutes.js").read_text()
     assert "EngineerLegacyImport" in src
     assert "/svc/engineer/legacy-import" in src
 

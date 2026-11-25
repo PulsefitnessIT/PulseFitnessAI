@@ -14,10 +14,11 @@ place; behavioural validation is done by the testing agent.
     SiteEquipmentPicker component below it.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

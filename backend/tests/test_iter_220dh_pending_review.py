@@ -12,6 +12,7 @@ Pins:
   * Frontend ``PendingReviewPanel`` mounted + sidebar badge wired.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -242,10 +243,10 @@ def test_list_empty_state():
 
 
 def test_frontend_panel_mounted_and_routed():
-    page = Path("/app/frontend/src/pages/MasterAdminPage.js").read_text()
-    panel = Path("/app/frontend/src/pages/MasterAdmin/PendingReviewPanel.js").read_text()
-    sidebar = Path("/app/frontend/src/pages/MasterAdmin/AdminSidebar.js").read_text()
-    cfg = Path("/app/frontend/src/pages/MasterAdmin/SidebarConfig.js").read_text()
+    page = Path(REPO + "/frontend/src/pages/MasterAdminPage.js").read_text()
+    panel = Path(REPO + "/frontend/src/pages/MasterAdmin/PendingReviewPanel.js").read_text()
+    sidebar = Path(REPO + "/frontend/src/pages/MasterAdmin/AdminSidebar.js").read_text()
+    cfg = Path(REPO + "/frontend/src/pages/MasterAdmin/SidebarConfig.js").read_text()
 
     # Routed.
     assert "PendingReviewPanel" in page

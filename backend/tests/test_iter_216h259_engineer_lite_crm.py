@@ -23,6 +23,7 @@ Frontend changes:
   the Lite CRM.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -89,14 +90,14 @@ def test_router_exposes_crud_paths():
 
 
 def test_router_registered_in_features():
-    src = pathlib.Path("/app/backend/route_registry/features.py").read_text()
+    src = pathlib.Path(REPO + "/backend/route_registry/features.py").read_text()
     assert "svc_engineer_customers_router" in src
     assert "from routes.svc.engineer_customers" in src
 
 
 def test_server_wires_ensure_indexes():
     # Iter 220dy — moved from server.py to bootstrap/indexes.py.
-    src = pathlib.Path("/app/backend/bootstrap/indexes.py").read_text()
+    src = pathlib.Path(REPO + "/backend/bootstrap/indexes.py").read_text()
     assert "ensure_engineer_customer_indexes" in src
     assert "from routes.svc.engineer_customers import ensure_indexes" in src
 
@@ -204,7 +205,7 @@ def _strip_js(src: str) -> str:
 
 def test_card_stats_quickaction_removed():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text())
     assert 'testid="qa-card-analytics"' not in src
     assert "Card stats" not in src
@@ -217,13 +218,13 @@ def test_support_moved_to_top_nav():
     are unchanged — only the home file is.
     """
     home_src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text())
     # Still removed from the QuickActions grid (the original h259 invariant)
     assert 'testid="qa-support"' not in home_src
     # Lives in the hamburger drawer now — Help section with a navigate('/support')
     settings_src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerAccountSettings.js"
     ).read_text())
     assert 'testid="engineer-settings-support-row"' in settings_src
     assert "navigate('/support')" in settings_src
@@ -231,21 +232,21 @@ def test_support_moved_to_top_nav():
 
 def test_customers_quickaction_present():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js"
     ).read_text())
     assert 'testid="qa-customers"' in src
     assert "/svc/engineer/customers" in src
 
 
 def test_customers_route_registered():
-    src = pathlib.Path("/app/frontend/src/routes/AppRoutes.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/routes/AppRoutes.js").read_text()
     assert "/svc/engineer/customers" in src
     assert "ServiceOpsEngineerCustomers" in src
 
 
 def test_engineer_customers_page_exists():
     p = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js"
     )
     assert p.exists()
     src = p.read_text()
@@ -258,7 +259,7 @@ def test_engineer_customers_page_exists():
 
 def test_quote_builder_has_customer_picker():
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js"
     ).read_text()
     assert "function CustomerPicker" in src
     assert 'data-testid="qb-customer-picker"' in src
@@ -268,7 +269,7 @@ def test_quote_builder_has_customer_picker():
 
 def test_invoice_builder_has_customer_picker():
     src = pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerInvoiceBuilder.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerInvoiceBuilder.js"
     ).read_text()
     assert "function CustomerPicker" in src
     assert 'data-testid="ib-customer-picker"' in src
@@ -280,7 +281,7 @@ def test_invoice_builder_has_customer_picker():
 
 def test_quote_creator_touches_last_job():
     src = pathlib.Path(
-        "/app/backend/routes/svc/engineer_quotes.py"
+        REPO + "/backend/routes/svc/engineer_quotes.py"
     ).read_text()
     assert "touch_last_job" in src
     assert "from routes.svc.engineer_customers import touch_last_job" in src
@@ -288,6 +289,6 @@ def test_quote_creator_touches_last_job():
 
 def test_invoice_creator_touches_last_job():
     src = pathlib.Path(
-        "/app/backend/routes/svc/engineer_invoices.py"
+        REPO + "/backend/routes/svc/engineer_invoices.py"
     ).read_text()
     assert "touch_last_job" in src

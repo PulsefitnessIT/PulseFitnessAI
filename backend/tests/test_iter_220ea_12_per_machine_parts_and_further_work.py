@@ -20,13 +20,14 @@ Four connected changes inside the Equipment tab's expanded row in
 """
 
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-FRONTEND   = Path("/app/frontend/src")
+FRONTEND   = Path(REPO + "/frontend/src")
 MACHINES   = FRONTEND / "pages/ServiceOps/Engineer/WorkVisitMachinesCard.js"
-BACKEND    = Path("/app/backend/routes/svc/per_machine_reports.py")
+BACKEND    = Path(REPO + "/backend/routes/svc/per_machine_reports.py")
 
 
 def _read(p: Path) -> str:

@@ -13,6 +13,7 @@ Pinned behaviour:
     read for the JobAtAGlance ``ComplianceCard``.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from pathlib import Path
@@ -360,7 +361,7 @@ def test_compliance_summary_flags_ptw_needed_when_required_and_none_issued():
 
 def test_frontend_compliance_card_mounted_on_jobatagance():
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js"
     ).read_text()
     assert "import ComplianceCard" in src
     assert "<ComplianceCard" in src
@@ -368,7 +369,7 @@ def test_frontend_compliance_card_mounted_on_jobatagance():
 
 def test_frontend_compliance_card_renders_three_dialogs():
     src = Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/ComplianceCard.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/ComplianceCard.js"
     ).read_text()
     for tid in (
         "compliance-card", "compliance-toggle",

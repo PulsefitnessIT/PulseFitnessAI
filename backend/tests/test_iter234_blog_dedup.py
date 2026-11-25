@@ -17,6 +17,7 @@ Fixes under test:
    already-published topics are skipped (status='skipped_duplicate').
 """
 
+from tests._paths import REPO  # noqa: E402
 from tests.shared_loop import run_async as drive_async
 
 from utils.seo_article_freshness import check_article_uniqueness, keyword_similarity
@@ -114,7 +115,7 @@ def test_exclude_id_still_respected_with_title_gate():
 def test_duplicates_scan_uses_title_similarity():
     """Source pin — the admin duplicate scan must score
     max(title_sim, composite) or title-only rehashes stay invisible."""
-    src = open("/app/backend/routes/marketing/seo_autopilot.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/routes/marketing/seo_autopilot.py", encoding="utf-8").read()
     block = src.split('@router.get("/articles/duplicates")')[1].split("@router.")[0]
     assert "keyword_similarity(a.get(\"title\", \"\"), b.get(\"title\", \"\"))" in block
     assert "max(composite, round(title_sim, 3))" in block
@@ -144,7 +145,7 @@ def test_autopilot_preflight_skips_published_collisions():
     """Source pin — the autopilot walks the queue and retires keywords
     colliding with already-published topics instead of generating a
     rehash."""
-    src = open("/app/backend/routes/marketing/seo_autopilot.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/routes/marketing/seo_autopilot.py", encoding="utf-8").read()
     block = src.split('@router.post("/autopilot/run")')[1].split("@router.")[0]
     assert "find_similar_keywords(db, candidate[\"term\"], threshold=0.7)" in block
     assert '"skipped_duplicate"' in block

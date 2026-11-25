@@ -39,6 +39,7 @@ Frontend:
   strip the user saw).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -233,7 +234,7 @@ def test_issue_credentials_requires_email_on_file():
 
 def test_staffing_tab_order_is_logical_people_first():
     src = pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/StaffingConsole.js"
+        REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js"
     ).read_text()
     # Pull out the TABS_ALL ids in registry order
     block = src.split("const TABS_ALL = [")[1].split("];")[0]
@@ -258,7 +259,7 @@ def test_staffing_tab_order_is_logical_people_first():
 
 def test_staff_tab_has_preview_portal_button():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/StaffingConsole.js"
+        REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js"
     ).read_text())
     assert 'data-testid="staff-preview-portal-btn"' in src
     assert "?as=staff" in src or "set('as', 'staff')" in src
@@ -266,7 +267,7 @@ def test_staff_tab_has_preview_portal_button():
 
 def test_staff_tab_has_per_row_issue_creds_button():
     src = pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/StaffingConsole.js"
+        REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js"
     ).read_text()
     assert "staff-issue-creds-" in src
     assert "/staffing/staff/${s.id}/issue-credentials" in src or \
@@ -275,7 +276,7 @@ def test_staff_tab_has_per_row_issue_creds_button():
 
 def test_credentials_dialog_renders_temp_password():
     src = pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/StaffingConsole.js"
+        REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js"
     ).read_text()
     assert 'data-testid="staff-creds-dialog"' in src
     assert "staff-creds-temp-password" in src
@@ -284,7 +285,7 @@ def test_credentials_dialog_renders_temp_password():
 
 def test_preview_mode_banner_present():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/StaffingConsole.js"
+        REPO + "/frontend/src/pages/LiteDashboard/StaffingConsole.js"
     ).read_text())
     assert "staff-portal-preview-banner" in src
     assert "previewAsStaff" in src
@@ -297,7 +298,7 @@ def test_preview_mode_banner_present():
 
 def test_shift_templates_modals_use_create_portal():
     src = pathlib.Path(
-        "/app/frontend/src/pages/LiteDashboard/staffing/ShiftTemplatesTab.js"
+        REPO + "/frontend/src/pages/LiteDashboard/staffing/ShiftTemplatesTab.js"
     ).read_text()
     assert "import { createPortal } from 'react-dom'" in src
     assert "createPortal((" in src

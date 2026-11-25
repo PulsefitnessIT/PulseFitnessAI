@@ -13,13 +13,14 @@ User reports:
    → Tabs / header / KPI labels wired to i18n.
 """
 
+from tests._paths import REPO  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url
 
 BASE_URL = _test_backend_url()
 
-FRONTEND = "/app/frontend/src"
+FRONTEND = REPO + "/frontend/src"
 
 
 def _login(email: str, password: str) -> requests.Session:
@@ -44,7 +45,7 @@ def test_pulse_master_admin_sees_all_org_sites():
 
 
 def test_sites_privileged_roles_source_pin():
-    src = open("/app/backend/routes/sites.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/routes/sites.py", encoding="utf-8").read()
     assert '"pulse_master_admin"' in src
     assert 'user.get("is_pulse_admin")' in src
 

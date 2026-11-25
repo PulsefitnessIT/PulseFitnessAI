@@ -7,6 +7,7 @@ Covers:
 - Engineer detail endpoint exposes those fields
 - Supplier portal _resolve_reporter_contact returns role + via_shared_login
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import uuid
@@ -16,7 +17,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     BASE_URL = line.split("=", 1)[1].strip().rstrip("/")
@@ -287,7 +288,7 @@ class TestSupplierReporter:
         """Direct unit test of _resolve_reporter_contact for shared-login fault."""
         import asyncio
         import sys
-        sys.path.insert(0, "/app/backend")
+        sys.path.insert(0, REPO + "/backend")
         from routes.supplier_portal import _resolve_reporter_contact
 
         issue = {

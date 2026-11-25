@@ -8,8 +8,8 @@ import uuid
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
-RL_BYPASS = {"x-ratelimit-bypass": "test-bypass-secret-for-ci-runs-only-2026"}
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
+RL_BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 
 STAFF_EMAIL = "staff@bfpo.pulsefitness.test"
 STAFF_PASSWORD = "Bfpo123!"

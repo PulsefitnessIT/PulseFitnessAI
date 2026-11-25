@@ -7,6 +7,7 @@ fault → the org's primary auto_dispatch supplier. Only fires for open
 (unresolved) faults, and only when the resolved supplier has an email.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -19,9 +20,9 @@ from pymongo import MongoClient
 
 from conftest import rate_limit_bypass_headers
 
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 OPERATOR_EMAIL = "jack.ottey@thirdspace.london"
 OPERATOR_PW = "Test123!"
 MONGO_URL = os.environ["MONGO_URL"]
@@ -141,7 +142,7 @@ def test_self_fixed_fault_does_not_dispatch(mongo, operator):
 
 
 def test_dispatch_helpers_present():
-    src = open("/app/backend/routes/issues.py").read()
+    src = open(REPO + "/backend/routes/issues.py").read()
     assert "_resolve_fault_supplier" in src
     assert "equipment" in src and "auto_dispatch" in src  # machine-first + org fallback
     # Wired into both single and batch fault submit.

@@ -16,6 +16,7 @@ shims (``_seed_master_admin`` / ``_seed_services`` /
 old name still works.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import importlib
@@ -57,7 +58,7 @@ def test_server_underscored_shims_delegate_to_bootstrap():
     `server` so any out-of-tree caller doesn't break. Each one is
     expected to be a *very* thin wrapper that just `await`-s the
     matching bootstrap coroutine."""
-    src = Path("/app/backend/server.py").read_text(encoding="utf-8")
+    src = Path(REPO + "/backend/server.py").read_text(encoding="utf-8")
     # All three shims defined.
     for shim in ("_seed_master_admin", "_seed_services", "_create_indexes"):
         assert f"async def {shim}() -> None:" in src, (
@@ -75,7 +76,7 @@ def test_server_file_is_meaningfully_smaller_than_before():
     lines; post-iter must come in under 700 to ensure the bulk of
     the seed/index code actually moved. A future iter that re-inlines
     routes here will trip this pin."""
-    lines = Path("/app/backend/server.py").read_text(encoding="utf-8").splitlines()
+    lines = Path(REPO + "/backend/server.py").read_text(encoding="utf-8").splitlines()
     assert len(lines) < 700, (
         f"server.py grew back to {len(lines)} lines — refactor regressed"
     )

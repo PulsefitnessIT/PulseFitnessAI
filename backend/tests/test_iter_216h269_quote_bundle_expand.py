@@ -20,6 +20,7 @@ All work is in the frontend (`CRMCPQ.js`); the backend bundle
 schema + expand endpoint from h267 stays unchanged.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 import re
@@ -34,7 +35,7 @@ def _strip_js(src: str) -> str:
 
 def _cpq() -> str:
     return _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMCPQ.js"
+        REPO + "/frontend/src/pages/CRM/CRMCPQ.js"
     ).read_text())
 
 
@@ -165,7 +166,7 @@ def test_backend_quote_lines_round_trip_new_fields():
     `lines` through to the persisted doc, so the new fields the
     frontend adds (`product_id`, `cost_price`, `from_bundle_id`,
     `from_bundle_name`) are preserved on the quote doc."""
-    src = pathlib.Path("/app/backend/routes/crm_v2.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_v2.py").read_text()
     create_block = src.split('@router.post("/quotes")')[1].split('@router')[0]
     # The body assigns the lines list directly onto the quote doc
     assert '"lines": lines' in create_block

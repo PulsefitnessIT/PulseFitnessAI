@@ -1,5 +1,6 @@
 """Iteration 221-223 + search-miss telemetry."""
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import os
@@ -75,7 +76,7 @@ def test_gdpr_opt_out_helpers():
 def _seed_issue(org_id: str) -> str:
     """Insert a fake issue for the master-admin org so the triage
     feedback endpoint has a target."""
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # noqa: E402
 
     issue_id = str(uuid.uuid4())

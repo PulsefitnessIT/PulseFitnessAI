@@ -18,11 +18,12 @@ Tests verify:
      keep working.
   5. The combined router exposes every route the monolith used to.
 """
+from tests._paths import REPO  # noqa: E402
 import importlib
 import os
 
 
-BACKEND = '/app/backend'
+BACKEND = REPO + '/backend'
 
 
 def test_new_subrouter_modules_import_cleanly():

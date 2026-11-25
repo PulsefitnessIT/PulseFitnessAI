@@ -11,6 +11,7 @@ Covers:
 5. Source pins — analytics tiles deep-link to the new browser tab.
 """
 
+from tests._paths import REPO  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url
@@ -74,7 +75,7 @@ def test_non_admin_rejected():
 
 def test_analytics_tiles_deep_link_to_browser():
     """Source pin — Campaigns/Journeys KPI tiles must navigate to the new tab."""
-    src = open("/app/frontend/src/pages/MasterAdmin/AdminMarketingSuite.js", encoding="utf-8").read()
+    src = open(REPO + "/frontend/src/pages/MasterAdmin/AdminMarketingSuite.js", encoding="utf-8").read()
     assert "CampaignsJourneys" in src
     assert "'campaigns', label: 'Campaigns & Journeys'" in src.replace("id: ", "")
     assert src.count("onNavTab?.('campaigns')") >= 2, (

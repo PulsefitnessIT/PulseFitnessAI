@@ -7,6 +7,7 @@ visibility in the end-user (Operations / CRM / Memberships / Member
 portal / LiteDashboard) endpoints. Fails loudly on any broken link
 so the audit report stays honest.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import sys
@@ -17,7 +18,7 @@ import httpx
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL")
 if not BASE:
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE = line.split("=", 1)[1].strip()
@@ -26,7 +27,7 @@ API = f"{BASE}/api"
 
 # Rate-limit bypass header so we can hammer login during the audit.
 SECRET = None
-with open("/app/backend/.env") as f:
+with open(REPO + "/backend/.env") as f:
     for line in f:
         if line.startswith("RATE_LIMIT_BYPASS_SECRET="):
             SECRET = line.split("=", 1)[1].strip()

@@ -20,6 +20,7 @@ Fixes:
    free-text + datalist to a proper Select.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -179,7 +180,7 @@ def test_member_register_persists_full_record():
 # ─── Frontend: RegisterForm captures full contact + uses DOB dropdowns ─
 
 def test_member_portal_register_has_dob_dropdowns():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MemberPortal.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MemberPortal.js").read_text()
     for tid in ("member-reg-dob-day", "member-reg-dob-month", "member-reg-dob-year"):
         assert f'testid="{tid}"' in src, f"missing {tid}"
     # DOB recombined into ISO before POSTing.
@@ -187,7 +188,7 @@ def test_member_portal_register_has_dob_dropdowns():
 
 
 def test_member_portal_register_captures_full_contact():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MemberPortal.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MemberPortal.js").read_text()
     for tid in (
         "member-reg-addr1", "member-reg-city", "member-reg-postcode", "member-reg-country",
         "member-reg-eg-name", "member-reg-eg-phone",
@@ -197,7 +198,7 @@ def test_member_portal_register_captures_full_contact():
 
 
 def test_member_portal_register_enforces_phone_and_gdpr_clientside():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MemberPortal.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MemberPortal.js").read_text()
     assert "Phone number required" in src
     assert "Please accept the Terms" in src
     assert "Emergency contact phone required" in src
@@ -206,7 +207,7 @@ def test_member_portal_register_enforces_phone_and_gdpr_clientside():
 # ─── Frontend: AddMemberModal country upgraded to Select ───────────
 
 def test_add_member_modal_country_uses_select():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/modals/AddMemberModal.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/modals/AddMemberModal.js").read_text()
     # The previous datalist-driven free text is gone.
     assert 'list="mbr-new-country-list"' not in src
     assert "<datalist id=\"mbr-new-country-list\"" not in src

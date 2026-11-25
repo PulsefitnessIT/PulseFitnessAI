@@ -27,11 +27,12 @@ Two operator-driven adjustments from the next screenshot round:
      can still charge for chargeable mis-use.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-FRONTEND = Path("/app/frontend/src")
+FRONTEND = Path(REPO + "/frontend/src")
 
 
 def _read(rel: str) -> str:

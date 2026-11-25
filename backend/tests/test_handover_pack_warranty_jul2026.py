@@ -8,6 +8,7 @@ Covers:
   POST /api/crm/v2/quotes/{id}/purchase-orders/{po}/receive  (GRN stamps warranty)
   GET  /api/crm/v2/quotes/{id}/handover/pack    (PDF 200 / 400 when no equipment)
 """
+from tests._paths import REPO  # noqa: E402
 import os
 from datetime import datetime
 
@@ -15,7 +16,7 @@ import pytest
 import requests
 from dotenv import dotenv_values
 
-_env = dotenv_values("/app/frontend/.env")
+_env = dotenv_values(REPO + "/frontend/.env")
 BASE = (os.environ.get("REACT_APP_BACKEND_URL") or _env.get("REACT_APP_BACKEND_URL", "")).rstrip("/")
 if not BASE:
     raise RuntimeError("REACT_APP_BACKEND_URL missing")
@@ -48,7 +49,7 @@ def created_quote_ids():
 def cleanup(created_quote_ids):
     yield
     from pymongo import MongoClient
-    be = dotenv_values("/app/backend/.env")
+    be = dotenv_values(REPO + "/backend/.env")
     mc = MongoClient(be["MONGO_URL"])
     sdb = mc[be["DB_NAME"]]
     for qid in created_quote_ids:
@@ -137,7 +138,7 @@ class TestWarrantyThroughFulfilment:
         assert len(eq) == 2, eq
         # verify warranty stamped via handover pack path data (equipment docs)
         from pymongo import MongoClient
-        be = dotenv_values("/app/backend/.env")
+        be = dotenv_values(REPO + "/backend/.env")
         mc = MongoClient(be["MONGO_URL"])
         rows = list(mc[be["DB_NAME"]].equipment.find({"quote_id": qid}, {"_id": 0}))
         mc.close()
@@ -167,7 +168,7 @@ class TestWarrantyThroughFulfilment:
                                          "serials": ["TEST-SER-B1"]}]}, timeout=90)
         assert r.status_code == 200, r.text[:400]
         from pymongo import MongoClient
-        be = dotenv_values("/app/backend/.env")
+        be = dotenv_values(REPO + "/backend/.env")
         mc = MongoClient(be["MONGO_URL"])
         row = mc[be["DB_NAME"]].equipment.find_one({"quote_id": qid}, {"_id": 0})
         mc.close()

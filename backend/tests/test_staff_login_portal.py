@@ -6,6 +6,7 @@ Covers:
 - POST /api/new-starter/reset-password (400 invalid, ok on valid, single-use)
 - Regression: invite-based /api/new-starter/accept-invite still works
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import time
@@ -14,10 +15,10 @@ import requests
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") \
-    else open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip().strip('"')
+    else open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip().strip('"')
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 

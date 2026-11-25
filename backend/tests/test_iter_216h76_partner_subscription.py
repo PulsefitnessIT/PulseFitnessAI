@@ -10,6 +10,7 @@ We instead assert:
   • subscription event sync (price-swap + cancellation) flows through correctly
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import os
@@ -21,7 +22,7 @@ import requests
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com"
+    or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")
 ).rstrip("/")
 
 OPERATOR_EMAIL = "e1.agent@gymaxisai.com"
@@ -43,7 +44,7 @@ def _run_async(coro):
 @pytest.fixture(scope="module")
 def db_client():
     import sys
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # type: ignore
     return db
 

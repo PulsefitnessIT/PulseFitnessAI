@@ -6,6 +6,7 @@ and emails the customer the branded PDF + accept link. Idempotent
 within a 60-day window per contract. Never auto-signs.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -206,6 +207,6 @@ def test_autopilot_ignores_contracts_without_auto_renew_flag():
 
 def test_autopilot_button_wired_into_renewals_dashboard():
     from pathlib import Path
-    src = Path("/app/frontend/src/pages/CRM/Contracts/ContractDashboards.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/CRM/Contracts/ContractDashboards.js").read_text()
     assert "auto-renewal-autopilot-btn" in src
     assert "/crm/v2/contracts/renewals/auto-send" in src

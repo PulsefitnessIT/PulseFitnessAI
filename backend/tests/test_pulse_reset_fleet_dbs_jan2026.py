@@ -3,6 +3,7 @@
 2. DBS fields on HR profile (PATCH /api/staffing/hr/profile/{id})
 3. Fleet Manager endpoint (/api/vehicles) - 45 vehicles + new fields
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import secrets
 import uuid
@@ -14,7 +15,7 @@ from pymongo import MongoClient
 
 # Read frontend/.env for REACT_APP_BACKEND_URL (public URL used by user)
 _BE = ""
-with open("/app/frontend/.env") as _f:
+with open(REPO + "/frontend/.env") as _f:
     for _l in _f:
         if _l.startswith("REACT_APP_BACKEND_URL="):
             _BE = _l.split("=", 1)[1].strip().strip('"')
@@ -24,7 +25,7 @@ assert BASE_URL, "REACT_APP_BACKEND_URL missing"
 # Read backend env for direct DB access (token seeding)
 MONGO_URL = None
 DB_NAME = None
-with open("/app/backend/.env") as f:
+with open(REPO + "/backend/.env") as f:
     for line in f:
         if line.startswith("MONGO_URL="):
             MONGO_URL = line.split("=", 1)[1].strip().strip('"')

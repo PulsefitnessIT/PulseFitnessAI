@@ -4,6 +4,7 @@ SEC-003: state-changing /api/* calls with a foreign Origin are 403 'Cross-site r
          unless Bearer auth; trusted origins / no Origin / GET pass.
 P3: /api/bfpo/jobs/{id}/site-photos only lists mod-attachments/{site}/ and issues/{issue}/ paths.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
@@ -17,10 +18,10 @@ def _env(path, key):
             return line.split("=", 1)[1].strip().strip('"')
 
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or _env("/app/frontend/.env", "REACT_APP_BACKEND_URL")).rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or _env(REPO + "/frontend/.env", "REACT_APP_BACKEND_URL")).rstrip("/")
 API = BASE + "/api"
-BYPASS = {"X-RateLimit-Bypass": _env("/app/backend/.env", "RATE_LIMIT_BYPASS_SECRET")}
-DB = MongoClient(_env("/app/backend/.env", "MONGO_URL"))[_env("/app/backend/.env", "DB_NAME")]
+BYPASS = {"X-RateLimit-Bypass": _env(REPO + "/backend/.env", "RATE_LIMIT_BYPASS_SECRET")}
+DB = MongoClient(_env(REPO + "/backend/.env", "MONGO_URL"))[_env(REPO + "/backend/.env", "DB_NAME")]
 COOKIE = {"Cookie": "access_token=garbage; session=x"}
 LEE_PW = os.environ.get("LEE_PW", "TempPass123!")
 FOREIGN = "https://evil.example"
@@ -97,7 +98,7 @@ PNG = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"
 @pytest.fixture(scope="module")
 def seeded():
     import sys
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import put_object, APP_NAME
     tmpl = DB.svc_cases.find_one({"bfpo": True, "territory_id": "terr-gib"}, {"_id": 0})
     if not tmpl:

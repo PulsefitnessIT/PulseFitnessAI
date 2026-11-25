@@ -35,7 +35,7 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path("/app")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 CURRENT_ITER_FILE = ROOT / "memory" / ".current_iter"
 
 # Status-banner shapes we emit across the codebase.

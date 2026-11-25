@@ -34,6 +34,7 @@ Frontend changes:
   reference is populated.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 import re
@@ -124,7 +125,7 @@ def test_add_issue_attachment_kind_defaults_to_none():
 
 def test_equipment_photo_autolookup_button_has_loading_state():
     src = pathlib.Path(
-        "/app/frontend/src/components/equipment/EquipmentPhotoUpload.js"
+        REPO + "/frontend/src/components/equipment/EquipmentPhotoUpload.js"
     ).read_text()
     # Local state + handler
     assert "autoLookingUp" in src
@@ -140,7 +141,7 @@ def test_equipment_photo_autolookup_button_has_loading_state():
 
 def test_ai_triage_is_collapsible_dropdown():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/IssueDetailPanel.js"
+        REPO + "/frontend/src/pages/IssueDetailPanel.js"
     ).read_text())
     assert "ai-triage-toggle-" in src
     assert "ai-triage-dropdown-" in src
@@ -154,7 +155,7 @@ def test_ai_triage_is_collapsible_dropdown():
 
 def test_supplier_ref_is_above_logged_by():
     src = pathlib.Path(
-        "/app/frontend/src/pages/IssueDetailPanel.js"
+        REPO + "/frontend/src/pages/IssueDetailPanel.js"
     ).read_text()
     ref_anchor = "Supplier Reference / Job Number"
     logged_by_anchor = ">Logged by<"
@@ -168,7 +169,7 @@ def test_supplier_ref_is_above_logged_by():
 def test_supplier_ref_input_still_present():
     """The actual input + save flow must still work after the move."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/IssueDetailPanel.js"
+        REPO + "/frontend/src/pages/IssueDetailPanel.js"
     ).read_text()
     assert "supplier-ref-input-" in src
     assert "save-ref-btn-" in src
@@ -180,7 +181,7 @@ def test_supplier_ref_input_still_present():
 
 def test_quotes_card_exists_and_above_purchase_orders():
     src = pathlib.Path(
-        "/app/frontend/src/pages/IssueDetailPanel.js"
+        REPO + "/frontend/src/pages/IssueDetailPanel.js"
     ).read_text()
     assert 'data-testid={`quotes-section-${issue.id}`}' in src
     # Upload control posts with kind=quote
@@ -194,7 +195,7 @@ def test_quotes_card_exists_and_above_purchase_orders():
 def test_attachments_card_excludes_quote_kind():
     """Don't render quotes twice — generic Attachments now filters them out."""
     src = pathlib.Path(
-        "/app/frontend/src/pages/IssueDetailPanel.js"
+        REPO + "/frontend/src/pages/IssueDetailPanel.js"
     ).read_text()
     assert "(a.kind || '').toLowerCase() !== 'quote'" in src
 
@@ -204,8 +205,8 @@ def test_attachments_card_excludes_quote_kind():
 
 def test_fault_row_shows_supplier_ref_when_populated():
     for path in (
-        "/app/frontend/src/pages/Dashboard/FaultsTab.js",
-        "/app/frontend/src/pages/LiteDashboard/LiteFaultsTab.js",
+        REPO + "/frontend/src/pages/Dashboard/FaultsTab.js",
+        REPO + "/frontend/src/pages/LiteDashboard/LiteFaultsTab.js",
     ):
         src = pathlib.Path(path).read_text()
         assert "issue.supplier_ref" in src

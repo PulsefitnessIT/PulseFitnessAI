@@ -5,6 +5,7 @@
 - Sicon wins: inbound changes re-assign + notify; outbound PUT is skipped
   (outbox row → 'conflict', case flagged) when Sicon changed since last read.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import uuid
@@ -19,7 +20,7 @@ SICON_CASE = 995551
 def _db():
     from dotenv import load_dotenv
     from motor.motor_asyncio import AsyncIOMotorClient
-    load_dotenv("/app/backend/.env")
+    load_dotenv(REPO + "/backend/.env")
     return AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 

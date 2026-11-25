@@ -16,6 +16,7 @@ Backend ``POST /api/svc/engineer/jobs/{case_id}/handoff-note``
   * Missing case → 404.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -286,7 +287,7 @@ def test_frontend_jaag_consumes_new_fields():
     """Smoke check that the JobAtAGlance section consumes the
     three new fields and renders a handoff composer."""
     from pathlib import Path
-    src = Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js").read_text()
+    src = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js").read_text()
     assert "JobOverrunBanner" in src
     assert "SiblingJobsBanner" in src
     assert "HandoffNotesPanel" in src

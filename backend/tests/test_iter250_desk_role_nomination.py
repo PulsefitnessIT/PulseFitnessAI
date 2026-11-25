@@ -13,6 +13,7 @@ Process under test (end-to-end, no gaps):
     (service_org_id inherited from the granting admin).
 """
 
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import uuid
@@ -44,7 +45,7 @@ def _login(email: str, password: str) -> requests.Session:
 def _db():
     from dotenv import load_dotenv
     from motor.motor_asyncio import AsyncIOMotorClient
-    load_dotenv("/app/backend/.env")
+    load_dotenv(REPO + "/backend/.env")
     return AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 
@@ -175,13 +176,13 @@ def test_pulse_admin_can_revoke_their_own_nominee():
 
 def test_login_flows_route_desk_users_straight_to_service_desk():
     for f in ("LoginPage.js", "LoginRedirectPage.js", "ForceChangePasswordPage.js"):
-        src = open(f"/app/frontend/src/pages/{f}", encoding="utf-8").read()
+        src = open(f"{REPO}/frontend/src/pages/{f}", encoding="utf-8").read()
         assert "is_service_desk" in src and "'/service-desk'" in src, (
             f"{f} must route Service-Desk-nominated users straight to /service-desk"
         )
-    roles = open("/app/frontend/src/pages/MasterAdmin/AdminRoles.js", encoding="utf-8").read()
+    roles = open(REPO + "/frontend/src/pages/MasterAdmin/AdminRoles.js", encoding="utf-8").read()
     assert "isPulseAdmin={isPulseAdmin}" in roles
-    panel = open("/app/frontend/src/pages/MasterAdmin/AdminServiceDesk.js", encoding="utf-8").read()
+    panel = open(REPO + "/frontend/src/pages/MasterAdmin/AdminServiceDesk.js", encoding="utf-8").read()
     assert "isPulseAdmin" in panel and "!isPulseAdmin || b.v === 'pulse'" in panel, (
         "pulse admins must be locked to the pulse brand in the nomination UI"
     )

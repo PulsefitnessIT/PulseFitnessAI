@@ -16,6 +16,7 @@ Covers the mapping-correctness + persistence fix requested by the customer:
 All Sicon HTTP calls are stubbed — no live network.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import sys
@@ -28,8 +29,8 @@ from dotenv import load_dotenv
 
 # Load JWT_SECRET/MONGO_URL/DB_NAME before importing backend modules —
 # utils.sicon_client raises at import time if JWT_SECRET is missing.
-load_dotenv("/app/backend/.env")
-sys.path.insert(0, "/app/backend")
+load_dotenv(REPO + "/backend/.env")
+sys.path.insert(0, REPO + "/backend")
 
 from utils import sicon_service_models as ssm  # noqa: E402
 from utils.sicon_client import SiconClient  # noqa: E402

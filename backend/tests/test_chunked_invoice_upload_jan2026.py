@@ -8,6 +8,7 @@ Covers:
  - Verify chunk docs are deleted after finalize
 """
 
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import time
@@ -21,7 +22,7 @@ def _load_backend_url():
     if not url:
         # Fallback: read from frontend/.env
         try:
-            with open("/app/frontend/.env") as f:
+            with open(REPO + "/frontend/.env") as f:
                 for line in f:
                     if line.startswith("REACT_APP_BACKEND_URL="):
                         url = line.split("=", 1)[1].strip()

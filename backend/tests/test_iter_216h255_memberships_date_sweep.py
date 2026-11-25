@@ -17,11 +17,12 @@ Surfaces swept:
 - EventsTab — CreateEventModal + RehearsalModal date fields.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 
 
-_MEMBERSHIPS_ROOT = pathlib.Path("/app/frontend/src/pages/Memberships")
+_MEMBERSHIPS_ROOT = pathlib.Path(REPO + "/frontend/src/pages/Memberships")
 
 _SWEPT_FILES = [
     "PromotionsTab.js",

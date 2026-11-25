@@ -1,4 +1,5 @@
 """Pre-Install Site Survey — CRM Corporate feature."""
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import time
@@ -7,7 +8,7 @@ import requests
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE:
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE = line.split("=", 1)[1].strip().rstrip("/")

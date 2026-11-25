@@ -12,6 +12,7 @@ Covers:
 - Staff dashboard, sites tree, jobs filters, allocate, visiting-access
 - 403 role guard for engineer on /staff/* endpoints
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import requests
@@ -21,7 +22,7 @@ def _load_backend_url():
     v = os.environ.get("REACT_APP_BACKEND_URL")
     if v:
         return v.rstrip("/")
-    envp = "/app/frontend/.env"
+    envp = REPO + "/frontend/.env"
     if os.path.exists(envp):
         for line in open(envp):
             if line.startswith("REACT_APP_BACKEND_URL="):
@@ -29,7 +30,7 @@ def _load_backend_url():
     raise RuntimeError("REACT_APP_BACKEND_URL not set")
 
 BASE_URL = _load_backend_url()
-BYPASS = {"x-ratelimit-bypass": "test-bypass-secret-for-ci-runs-only-2026"}
+BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 
 ENG_GIB = "engineer.gib@bfpo.pulsefitness.test"
 ENG_CYP = "engineer.cyp@bfpo.pulsefitness.test"

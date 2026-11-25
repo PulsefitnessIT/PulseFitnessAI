@@ -1,5 +1,6 @@
 # ESP (External Service Provider) engineer — identity flag, Engineer-App job scope, queue, claim scoping.
 # Fixture data: backend/tests/_esp_seed.py (user esp-test-eng-1, cases esp-test-case-1 [own site] / esp-test-case-other).
+from tests._paths import REPO  # noqa: E402
 import os
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    for line in open("/app/frontend/.env"):
+    for line in open(REPO + "/frontend/.env"):
         if line.startswith("REACT_APP_BACKEND_URL="):
             BASE_URL = line.split("=", 1)[1].strip().rstrip("/")
 
@@ -19,8 +20,8 @@ OWN_CASE, OTHER_CASE = "esp-test-case-1", "esp-test-case-other"
 
 def _db_exec(code: str) -> str:
     script = (
-        "import asyncio,sys\nsys.path.insert(0,'/app/backend')\n"
-        "from dotenv import load_dotenv; load_dotenv('/app/backend/.env')\n"
+        "import asyncio,sys\nsys.path.insert(0,REPO + '/backend')\n"
+        "from dotenv import load_dotenv; load_dotenv(REPO + '/backend/.env')\n"
         "async def m():\n    from utils.database import db\n" + "\n".join("    " + l for l in code.splitlines())
         + "\nasyncio.run(m())\n"
     )

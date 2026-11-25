@@ -1,5 +1,6 @@
 # CRM MOD: auto-linking of MOD site companies, equipment-register locations (add / move),
 # add-contact job-title picklist validation, and MOD aftersales contracts CRUD.
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
@@ -7,7 +8,7 @@ import requests
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE:
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE = line.split("=", 1)[1].strip().rstrip("/")
@@ -34,7 +35,7 @@ def created():
     try:
         from pymongo import MongoClient
         from dotenv import dotenv_values
-        env = dotenv_values("/app/backend/.env")
+        env = dotenv_values(REPO + "/backend/.env")
         db = MongoClient(env["MONGO_URL"])[env["DB_NAME"]]
         if bag["locations"]:
             db.sites.delete_many({"id": {"$in": bag["locations"]}, "organization_id": ORG})

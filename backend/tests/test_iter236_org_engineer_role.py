@@ -18,6 +18,7 @@ Covers:
 4. Source pins — both master-admin dialogs offer the Engineer option.
 """
 
+from tests._paths import REPO  # noqa: E402
 import time
 import uuid
 
@@ -120,7 +121,7 @@ def test_add_engineer_to_crm_org_full_lifecycle():
 def test_dialogs_offer_engineer_role():
     """Source pins — both the Add User and Edit User master-admin dialogs
     must offer the Engineer option."""
-    src = open("/app/frontend/src/pages/MasterAdmin/AdminOrganizations.js", encoding="utf-8").read()
+    src = open(REPO + "/frontend/src/pages/MasterAdmin/AdminOrganizations.js", encoding="utf-8").read()
     assert src.count('value="engineer"') >= 2, (
         "Engineer must be selectable in BOTH the Add User and Edit User dialogs"
     )

@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com",
+    (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com"),
 )
 _CACHE: dict[str, str] = {}
 

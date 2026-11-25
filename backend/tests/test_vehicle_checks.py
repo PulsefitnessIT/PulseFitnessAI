@@ -9,13 +9,14 @@ Covers:
 - Manager register + detail + review + CSV export
 - Nudge notification (vehicle_check_due) present when due; clears after submit
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import pytest
 import requests
 
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL")
-            or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()).rstrip("/")
+            or open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()).rstrip("/")
 API = f"{BASE_URL}/api"
 
 MGR_EMAIL = "owner@isodemo.com"

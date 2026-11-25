@@ -19,11 +19,12 @@ data-testids for E2E + screenshot snapshotting, and handle the
 empty / loading / error states without crashing.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 
-COMPONENT = pathlib.Path("/app/frontend/src/pages/MasterAdmin/AdminPartnerAttribution.js")
-PARENT = pathlib.Path("/app/frontend/src/pages/MasterAdmin/AdminPartners.js")
+COMPONENT = pathlib.Path(REPO + "/frontend/src/pages/MasterAdmin/AdminPartnerAttribution.js")
+PARENT = pathlib.Path(REPO + "/frontend/src/pages/MasterAdmin/AdminPartners.js")
 
 
 def test_attribution_component_exists():

@@ -14,7 +14,7 @@ import asyncio
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 MASTER_EMAIL = "admin@pulsefitness.com"
 MASTER_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
-BYPASS = "test-bypass-secret-for-ci-runs-only-2026"
+BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.environ.get("DB_NAME", "test_database")
 

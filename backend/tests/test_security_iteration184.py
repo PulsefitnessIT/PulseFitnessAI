@@ -14,8 +14,8 @@ import requests
 import os
 import io
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
-RATE_LIMIT_BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "test-bypass-secret-for-ci-runs-only-2026")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
+RATE_LIMIT_BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", os.environ.get("RATE_LIMIT_BYPASS_SECRET", ""))
 
 # Test credentials from tests.test_credentials (env-var override supported)
 from tests.test_credentials import (  # noqa: E402,F401

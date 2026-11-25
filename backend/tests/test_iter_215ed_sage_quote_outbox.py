@@ -26,6 +26,7 @@ Tests:
 
 9. Lint script: python /app/backend/scripts/check_integration_mapping.py exits 0, 6 ok · 0 warn · 0 err
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -398,7 +399,7 @@ class TestSageOutboxWorkerQuote:
         """Verify _DRAIN_PROFILE keys include 'svc_sage_quote_outbox'"""
         # Import the worker module
         import sys
-        sys.path.insert(0, "/app/backend")
+        sys.path.insert(0, REPO + "/backend")
 
         from utils.sage_outbox_worker import _DRAIN_PROFILE, QUOTE_OUTBOX
 
@@ -580,10 +581,10 @@ class TestLintScript:
     def test_lint_script_passes(self):
         """Run check_integration_mapping.py and verify exit 0, 6 ok · 0 warn · 0 err"""
         result = subprocess.run(
-            ["python", "/app/backend/scripts/check_integration_mapping.py"],
+            ["python", REPO + "/backend/scripts/check_integration_mapping.py"],
             capture_output=True,
             text=True,
-            cwd="/app/backend"
+            cwd=REPO + "/backend"
         )
 
         assert result.returncode == 0, f"Lint script failed with exit code {result.returncode}:\n{result.stdout}\n{result.stderr}"

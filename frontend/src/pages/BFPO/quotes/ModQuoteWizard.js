@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, FileUp, Plus, Search, Trash2, Database, Save } from 'lucide-react';
 import { notify } from '@/components/notifications';
-import { mq, errText, gbp, TYPE_LABEL, TYPE_DESC, card, muted, inputStyle, primaryBtn } from './modQuotesApi';
+import { mq, errText, gbp, TYPE_LABEL, TYPE_DESC, card, muted, inputStyle } from './modQuotesApi';
+import { Btn, Banner } from './MqUi';
 
 const STAGES = ['Customer & site', 'Equipment list', 'Quotation options', 'Review & generate'];
 
 function Stepper({ stage }) {
   return (
-    <ol className="flex flex-wrap gap-2 mb-6" data-testid="mq-wizard-stepper">
+    <ol className="mq-steps mb-6" data-testid="mq-wizard-stepper" aria-label="Quotation steps">
       {STAGES.map((s, i) => (
-        <li key={s} className="flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-full"
-          style={i === stage ? primaryBtn : { ...muted, border: '1px solid var(--theme-border)' }}>
-          <span>{i < stage ? <Check size={14} /> : i + 1}</span>{s}
+        <li key={s} className="mq-step" data-state={i === stage ? 'current' : i < stage ? 'done' : 'todo'} aria-current={i === stage ? 'step' : undefined} data-testid={`mq-step-${i}`}>
+          <span className="mq-step-n">{i < stage ? <Check size={14} /> : i + 1}</span><span className="mq-step-t">{s}</span>
         </li>
       ))}
     </ol>
@@ -122,10 +122,10 @@ function RowEditor({ row, catalogue, onChange, onRemove, showCoverage }) {
       </td>
       {showCoverage && (
         <td className="p-2 w-28">
-          <div className="inline-flex rounded-full overflow-hidden" style={{ border: '1px solid var(--theme-border)' }}>
+          <div className="mq-seg" role="group" aria-label="Coverage type">
             {['A', 'B'].map((t) => (
               <button key={t} type="button" onClick={() => onChange({ ...row, coverage: t })} data-testid={`mq-row-cov-${t}`}
-                className="px-3 py-1 text-xs font-semibold" style={row.coverage === t ? primaryBtn : muted}>{t}</button>
+                aria-pressed={row.coverage === t}>{t}</button>
             ))}
           </div>
         </td>
@@ -166,27 +166,24 @@ function EquipmentStage({ customer, rows, setRows, catalogue, options }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={loadRegister} disabled={busy} data-testid="mq-load-register"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={card}><Database size={14} /> Load equipment register</button>
-        <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} data-testid="mq-upload-btn"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={card}><FileUp size={14} /> Upload Excel / CSV</button>
+        <Btn icon={Database} onClick={loadRegister} loading={busy} data-testid="mq-load-register">Load equipment register</Btn>
+        <Btn icon={FileUp} onClick={() => fileRef.current?.click()} disabled={busy} data-testid="mq-upload-btn">Upload Excel / CSV</Btn>
         <input ref={fileRef} type="file" accept=".xlsx,.csv,.xlsm" className="hidden" onChange={(e) => upload(e.target.files?.[0])} data-testid="mq-upload-input" />
-        <button type="button" onClick={addManual} data-testid="mq-add-row"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={card}><Plus size={14} /> Add item</button>
+        <Btn icon={Plus} onClick={addManual} data-testid="mq-add-row">Add item</Btn>
       </div>
       {showCov && rows.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="mq-bulk-coverage">
           <span style={muted}>Mixed quote coverage:</span>
-          <button type="button" className="px-3 py-1 rounded-full" style={card} onClick={() => bulk('A')} data-testid="mq-bulk-all-a">All Type A</button>
-          <button type="button" className="px-3 py-1 rounded-full" style={card} onClick={() => bulk('B')} data-testid="mq-bulk-all-b">All Type B</button>
-          <button type="button" className="px-3 py-1 rounded-full" style={card} onClick={() => bulk('suggest')} data-testid="mq-bulk-suggest">Suggest: cardio A, strength B</button>
+          <Btn size="sm" onClick={() => bulk('A')} data-testid="mq-bulk-all-a">All Type A</Btn>
+          <Btn size="sm" onClick={() => bulk('B')} data-testid="mq-bulk-all-b">All Type B</Btn>
+          <Btn size="sm" onClick={() => bulk('suggest')} data-testid="mq-bulk-suggest">Suggest: cardio A, strength B</Btn>
           <span className="text-xs" style={muted}>Suggestions are a starting point — confirm each row.</span>
         </div>
       )}
-      {reviewCount > 0 && <div className="text-sm" style={{ color: 'var(--color-warning)' }} data-testid="mq-review-count">{reviewCount} row(s) need a confirmed SOR category.</div>}
-      <div className="rounded-xl overflow-x-auto" style={card}>
-        <table className="w-full text-sm">
-          <thead><tr className="text-left" style={muted}>
+      {reviewCount > 0 && <Banner testid="mq-review-count">{reviewCount} row(s) need a confirmed SOR category before you continue.</Banner>}
+      <div className="mq-card overflow-x-auto">
+        <table className="mq-table mq-table--dense">
+          <thead><tr>
             <th className="p-2">Description</th><th className="p-2">Qty</th><th className="p-2">SOR category</th>
             <th className="p-2">Name on quote</th><th className="p-2">Location</th>{showCov && <th className="p-2">A/B</th>}<th />
           </tr></thead>
@@ -211,18 +208,17 @@ function suggestFrom(row, catalogue) {
 
 function OptionCard({ t, on, toggle, preview }) {
   return (
-    <button type="button" onClick={toggle} data-testid={`mq-option-${t}`} className="text-left rounded-xl p-4 transition-transform hover:-translate-y-0.5"
-      style={{ ...card, outline: on ? '2px solid var(--color-brand-cyan)' : 'none' }}>
+    <button type="button" onClick={toggle} data-testid={`mq-option-${t}`} className="mq-option" aria-pressed={on}>
       <div className="flex items-center justify-between">
         <div className="font-semibold">{TYPE_LABEL[t]}</div>
-        <span className="w-5 h-5 rounded-full flex items-center justify-center" style={on ? primaryBtn : { border: '1px solid var(--theme-border)' }}>{on && <Check size={12} />}</span>
+        <span className="w-6 h-6 rounded-full flex items-center justify-center" style={on ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { border: '1px solid var(--theme-border)' }}>{on && <Check size={13} />}</span>
       </div>
       <div className="text-xs mt-0.5" style={muted}>{TYPE_DESC[t]}</div>
       {preview && on && (
-        <div className="mt-3 text-sm space-y-0.5" data-testid={`mq-option-${t}-totals`}>
-          <div className="flex justify-between"><span style={muted}>Net</span><span>{gbp(preview.net)}</span></div>
-          <div className="flex justify-between"><span style={muted}>VAT</span><span>{gbp(preview.vat)}</span></div>
-          <div className="flex justify-between font-semibold"><span>Gross</span><span data-testid={`mq-option-${t}-gross`}>{gbp(preview.gross)}</span></div>
+        <div className="mq-totals" data-testid={`mq-option-${t}-totals`}>
+          <div><span className="mq-muted">Net</span><span>{gbp(preview.net)}</span></div>
+          <div><span className="mq-muted">VAT</span><span>{gbp(preview.vat)}</span></div>
+          <div className="items-baseline"><span className="font-semibold">Gross</span><span className="mq-gross" data-testid={`mq-option-${t}-gross`}>{gbp(preview.gross)}</span></div>
           {preview.issues.length > 0 && <div className="text-xs pt-1" style={{ color: 'var(--color-danger)' }}>{preview.issues.length} issue(s) to resolve</div>}
           {preview.unverified_lines.length > 0 && <div className="text-xs" style={{ color: 'var(--color-warning)' }}>{preview.unverified_lines.length} line(s) on unverified rates</div>}
         </div>
@@ -236,7 +232,7 @@ function ReviewStage({ preview }) {
   return (
     <div className="grid xl:grid-cols-3 gap-4" data-testid="mq-review">
       {opts.map(([t, p]) => (
-        <div key={t} className="rounded-xl p-4" style={card} data-testid={`mq-review-${t}`}>
+        <div key={t} className="mq-card p-5" data-testid={`mq-review-${t}`}>
           <div className="font-semibold mb-2">{TYPE_LABEL[t]} <span className="text-xs font-normal" style={muted}>{TYPE_DESC[t]}</span></div>
           <table className="w-full text-xs">
             <thead><tr style={muted}><th className="text-left">Code</th><th className="text-left">Description</th><th>Qty</th><th className="text-right">Total</th></tr></thead>
@@ -246,10 +242,10 @@ function ReviewStage({ preview }) {
                 <td className="py-1 text-center">{ln.qty}</td><td className="py-1 text-right">{ln.total.toFixed(2)}</td>
               </tr>))}</tbody>
           </table>
-          <div className="mt-3 text-sm border-t pt-2" style={{ borderColor: 'var(--theme-border)' }}>
-            <div className="flex justify-between"><span>TOTAL NET</span><span>{gbp(p.net)}</span></div>
-            <div className="flex justify-between"><span>TOTAL VAT</span><span>{gbp(p.vat)}</span></div>
-            <div className="flex justify-between font-semibold"><span>TOTAL GROSS</span><span>{gbp(p.gross)}</span></div>
+          <div className="mq-totals">
+            <div><span className="mq-muted">Total net</span><span>{gbp(p.net)}</span></div>
+            <div><span className="mq-muted">Total VAT</span><span>{gbp(p.vat)}</span></div>
+            <div className="items-baseline"><span className="font-semibold">Total gross</span><span className="mq-gross" data-testid={`mq-review-${t}-gross`}>{gbp(p.gross)}</span></div>
           </div>
           {p.issues.map((i) => <div key={i} className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{i}</div>)}
           {p.excluded_rows?.length > 0 && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }} data-testid={`mq-excluded-${t}`}>Not quoted (quantity 0): {p.excluded_rows.join(', ')}</div>}
@@ -292,8 +288,8 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="mq-wizard">
-      <button type="button" onClick={onCancel} className="inline-flex items-center gap-1 text-sm mb-4" style={muted} data-testid="mq-wizard-cancel"><ArrowLeft size={14} /> Back to quotations</button>
+    <div data-testid="mq-wizard">
+      <Btn variant="ghost" size="sm" icon={ArrowLeft} onClick={onCancel} className="mb-3 -ml-3" data-testid="mq-wizard-cancel">Back to quotations</Btn>
       <h2 className="text-2xl font-semibold pulse-font-heading mb-4" style={{ color: 'var(--theme-text)' }}>{group ? `Revise quotation group` : 'New MOD quotation'}</h2>
       <Stepper stage={stage} />
       {stage === 0 && <CustomerStage customer={customer} setCustomer={setCustomer} />}
@@ -312,17 +308,16 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
         </div>
       )}
       {stage === 3 && <ReviewStage preview={preview} />}
-      <div className="flex justify-between mt-6">
-        <button type="button" disabled={stage === 0} onClick={() => setStage(stage - 1)} data-testid="mq-wizard-back"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold disabled:opacity-40" style={card}><ArrowLeft size={14} /> Back</button>
+      <div className="mq-footer flex flex-wrap items-center justify-between gap-3" data-testid="mq-wizard-footer">
+        <Btn icon={ArrowLeft} disabled={stage === 0} onClick={() => setStage(stage - 1)} data-testid="mq-wizard-back">Back</Btn>
+        <div className="text-xs mq-muted text-center flex-1 min-w-0 hidden sm:block" data-testid="mq-wizard-summary">
+          {customer?.name || 'No site selected'} · {rows.length} item(s) · {options.map((o) => TYPE_LABEL[o]).join(', ') || 'no options'}
+          {stage < 3 && !canNext ? <span style={{ color: 'var(--color-warning)' }}> · {['Select a MOD site', 'Add equipment and confirm every SOR category', 'Choose at least one option'][stage]}</span> : null}
+        </div>
         {stage < 3 ? (
-          <button type="button" disabled={!canNext} onClick={() => setStage(stage + 1)} data-testid="mq-wizard-next"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-40" style={primaryBtn}>Next <ArrowRight size={14} /></button>
+          <Btn variant="primary" disabled={!canNext} onClick={() => setStage(stage + 1)} data-testid="mq-wizard-next">Next <ArrowRight size={15} /></Btn>
         ) : (
-          <button type="button" disabled={saving} onClick={save} data-testid="mq-generate"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-40" style={primaryBtn}>
-            <Save size={14} /> {saving ? 'Saving…' : group ? 'Save revision' : 'Generate quotations (saved as drafts)'}
-          </button>
+          <Btn icon={Save} variant="primary" loading={saving} onClick={save} data-testid="mq-generate">{group ? 'Save revision' : 'Generate quotations (saved as drafts)'}</Btn>
         )}
       </div>
     </div>

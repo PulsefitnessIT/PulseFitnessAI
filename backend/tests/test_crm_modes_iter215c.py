@@ -9,6 +9,7 @@ Tests:
 5. GET /api/me/crm-business/checkout/{session_id}/status - poll checkout status
 6. utils/module_access.py crm_modes() helper regression tests
 """
+from tests._paths import REPO  # noqa: E402
 import pytest
 import requests
 import os
@@ -403,7 +404,7 @@ class TestMigrationScriptIdempotent:
         import subprocess
         result = subprocess.run(
             ["python", "scripts/migrate_bundle_leisure_crm.py"],
-            cwd="/app/backend",
+            cwd=REPO + "/backend",
             capture_output=True,
             text=True
         )

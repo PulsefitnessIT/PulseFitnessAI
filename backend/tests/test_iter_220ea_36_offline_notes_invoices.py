@@ -7,6 +7,7 @@ engineer outbox and replayed on reconnect, with an Idempotency-Key making
 the server create idempotent so a lost-response replay never duplicates.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import pathlib
@@ -16,10 +17,10 @@ import requests
 
 from conftest import rate_limit_bypass_headers
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 ADMIN_PW = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
-FRONT = pathlib.Path("/app/frontend/src/pages/ServiceOps/Engineer")
+FRONT = pathlib.Path(REPO + "/frontend/src/pages/ServiceOps/Engineer")
 
 
 def _token() -> str:
@@ -102,9 +103,9 @@ def test_handoff_note_idempotent_on_replay():
 # ─── Wiring guards ──────────────────────────────────────────────────
 
 def test_backend_endpoints_accept_idempotency():
-    inv = pathlib.Path("/app/backend/routes/svc/engineer_invoices.py").read_text()
+    inv = pathlib.Path(REPO + "/backend/routes/svc/engineer_invoices.py").read_text()
     assert 'alias="Idempotency-Key"' in inv and 'inv["idempotency_key"]' in inv
-    p3 = pathlib.Path("/app/backend/routes/svc/engineer_phase3.py").read_text()
+    p3 = pathlib.Path(REPO + "/backend/routes/svc/engineer_phase3.py").read_text()
     # handoff-note now reads the header and dedupes
     assert p3.count('alias="Idempotency-Key"') >= 3  # mileage + parts + note
 

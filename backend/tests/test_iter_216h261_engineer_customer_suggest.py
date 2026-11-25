@@ -19,6 +19,7 @@ Frontend:
     Save / Dismiss buttons.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -108,7 +109,7 @@ def _strip_js(src: str) -> str:
 
 def test_quote_builder_passes_customer_prop_to_picker():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerQuoteBuilder.js"
     ).read_text())
     assert "customer={{" in src or "customer={ {" in src
     assert "/svc/engineer/customers/lookup" in src
@@ -119,7 +120,7 @@ def test_quote_builder_passes_customer_prop_to_picker():
 
 def test_invoice_builder_has_suggest_banner():
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/ServiceOps/Engineer/EngineerInvoiceBuilder.js"
+        REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerInvoiceBuilder.js"
     ).read_text())
     assert "/svc/engineer/customers/lookup" in src
     assert 'data-testid="ib-customer-suggest"' in src

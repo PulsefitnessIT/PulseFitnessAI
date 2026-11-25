@@ -1,4 +1,5 @@
 """Backend tests: Dealer Parts AI invoice parsing + RBAC."""
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import time
@@ -10,7 +11,7 @@ def _read_env_backend_url():
     if v:
         return v
     try:
-        with open("/app/frontend/.env") as fh:
+        with open(REPO + "/frontend/.env") as fh:
             for line in fh:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     return line.split("=", 1)[1].strip()

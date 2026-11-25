@@ -1,5 +1,6 @@
 """Contract Management workspace — extended checks over the public URL:
 real login payload flags, shared records, admin role assignment round-trip."""
+from tests._paths import REPO  # noqa: E402
 import os
 import subprocess
 
@@ -13,7 +14,7 @@ PW = "CmTest2026!"
 
 
 def _clear():
-    subprocess.run(["python", "tests/_clear_login_ratelimit.py"], cwd="/app/backend", check=True, capture_output=True)
+    subprocess.run(["python", "tests/_clear_login_ratelimit.py"], cwd=REPO + "/backend", check=True, capture_output=True)
 
 
 def _crm(uid):

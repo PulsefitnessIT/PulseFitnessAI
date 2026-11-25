@@ -24,7 +24,8 @@ from routes.crm_auth import get_crm_user
 from routes.crm_mod_quote import _ensure_rate_card
 from utils.database import db, get_object, put_object
 from utils.mod_quote_engine import (QUOTE_TYPES, TYPE_LABELS, apply_entry, build_quote, diff_against_card,
-                                    parse_equipment_file, parse_schedule_b, suggest_coverage)
+                                    parse_equipment_file, parse_schedule_b, suggest_coverage,
+                                    rate_is_verified, synthetic_rates_allowed)
 from utils.mod_quote_pdf import render_mod_quote_pdf
 from utils.mod_sor_data import match_by_mod_code, match_equipment
 
@@ -875,8 +876,9 @@ async def rates_import_preview(file: UploadFile = File(...), user=Depends(requir
     await db.mod_sor_price_lists.insert_one({
         "id": pid, "status": "preview", "filename": file.filename, "sha256": hashlib.sha256(content).hexdigest(),
         "entries": parsed["entries"], "issues": parsed["issues"], "uploaded_by": user.get("full_name") or user.get("email"),
-        "uploaded_at": _now()})
-    return {"price_list_id": pid, "rows": diff_against_card(parsed["entries"], card), "issues": parsed["issues"]}
+        "uploaded_at": _now(), "synthetic": parsed["synthetic"]})
+    return {"price_list_id": pid, "rows": diff_against_card(parsed["entries"], card), "issues": parsed["issues"],
+            "synthetic": parsed["synthetic"]}
 
 
 class RatesApproveIn(BaseModel):
@@ -894,6 +896,8 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
     pl = await db.mod_sor_price_lists.find_one({"id": pid}, {"_id": 0})
     if not pl or pl["status"] != "preview":
         raise HTTPException(409, "Price list is not awaiting approval")
+    if pl.get("synthetic") and not synthetic_rates_allowed():
+        raise HTTPException(409, "This workbook is marked SYNTHETIC TEST DATA and cannot replace the live Schedule of Rates")
     card = {str(c["item_no"]): c for c in (await _card_by_id()).values()}
     eff, exp = body.effective_from.isoformat(), (body.expires_on.isoformat() if body.expires_on else None)
     version = f"SOR-{eff}-{pid[:6]}"
@@ -905,7 +909,9 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
                                                        "price_list_id": pid, "changed_by": user.get("id"), "at": _now()})
         approval = {"source": f"Schedule B import {pl['filename']} (sha256 {pl['sha256'][:12]})", "effective_from": eff,
                     "expires_on": exp, "approved_by": user.get("full_name") or user.get("email"),
-                    "approved_at": _now(), "version": version}
+                    "approved_at": _now(), "version": version, "synthetic": bool(pl.get("synthetic"))}
+        if approval["synthetic"]:
+            approval["source"] = "SYNTHETIC TEST DATA — " + approval["source"]
         await db.mod_sor_rate_card.update_one({"id": c["id"]}, {"$set": {
             **apply_entry(c, e, approval), "price_list_version": version, "updated_at": _now()}})
     await db.mod_sor_price_lists.update_many({"status": "live"}, {"$set": {"status": "superseded"}})
@@ -919,6 +925,45 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
 async def price_lists(user=Depends(require_operator_crm_user)):
     _need(user, PERM_PRICING)
     return {"items": await db.mod_sor_price_lists.find({}, {"_id": 0, "entries": 0}).sort("uploaded_at", -1).to_list(50)}
+
+
+def _rate_status(entry: dict, key: str, today: str) -> str:
+    if entry.get(f"poa_{key}"):
+        return "poa"
+    if rate_is_verified(entry, key, today):
+        return "verified"
+    if entry.get(f"rate_{key}_synthetic"):
+        return "test_data"
+    rate = entry.get(f"rate_{key}") or {}
+    if rate.get("status") == "verified" and rate.get("expires_on") and rate["expires_on"] < today:
+        return "expired"
+    return entry.get(f"price_status_{key}") or "unverified"
+
+
+@router.get("/rates/current")
+async def rates_current(user=Depends(require_operator_crm_user)):
+    _need(user, PERM_PRICING)
+    today = date.today().isoformat()
+    rows = []
+    for e in sorted((await _card_by_id()).values(), key=lambda x: x.get("sort_order", 0)):
+        row = {"id": e["id"], "item_no": e.get("item_no"), "kind": e.get("kind"), "label": e.get("label"),
+               "price_list_version": e.get("price_list_version")}
+        for k in ("a", "b"):
+            rate = e.get(f"rate_{k}") or {}
+            row[k] = {"code": e.get(f"schedule_b_uid_{k}") or e.get(f"code_{k}"), "sage_code": e.get(f"sage_code_{k}"),
+                      "price": e.get(f"type_{k}_price"), "status": _rate_status(e, k, today),
+                      "effective_from": rate.get("effective_from"), "expires_on": rate.get("expires_on"),
+                      "source": rate.get("source"), "approved_by": rate.get("approved_by"),
+                      "ambiguous": bool(e.get(f"ambiguous_sage_code_{k}"))}
+        rows.append(row)
+    live = await db.mod_sor_price_lists.find_one({"status": "live"}, {"_id": 0, "entries": 0, "issues": 0})
+    summary: dict[str, int] = {}
+    for r in rows:
+        for k in ("a", "b"):
+            if r[k]["price"] is not None or r[k]["status"] == "poa":
+                summary[r[k]["status"]] = summary.get(r[k]["status"], 0) + 1
+    return {"rows": rows, "live_price_list": live, "summary": summary,
+            "customer_ready": bool(live) and not live.get("synthetic") and set(summary) <= {"verified", "poa"}}
 
 
 @router.get("/me")

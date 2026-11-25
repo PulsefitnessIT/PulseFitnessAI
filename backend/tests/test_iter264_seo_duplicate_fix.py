@@ -24,6 +24,7 @@ FIX (three layers):
     production database.
 """
 
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -140,7 +141,7 @@ def test_dedupe_archives_newer_duplicate_keeps_oldest():
 
 
 def test_source_pins():
-    seo = open("/app/backend/routes/marketing/seo_autopilot.py", encoding="utf-8").read()
+    seo = open(REPO + "/backend/routes/marketing/seo_autopilot.py", encoding="utf-8").read()
     assert "claim_daily_run(db.seo_autopilot_runs" in seo, (
         "SEO daily loop must claim the day atomically before running"
     )
@@ -149,7 +150,7 @@ def test_source_pins():
     )
     assert "dedupe_published_duplicate_titles" in seo
 
-    social = open("/app/backend/routes/marketing/social_autopilot.py", encoding="utf-8").read()
+    social = open(REPO + "/backend/routes/marketing/social_autopilot.py", encoding="utf-8").read()
     assert "claim_daily_run(db.social_autopilot_runs" in social, (
         "social daily loop must claim the day atomically before running"
     )

@@ -18,6 +18,7 @@ actually fire. This iter pins:
     twice within 18 hours.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -333,7 +334,7 @@ def test_push_kinds_pin_the_audit_targets():
 def test_dispatch_notification_error_is_logged_not_swallowed():
     """Belt-and-braces: the iter explicitly swapped ``pass`` for a
     warning log so future regressions are visible. Pin the source."""
-    src = Path("/app/backend/routes/svc/diary.py").read_text()
+    src = Path(REPO + "/backend/routes/svc/diary.py").read_text()
     assert 'logger.warning("dispatch notification failed' in src
     # The bare-except pass we replaced must NOT be there any more.
     assert "pass  # never let notifications break the dispatch flow." not in src

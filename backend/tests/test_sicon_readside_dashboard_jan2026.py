@@ -1,11 +1,12 @@
 """Sicon read-side dashboard + endpoints integration test — Increment B.
 Runs against the live public backend using owner@isodemo.com creds.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL") or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL") or open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()
 BASE_URL = BASE_URL.rstrip("/")
 
 OWNER_EMAIL = "owner@isodemo.com"

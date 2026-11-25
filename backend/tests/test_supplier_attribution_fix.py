@@ -5,16 +5,17 @@ landed on `/s/{token}` and posted messages that got tagged as `author_role =
 "supplier"`. The fix: the backend now detects an authenticated gym-user JWT
 on POST /api/supplier/case/{token}/comments and force-rewrites the role.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import requests
 import uuid
 
-BASE = os.environ.get("TEST_BACKEND_URL") or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=", 1)[1].splitlines()[0].strip()
+BASE = os.environ.get("TEST_BACKEND_URL") or open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=", 1)[1].splitlines()[0].strip()
 API = f"{BASE}/api"
 
 
 def _read_secret(key: str) -> str:
-    for line in open("/app/backend/.env"):
+    for line in open(REPO + "/backend/.env"):
         if line.startswith(f"{key}="):
             return line.strip().split("=", 1)[1]
     return ""

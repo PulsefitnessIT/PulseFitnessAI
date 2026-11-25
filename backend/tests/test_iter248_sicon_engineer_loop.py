@@ -15,6 +15,7 @@ New pieces under test:
 - Env-gated background workers in server.py (SICON_AUTOSTART_WORKER).
 """
 
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 
@@ -47,7 +48,7 @@ def _login(email: str, password: str) -> requests.Session:
 def _db():
     from dotenv import load_dotenv
     from motor.motor_asyncio import AsyncIOMotorClient
-    load_dotenv("/app/backend/.env")
+    load_dotenv(REPO + "/backend/.env")
     return AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 
@@ -83,7 +84,7 @@ def _simulate_inbound(admin: requests.Session, payload: dict) -> dict:
 
 def test_reverse_crosswalks_cover_every_outbound_value():
     import sys
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from routes.svc.integrations.sicon_sync import STATUS_CROSSWALK, PRIORITY_CROSSWALK
     from utils.sicon_inbound_worker import REVERSE_STATUS, REVERSE_PRIORITY
     for gym_status, sicon_status in STATUS_CROSSWALK.items():
@@ -230,8 +231,8 @@ def test_case_timeline_records_sicon_sync_events():
 
 
 def test_workers_are_wired_for_autostart():
-    src = open("/app/backend/server.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/server.py", encoding="utf-8").read()
     assert "SICON_AUTOSTART_WORKER" in src
     assert "sicon_inbound_worker" in src and "sicon_outbox_worker" in src
-    ui = open("/app/frontend/src/pages/Admin/IntegrationsConsole.js", encoding="utf-8").read()
+    ui = open(REPO + "/frontend/src/pages/Admin/IntegrationsConsole.js", encoding="utf-8").read()
     assert "sicon-poll-inbound" in ui, "console must expose the inbound poll control"

@@ -3,13 +3,14 @@
 Covers POST /api/crm/v2/quotes totals + GET /api/crm/v2/quotes/{id}/pdf with a trade-in line.
 CRM uses a SEPARATE token via POST /api/crm/auth/login.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 
 import pytest
 import requests
 from dotenv import dotenv_values
 
-frontend_env = dotenv_values("/app/frontend/.env")
+frontend_env = dotenv_values(REPO + "/frontend/.env")
 base_url = os.environ.get("REACT_APP_BACKEND_URL") or frontend_env.get("REACT_APP_BACKEND_URL")
 if not base_url:
     raise RuntimeError("REACT_APP_BACKEND_URL missing")

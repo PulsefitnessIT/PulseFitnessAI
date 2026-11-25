@@ -4,6 +4,7 @@ estate-onboarding reconciliation, MOD rate verification and daily checks.
 Fictional data only; every record created here is tagged ``cm_t2_`` and
 removed at the end. The MOD rate card is snapshotted and restored.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import subprocess
 import uuid
@@ -29,8 +30,8 @@ def _crm(uid):
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
     rate_backup = list(mdb.mod_sor_rate_card.find({}))
     meta_backup = mdb.mod_rate_card_meta.find_one({"id": "meta"})
     yield
@@ -182,7 +183,7 @@ def test_mod_placeholder_rates_block_sending_until_verified(tmp_path):
 def test_daily_checks_cron_and_manual_run():
     assert requests.post(f"{API}/crm/workspace/cron/daily-checks", json={}).status_code == 401
     assert requests.post(f"{API}/crm/workspace/cron/daily-checks", headers={"Authorization": "Bearer wrong"}, json={}).status_code == 401
-    secret = [ln.split("=", 1)[1].strip() for ln in open("/app/backend/.env") if ln.startswith("WEBHOOK_CRON_SECRET=")][0]
+    secret = [ln.split("=", 1)[1].strip() for ln in open(REPO + "/backend/.env") if ln.startswith("WEBHOOK_CRON_SECRET=")][0]
     run_id = f"{TAG}{uuid.uuid4()}"
     hdr = {"Authorization": f"Bearer {secret}", "X-Webhook-Id": run_id}
     r = requests.post(f"{API}/crm/workspace/cron/daily-checks", headers=hdr, json={"event": "schedule.triggered", "run_id": run_id})

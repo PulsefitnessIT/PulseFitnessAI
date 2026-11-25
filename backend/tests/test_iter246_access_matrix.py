@@ -6,6 +6,7 @@ Evaluates the REAL backend guard functions against synthetic personas
 utils/capabilities.js for the UI rows.
 """
 
+from tests._paths import REPO  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url
@@ -116,13 +117,13 @@ def test_pulse_admin_view_is_scoped_to_pulse():
 
 
 def test_frontend_wiring():
-    caps = open("/app/frontend/src/utils/capabilities.js", encoding="utf-8").read()
+    caps = open(REPO + "/frontend/src/utils/capabilities.js", encoding="utf-8").read()
     assert "export const listCapabilities" in caps
     assert "export const CAPABILITY_LABELS" in caps
-    panel = open("/app/frontend/src/pages/MasterAdmin/AccessMatrixPanel.js", encoding="utf-8").read()
+    panel = open(REPO + "/frontend/src/pages/MasterAdmin/AccessMatrixPanel.js", encoding="utf-8").read()
     assert "master-admin/access-matrix" in panel
     assert "access-matrix-table" in panel
-    sidebar = open("/app/frontend/src/pages/MasterAdmin/SidebarConfig.js", encoding="utf-8").read()
+    sidebar = open(REPO + "/frontend/src/pages/MasterAdmin/SidebarConfig.js", encoding="utf-8").read()
     assert "'access-matrix'" in sidebar
-    page = open("/app/frontend/src/pages/MasterAdminPage.js", encoding="utf-8").read()
+    page = open(REPO + "/frontend/src/pages/MasterAdminPage.js", encoding="utf-8").read()
     assert "case 'access-matrix':" in page

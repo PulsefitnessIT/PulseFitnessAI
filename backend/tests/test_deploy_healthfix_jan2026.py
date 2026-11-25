@@ -7,6 +7,7 @@ Validates:
   - Object-storage-backed features (parts requests attachments, exploded drawings) still work
   - Core authenticated endpoint (list parts-requests) works
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import io
 import time
@@ -16,7 +17,7 @@ import pytest
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     # Fallback for backend-side env
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 BASE_URL = line.strip().split("=", 1)[1].rstrip("/")

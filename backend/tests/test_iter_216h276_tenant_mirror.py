@@ -14,6 +14,7 @@ admin's CRM as a `crm_v2_companies` row, tagged with
 * Mirrors visible in CRM Companies with a "Tenant ↺" badge
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -264,14 +265,14 @@ def test_manual_reconcile_endpoint_returns_mirror_summary():
 def test_server_startup_runs_tenant_mirror():
     # Iter 220dy — tenant-mirror seed moved with the rest of
     # seed_services into bootstrap/seed.py.
-    src = pathlib.Path("/app/backend/bootstrap/seed.py").read_text()
+    src = pathlib.Path(REPO + "/backend/bootstrap/seed.py").read_text()
     assert "from utils.tenant_mirror import" in src
     assert "ensure_tenant_mirror_indexes()" in src
     assert "mirror_pulse_tenants_to_crm()" in src
 
 
 def test_subscription_change_triggers_mirror_refresh():
-    src = pathlib.Path("/app/backend/routes/master_admin_orgs.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/master_admin_orgs.py").read_text()
     # Both the subscription-change PUT and the details PUT call mirror_single_tenant
     sub_block = src.split('@router.put("/master-admin/organizations/{org_id}/subscription")')[1].split('@router')[0]
     assert "mirror_single_tenant" in sub_block
@@ -285,7 +286,7 @@ def test_subscription_change_triggers_mirror_refresh():
 
 def test_companies_list_shows_tenant_mirror_badge():
     src = pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMCompanies.js"
+        REPO + "/frontend/src/pages/CRM/CRMCompanies.js"
     ).read_text()
     assert "co.source === 'tenant_mirror'" in src
     assert 'data-testid={`company-tenant-mirror-badge-${co.id}`}' in src

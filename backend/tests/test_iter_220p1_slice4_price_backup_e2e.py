@@ -2,6 +2,7 @@
 Iter 220 P1 slice 4 — CRM Master Price List backup/export E2E API tests.
 Hits the live public REACT_APP_BACKEND_URL via /api/* routes.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -10,7 +11,7 @@ def _resolve_base_url():
     u = os.environ.get("REACT_APP_BACKEND_URL")
     if not u:
         try:
-            with open("/app/frontend/.env") as f:
+            with open(REPO + "/frontend/.env") as f:
                 for line in f:
                     if line.startswith("REACT_APP_BACKEND_URL="):
                         u = line.split("=", 1)[1].strip()

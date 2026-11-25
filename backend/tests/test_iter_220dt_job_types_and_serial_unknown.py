@@ -20,12 +20,13 @@ Operator feedback (Feb 2026):
      job_type + equipment.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-FRONTEND = Path("/app/frontend/src")
-BACKEND = Path("/app/backend")
+FRONTEND = Path(REPO + "/frontend/src")
+BACKEND = Path(REPO + "/backend")
 
 
 def _read_fe(rel: str) -> str:

@@ -6,6 +6,7 @@ Covers:
 - Staff Portal handbook PDF
 - Legacy compatibility (van_maintenance→van, vehicle_check→car, vehicle_check_ev→electric_car)
 """
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import uuid
@@ -13,7 +14,7 @@ import pytest
 import requests
 
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL")
-            or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()).rstrip("/")
+            or open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()).rstrip("/")
 API = f"{BASE_URL}/api"
 
 MGR = ("owner@isodemo.com", "IsoDemo123!")

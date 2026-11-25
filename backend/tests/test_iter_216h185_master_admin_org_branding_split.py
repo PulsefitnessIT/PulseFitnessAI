@@ -6,11 +6,12 @@ After this iteration:
     routes/master_admin.py                  (~732 LoC, was 905)
     routes/master_admin_org_branding.py     (NEW, ~210 LoC, 3 routes)
 """
+from tests._paths import REPO  # noqa: E402
 import importlib
 import os
 
 
-BACKEND = '/app/backend'
+BACKEND = REPO + '/backend'
 
 
 def _route_pairs(router) -> set:

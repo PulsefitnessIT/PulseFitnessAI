@@ -1,4 +1,5 @@
 # Retest of iteration_280 fixes: auth bypass 403, emailed null on Resend failure, no duplicates, estate scoping, $literal
+from tests._paths import REPO  # noqa: E402
 import os
 
 import pytest
@@ -6,8 +7,8 @@ import requests
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
-load_dotenv("/app/frontend/.env")
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/frontend/.env")
+load_dotenv(REPO + "/backend/.env")
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/") + "/api"
 SITE_ID = "abfdabd9-ae11-4877-a44d-a36fea7f1f4e"
 OTHER_SITE = "382db6bd-4c27-413d-a8e8-35e5a33940f0"

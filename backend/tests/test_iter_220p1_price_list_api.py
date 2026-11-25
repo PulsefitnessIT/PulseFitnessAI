@@ -3,14 +3,15 @@
 Exercises the full pipeline end-to-end against the running backend:
 upload -> suggest-mapping -> preview -> commit -> product list/stats.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
-SAMPLE = "/app/test_samples/pulse_master_price_list_sample.xlsx"
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
+SAMPLE = REPO + "/test_samples/pulse_master_price_list_sample.xlsx"
 ADMIN_EMAIL = "admin@gymaxisai.com"
 ADMIN_PASS = "MasterAdmin123!"
 

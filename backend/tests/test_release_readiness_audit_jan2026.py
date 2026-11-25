@@ -3,6 +3,7 @@ RELEASE READINESS AUDIT — PulseFitness.ai (Jan 2026)
 Per-persona golden path smoke checks. Breadth over depth.
 DO NOT complete Stripe payment. LIVE key in .env.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import uuid
@@ -13,7 +14,7 @@ BASE = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE:
     # fall back to frontend .env if not injected
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     BASE = line.split("=", 1)[1].strip().rstrip("/")
@@ -359,8 +360,8 @@ def test_zzz_write_summary():
            "passed": sum(1 for r in RESULTS if r["ok"]),
            "failed": sum(1 for r in RESULTS if not r["ok"]),
            "results": RESULTS}
-    os.makedirs("/app/test_reports/pytest", exist_ok=True)
-    with open("/app/test_reports/pytest/release_readiness_results.json", "w") as f:
+    os.makedirs(REPO + "/test_reports/pytest", exist_ok=True)
+    with open(REPO + "/test_reports/pytest/release_readiness_results.json", "w") as f:
         json.dump(out, f, indent=2)
     print(f"\n=== SUMMARY: {out['passed']}/{out['total']} passed ({out['failed']} failed) ===")
     for r in RESULTS:

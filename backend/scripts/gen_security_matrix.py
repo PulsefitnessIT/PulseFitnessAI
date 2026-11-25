@@ -58,11 +58,21 @@ def _collect_auth_callables(dependant, seen=None):
     return names
 
 
+def _iter_routes(app):
+    """Flatten included routers (FastAPI >=0.14x wraps them in _IncludedRouter)."""
+    for route in app.routes:
+        contexts = getattr(route, "effective_route_contexts", None)
+        if callable(contexts):
+            yield from contexts()
+        else:
+            yield route
+
+
 def build_matrix():
     from server import app  # imports the fully-wired app
 
     entries = []
-    for route in app.routes:
+    for route in _iter_routes(app):
         path = getattr(route, "path", None)
         methods = getattr(route, "methods", None)
         if not path or not methods or not path.startswith("/api"):

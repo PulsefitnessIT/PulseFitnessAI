@@ -1,5 +1,5 @@
 {
-  "count": 3046,
+  "count": 3657,
   "endpoints": [
     {
       "path": "/api/account/avatar",
@@ -653,6 +653,210 @@
       "endpoint": "assistant_execute_action"
     },
     {
+      "path": "/api/attendance/absence/{leave_id}/close",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "close_absence"
+    },
+    {
+      "path": "/api/attendance/bank-holidays",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_bank_holidays"
+    },
+    {
+      "path": "/api/attendance/board",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "attendance_board"
+    },
+    {
+      "path": "/api/attendance/daily",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_daily"
+    },
+    {
+      "path": "/api/attendance/daily/{record_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "correct_daily"
+    },
+    {
+      "path": "/api/attendance/daily/{record_id}/clear-override",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "clear_override"
+    },
+    {
+      "path": "/api/attendance/me/daily",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_daily"
+    },
+    {
+      "path": "/api/attendance/patterns",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_patterns"
+    },
+    {
+      "path": "/api/attendance/patterns",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_pattern"
+    },
+    {
+      "path": "/api/attendance/patterns/seed-defaults",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "seed_default_patterns"
+    },
+    {
+      "path": "/api/attendance/patterns/{pattern_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_pattern"
+    },
+    {
+      "path": "/api/attendance/patterns/{pattern_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_pattern"
+    },
+    {
+      "path": "/api/attendance/recompute",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "recompute"
+    },
+    {
+      "path": "/api/attendance/rtw/recent",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "rtw_recent"
+    },
+    {
+      "path": "/api/attendance/work-profile/{staff_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_work_profile"
+    },
+    {
+      "path": "/api/attendance/work-profile/{staff_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "upsert_work_profile"
+    },
+    {
+      "path": "/api/attendance/work-profiles",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_work_profiles"
+    },
+    {
       "path": "/api/audit/generate",
       "methods": [
         "POST"
@@ -739,6 +943,18 @@
       ],
       "mutating": false,
       "endpoint": "get_me"
+    },
+    {
+      "path": "/api/auth/mfa/backup-codes/regenerate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "mfa_regenerate_backup_codes"
     },
     {
       "path": "/api/auth/mfa/disable",
@@ -1033,6 +1249,826 @@
       ],
       "mutating": true,
       "endpoint": "update_settings"
+    },
+    {
+      "path": "/api/bfpo/alerts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_alerts"
+    },
+    {
+      "path": "/api/bfpo/alerts/{case_id}/ack",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_alert_ack"
+    },
+    {
+      "path": "/api/bfpo/equipment",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_equipment"
+    },
+    {
+      "path": "/api/bfpo/equipment/{equipment_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_equipment_detail"
+    },
+    {
+      "path": "/api/bfpo/faults/sync",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_sync_mod_faults"
+    },
+    {
+      "path": "/api/bfpo/history",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_history"
+    },
+    {
+      "path": "/api/bfpo/invite/{token}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "invite_status"
+    },
+    {
+      "path": "/api/bfpo/invite/{token}/accept",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "invite_accept"
+    },
+    {
+      "path": "/api/bfpo/jobs",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_jobs"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_job_detail"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/accept",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_accept"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/arrive",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_arrive"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/complete",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_complete"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/diagnosis",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_diagnosis"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/equipment-gaps",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_job_equipment_gaps"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/equipment/{equipment_id}/details",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_capture_equipment_details"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/job-sheet.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_job_sheet"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/outcome",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_outcome"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/parts",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_parts"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/photos",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_add_photo"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/report-fault",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_report_fault"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/signature",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_signature"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/signoff",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_signoff_info"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/site-photos",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_site_photos"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/site-photos/{index}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_site_photo"
+    },
+    {
+      "path": "/api/bfpo/jobs/{case_id}/update",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bfpo_operational_update"
+    },
+    {
+      "path": "/api/bfpo/me",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_me"
+    },
+    {
+      "path": "/api/bfpo/me/welcome",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_welcome"
+    },
+    {
+      "path": "/api/bfpo/me/welcome/dismiss",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "dismiss_welcome"
+    },
+    {
+      "path": "/api/bfpo/ppm/cron/autoschedule",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "cron_autoschedule"
+    },
+    {
+      "path": "/api/bfpo/ppm/inspections/{inspection_id}",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "save_inspection"
+    },
+    {
+      "path": "/api/bfpo/ppm/inspections/{inspection_id}/raise-fault",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "raise_fault"
+    },
+    {
+      "path": "/api/bfpo/ppm/schedules",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_schedules"
+    },
+    {
+      "path": "/api/bfpo/ppm/schedules",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_schedule"
+    },
+    {
+      "path": "/api/bfpo/ppm/services",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_services"
+    },
+    {
+      "path": "/api/bfpo/ppm/services",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_service"
+    },
+    {
+      "path": "/api/bfpo/ppm/services/{service_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_service"
+    },
+    {
+      "path": "/api/bfpo/ppm/services/{service_id}/allocate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "allocate_service"
+    },
+    {
+      "path": "/api/bfpo/ppm/services/{service_id}/certificate.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "certificate_pdf"
+    },
+    {
+      "path": "/api/bfpo/ppm/services/{service_id}/complete",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "complete_service"
+    },
+    {
+      "path": "/api/bfpo/ppm/services/{service_id}/start",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "start_service"
+    },
+    {
+      "path": "/api/bfpo/ppm/templates",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_templates"
+    },
+    {
+      "path": "/api/bfpo/ppm/templates",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "upsert_template"
+    },
+    {
+      "path": "/api/bfpo/sites",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_sites"
+    },
+    {
+      "path": "/api/bfpo/sites/{site_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "bfpo_site_detail"
+    },
+    {
+      "path": "/api/bfpo/staff/dashboard",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_dashboard"
+    },
+    {
+      "path": "/api/bfpo/staff/engineers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_engineers"
+    },
+    {
+      "path": "/api/bfpo/staff/engineers",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_engineer"
+    },
+    {
+      "path": "/api/bfpo/staff/engineers/{eng_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_engineer"
+    },
+    {
+      "path": "/api/bfpo/staff/engineers/{eng_id}/resend-invite",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "resend_invite"
+    },
+    {
+      "path": "/api/bfpo/staff/engineers/{eng_id}/status",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "set_engineer_status"
+      ],
+      "mutating": true,
+      "endpoint": "set_engineer_status"
+    },
+    {
+      "path": "/api/bfpo/staff/jobs",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_jobs"
+    },
+    {
+      "path": "/api/bfpo/staff/jobs/{case_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_job_detail"
+    },
+    {
+      "path": "/api/bfpo/staff/jobs/{case_id}/allocate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "staff_allocate"
+    },
+    {
+      "path": "/api/bfpo/staff/reports",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_report"
+    },
+    {
+      "path": "/api/bfpo/staff/reports/export",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_report"
+    },
+    {
+      "path": "/api/bfpo/staff/sites",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_sites"
+    },
+    {
+      "path": "/api/bfpo/staff/team",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_team"
+    },
+    {
+      "path": "/api/bfpo/staff/territories",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_territories"
+    },
+    {
+      "path": "/api/bfpo/staff/visiting-access",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_visiting_access"
+    },
+    {
+      "path": "/api/bfpo/staff/visiting-access",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "grant_visiting_access"
+    },
+    {
+      "path": "/api/bfpo/staff/visiting-access/{grant_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "revoke_visiting_access"
     },
     {
       "path": "/api/blog/posts",
@@ -2082,6 +3118,66 @@
       "endpoint": "submit_contact"
     },
     {
+      "path": "/api/crash-packs",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "manager_list"
+    },
+    {
+      "path": "/api/crash-packs/insurance-settings",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "manager_get_insurance"
+    },
+    {
+      "path": "/api/crash-packs/insurance-settings",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "manager_set_insurance"
+    },
+    {
+      "path": "/api/crash-packs/{pack_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "manager_get"
+    },
+    {
+      "path": "/api/crash-packs/{pack_id}/pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "manager_pdf"
+    },
+    {
       "path": "/api/crm/activities",
       "methods": [
         "GET"
@@ -3059,6 +4155,19 @@
       ],
       "mutating": false,
       "endpoint": "get_rate_card"
+    },
+    {
+      "path": "/api/crm/mod-quote/rate-card/import",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "import_rate_card"
     },
     {
       "path": "/api/crm/mod-quote/rate-card/reseed",
@@ -5008,6 +6117,18 @@
       "endpoint": "territory_rollup"
     },
     {
+      "path": "/api/crm/territories/staff-locations",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "staff_locations"
+    },
+    {
       "path": "/api/crm/territories/staff-palette",
       "methods": [
         "GET"
@@ -5224,6 +6345,1650 @@
       "endpoint": "delete_activity"
     },
     {
+      "path": "/api/crm/v2/aftersales/agreements",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_agreements"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/from-quote/{quote_id}",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "prepare_agreement"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_agreement"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "patch_agreement"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}/activate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "activate_agreement"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}/document",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "agreement_document"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}/generate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "generate_agreement"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}/send-for-signature",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "send_for_signature"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}/sign",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "sign_agreement"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}/signature-link/revoke",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "revoke_signature_link"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/agreements/{agreement_id}/signed-document/retry",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "retry_signed_document"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/ai/assistant",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "ai_assistant"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/ai/assistant/send-email",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "ai_assistant_send"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/ai/contracts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "ai_contract_list"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/ai/contracts/{contract_id}/context",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "ai_contract_context"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/alerts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_afs_alerts"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/alerts/run",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "run_afs_alerts"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/alerts/{activity_id}/dismiss",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "dismiss_afs_alert"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/build-custom-quote",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "build_custom_quote"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/build-quote-from-estate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "build_quote_from_estate"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/build-quote/imports",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_quote_import"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/build-quote/imports/{import_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_quote_import"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/build-quote/imports/{import_id}/apply",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "apply_quote_import"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/build-quote/imports/{import_id}/customer",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_import_customer"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contract-types/{ct_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_contract_type"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/compliance",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "contracts_compliance"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/amendable-assets",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "amendable_assets"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/amendments",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "apply_amendment"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/amendments",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_amendments"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/amendments/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "preview_amendment"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/obligations/{obligation_id}/book",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "book_obligation"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/obligations/{obligation_id}/candidates",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "obligation_candidates"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/obligations/{obligation_id}/review",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "review_obligation"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/schedules",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "contract_schedules"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/service-reconciliation",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "service_reconciliation"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/contracts/{contract_id}/welcome-pack",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "resend_welcome_pack"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/dashboard",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "dashboard"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/estate/{company_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "estate"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/extract-pricing-document",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "extract_pricing_document"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/dashboard",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "finance_dashboard"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/sync",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "finance_sync_list"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/sync/enqueue-outstanding",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "finance_enqueue_outstanding"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/sync/export/all",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "finance_sync_export_all"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/sync/{contract_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "finance_sync_get"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/sync/{contract_id}/export",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "finance_sync_export_one"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/sync/{contract_id}/mark-synced",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "finance_sync_mark_synced"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/finance/sync/{contract_id}/retry",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "finance_sync_retry"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/legacy/resolve",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "resolve_legacy"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/contracts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "mm_contracts"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/contracts/{cid}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "mm_contract"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/contracts/{cid}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "edit_contract"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/contracts/{cid}/notes",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "add_note"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/contracts/{cid}/sicon-queue",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "queue_sicon"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/customers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "search_customers"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/cutover",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "cutover"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/daily",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "daily_view"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/export/current",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_current"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/export/master",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_master"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/invoice-run",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "invoice_run"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/invoice-run/export",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "invoice_run_export"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/sicon-queue",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "sicon_queue"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/sicon-reconcile",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "sicon_reconcile"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "start_upload"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_uploads"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_upload"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/chunks/{n}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "put_chunk"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/commit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "commit_upload"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/complete",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "complete_upload"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/original",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "download_original"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/reparse",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "reparse_upload"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/report",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "upload_report"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/rows",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "upload_rows"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/rows/{rid}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "row_detail"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/rows/{rid}/correct",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "correct_row"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/maintenance-master/uploads/{uid}/rows/{rid}/decision",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "row_decision"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/analyze",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "analyze"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/analyze-pdf",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "analyze_pdf"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/imports",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_imports"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/session",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_session"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/util/config-search",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "config_search"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_import"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/append-pdf",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "append_pdf"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/append-spreadsheet",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "append_spreadsheet"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/build",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "build"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/commit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "commit"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/ppm-status",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "ppm_status"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/reconcile",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "reconcile"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/rows",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "patch_rows"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/onboarding/{import_id}/sources/{source_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "remove_source"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/packages",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_packages"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/packages/{pkg_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_package"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/pricing/calculate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "calculate"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/priorities",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "priorities"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_afs_quotes"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/chasers/run",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "run_afs_quote_chasers"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_afs_quote"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}/accept",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "accept_quote"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}/pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "afs_quote_pdf"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}/portal-link",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "afs_quote_portal_link"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}/send-email",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "send_afs_quote_email"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}/versions",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_quote_versions"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}/versions/{version}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_quote_version"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/quotes/{quote_id}/versions/{version}/revert",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "revert_quote_version"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/rate-cards",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "save_rate_card"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/rate-cards",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_rate_cards"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/rate-cards/{card_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_rate_card"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/rate-groups/{rg_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_rate_group"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/renewals/pipeline",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "renewals_pipeline"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/renewals/{contract_id}/build",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "build_renewal"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/reports",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "profitability_report"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/revenue/warranty-opportunities",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "warranty_opportunities"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/revenue/warranty-opportunities/{company_id}/build-proposal",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "build_warranty_proposal"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/rpi/reviews",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "rpi_reviews"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/rpi/reviews/{contract_id}",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_rpi_review"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/rpi/reviews/{review_id}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "approve_rpi_review"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/ruleset",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_ruleset"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/service-configs",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_service_configs"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/service-configs/stats",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "service_config_stats"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/service-configs/{cfg_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_service_config"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/service-planner",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "service_planner"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/service-planner/engineers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "planner_engineers"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/service-planner/sync",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "service_planner_sync"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/settings",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_settings"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/settings",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_settings"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/skus",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "lookup_skus"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/supportability/decisions",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_supportability_decisions"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/supportability/decisions",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "upsert_supportability_decision"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/supportability/decisions/{dec_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_supportability_decision"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/supportability/evaluate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "evaluate_supportability"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/supportability/statuses",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "supportability_statuses"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/terms",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_terms"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/terms",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "upload_terms"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/terms/{terms_id}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "approve_terms_version"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/terms/{terms_id}/file",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "terms_file"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/terms/{terms_id}/flag-review",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "flag_terms_review"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/versions",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_versions"
+    },
+    {
+      "path": "/api/crm/v2/aftersales/wording-conflicts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "wording_conflicts"
+    },
+    {
       "path": "/api/crm/v2/assets",
       "methods": [
         "GET"
@@ -5272,6 +8037,66 @@
       "endpoint": "promote_asset_to_register"
     },
     {
+      "path": "/api/crm/v2/blue-light/customer-types",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_customer_types"
+    },
+    {
+      "path": "/api/crm/v2/blue-light/import/mappings",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_import_mappings_list"
+    },
+    {
+      "path": "/api/crm/v2/blue-light/import/mappings",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_import_mappings_save"
+    },
+    {
+      "path": "/api/crm/v2/blue-light/import/mappings/{mapping_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_import_mappings_delete"
+    },
+    {
+      "path": "/api/crm/v2/blue-light/import/template.csv",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_import_template"
+    },
+    {
       "path": "/api/crm/v2/cases",
       "methods": [
         "GET"
@@ -5294,6 +8119,42 @@
       ],
       "mutating": true,
       "endpoint": "create_case"
+    },
+    {
+      "path": "/api/crm/v2/certificates/{cert_id}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_certificate_approve"
+    },
+    {
+      "path": "/api/crm/v2/certificates/{cert_id}/download",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_certificate_download"
+    },
+    {
+      "path": "/api/crm/v2/certificates/{cert_id}/send",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_certificate_send"
     },
     {
       "path": "/api/crm/v2/companies",
@@ -5404,6 +8265,18 @@
       "endpoint": "attach_equipment_to_contract"
     },
     {
+      "path": "/api/crm/v2/companies/{company_id}/equipment/{equipment_id}/move",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "move_company_equipment"
+    },
+    {
       "path": "/api/crm/v2/companies/{company_id}/files",
       "methods": [
         "GET"
@@ -5464,6 +8337,42 @@
       "endpoint": "link_company_to_organization"
     },
     {
+      "path": "/api/crm/v2/companies/{company_id}/locations",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "add_company_location"
+    },
+    {
+      "path": "/api/crm/v2/companies/{company_id}/locations/{location_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "rename_company_location"
+    },
+    {
+      "path": "/api/crm/v2/companies/{company_id}/locations/{location_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "remove_company_location"
+    },
+    {
       "path": "/api/crm/v2/companies/{company_id}/portal-equipment",
       "methods": [
         "GET"
@@ -5498,6 +8407,30 @@
       ],
       "mutating": true,
       "endpoint": "company_portal_invite_resend"
+    },
+    {
+      "path": "/api/crm/v2/companies/{company_id}/portal-link",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_company_portal_link"
+    },
+    {
+      "path": "/api/crm/v2/companies/{company_id}/portal-link",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_company_portal_link"
     },
     {
       "path": "/api/crm/v2/companies/{company_id}/seed-directors",
@@ -5980,6 +8913,30 @@
       "endpoint": "approve_contract"
     },
     {
+      "path": "/api/crm/v2/contracts/{contract_id}/asset-changes",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_asset_changes"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/asset-changes/review",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_asset_change_review"
+    },
+    {
       "path": "/api/crm/v2/contracts/{contract_id}/assets",
       "methods": [
         "POST"
@@ -6004,6 +8961,124 @@
       "endpoint": "remove_contract_asset"
     },
     {
+      "path": "/api/crm/v2/contracts/{contract_id}/blue-light-config",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_blue_light_config"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/blue-light/import/commit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_import_commit"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/blue-light/import/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_import_preview"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/blue-light/logo",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_upload_logo"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/blue-light/logo",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "blue_light_serve_logo"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/blue-light/logo",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_delete_logo"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/certificates",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_certificates"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/convert-to-quote",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "convert_contract_to_quote"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/engineers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_engineers"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/overview",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_overview"
+    },
+    {
       "path": "/api/crm/v2/contracts/{contract_id}/pdf",
       "methods": [
         "GET"
@@ -6014,6 +9089,30 @@
       ],
       "mutating": false,
       "endpoint": "download_contract_pdf"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/plan-visits",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_plan_visits"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/reassign-visits",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_reassign_visits"
     },
     {
       "path": "/api/crm/v2/contracts/{contract_id}/renew",
@@ -6088,6 +9187,42 @@
       "endpoint": "update_contract_sla"
     },
     {
+      "path": "/api/crm/v2/contracts/{contract_id}/stations",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_station_matrix"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/stations.csv",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_station_matrix_csv"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/stations/{site_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_contract_station"
+    },
+    {
       "path": "/api/crm/v2/contracts/{contract_id}/submit-approval",
       "methods": [
         "POST"
@@ -6122,6 +9257,18 @@
       ],
       "mutating": true,
       "endpoint": "sync_to_sicon"
+    },
+    {
+      "path": "/api/crm/v2/contracts/{contract_id}/visits/{site_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_unschedule_visit"
     },
     {
       "path": "/api/crm/v2/dashboard",
@@ -6208,6 +9355,30 @@
       "endpoint": "view_v2_document"
     },
     {
+      "path": "/api/crm/v2/equipment-sales/awaiting-delivery",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "equipment_sales_awaiting"
+    },
+    {
+      "path": "/api/crm/v2/equipment-sales/summary",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "equipment_sales_summary"
+    },
+    {
       "path": "/api/crm/v2/knowledge-base",
       "methods": [
         "GET"
@@ -6266,6 +9437,78 @@
       ],
       "mutating": true,
       "endpoint": "delete_kb_item"
+    },
+    {
+      "path": "/api/crm/v2/mod-contracts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_mod_contracts"
+    },
+    {
+      "path": "/api/crm/v2/mod-contracts",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_mod_contract"
+    },
+    {
+      "path": "/api/crm/v2/mod-contracts/catalog",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "mod_catalog"
+    },
+    {
+      "path": "/api/crm/v2/mod-contracts/locations",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "mod_locations"
+    },
+    {
+      "path": "/api/crm/v2/mod-contracts/{contract_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_mod_contract"
+    },
+    {
+      "path": "/api/crm/v2/mod-contracts/{contract_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_mod_contract"
     },
     {
       "path": "/api/crm/v2/notifications",
@@ -6376,6 +9619,18 @@
       "endpoint": "convert_lead"
     },
     {
+      "path": "/api/crm/v2/portal-link/candidates",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "portal_link_candidates"
+    },
+    {
       "path": "/api/crm/v2/public/contracts/{token}",
       "methods": [
         "GET"
@@ -6468,6 +9723,102 @@
       "endpoint": "approve_quote"
     },
     {
+      "path": "/api/crm/v2/quotes/{quote_id}/complete",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "complete_deal"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/fulfilment",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_fulfilment"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/handover",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_handover"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/handover/jobs",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_handover_jobs"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/handover/pack",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "handover_pack_pdf"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/handover/pack/email",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "email_handover_pack"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/handover/register",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "register_with_customer"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/invoicing",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_invoicing"
+    },
+    {
       "path": "/api/crm/v2/quotes/{quote_id}/pdf",
       "methods": [
         "GET"
@@ -6480,6 +9831,42 @@
       "endpoint": "quote_pdf"
     },
     {
+      "path": "/api/crm/v2/quotes/{quote_id}/purchase-orders",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "raise_po"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/purchase-orders/{po_id}/receive",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "receive_goods"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/purchase-orders/{po_id}/status",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_po_status"
+    },
+    {
       "path": "/api/crm/v2/quotes/{quote_id}/push-to-distribution",
       "methods": [
         "POST"
@@ -6490,6 +9877,18 @@
       ],
       "mutating": true,
       "endpoint": "push_quote_to_distribution_route"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/reopen",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "reopen_deal"
     },
     {
       "path": "/api/crm/v2/quotes/{quote_id}/revise",
@@ -6564,6 +9963,30 @@
       "endpoint": "validate_sage"
     },
     {
+      "path": "/api/crm/v2/quotes/{quote_id}/schedule",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_schedule"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/schedule/auto",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "auto_schedule"
+    },
+    {
       "path": "/api/crm/v2/quotes/{quote_id}/send-email",
       "methods": [
         "POST"
@@ -6586,6 +10009,42 @@
       ],
       "mutating": true,
       "endpoint": "sign_quote"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/stages/{stage_id}/credit-note",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "credit_note_stage"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/stages/{stage_id}/invoice",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "invoice_stage"
+    },
+    {
+      "path": "/api/crm/v2/quotes/{quote_id}/stages/{stage_id}/pay",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "pay_stage"
     },
     {
       "path": "/api/crm/v2/quotes/{quote_id}/submit-approval",
@@ -7128,6 +10587,150 @@
       "endpoint": "unified_timeline"
     },
     {
+      "path": "/api/crm/v2/visits/{visit_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_visit_state"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/assets/lookup",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "blue_light_asset_lookup"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/assets/{asset_id}/transfer-request",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_transfer_request"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/assets/{asset_key}/audit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_asset_audit"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/assets/{asset_key}/service",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_asset_service"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/certificate/generate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_certificate_generate"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/complete",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_visit_complete"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/faults",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_raise_fault"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/partial",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_visit_partial"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/start",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_visit_start"
+    },
+    {
+      "path": "/api/crm/v2/visits/{visit_id}/treadmills/{asset_key}/calibration",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "blue_light_calibration"
+    },
+    {
+      "path": "/api/crm/v2/warranty-tiers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_warranty_tiers"
+    },
+    {
       "path": "/api/crm/v2/workflows",
       "methods": [
         "GET"
@@ -7332,6 +10935,184 @@
       "endpoint": "toggle_workflow"
     },
     {
+      "path": "/api/crm/workspace/coordinators",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_coordinators"
+    },
+    {
+      "path": "/api/crm/workspace/cron/daily-checks",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "cron_daily_checks"
+    },
+    {
+      "path": "/api/crm/workspace/customers/{company_id}/coordinator",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_customer_coordinator"
+    },
+    {
+      "path": "/api/crm/workspace/daily-checks/run",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "run_checks_now"
+    },
+    {
+      "path": "/api/crm/workspace/me",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "workspace_me"
+    },
+    {
+      "path": "/api/crm/workspace/renewals",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "renewals_list"
+    },
+    {
+      "path": "/api/crm/workspace/renewals/prepare",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "renewals_prepare"
+    },
+    {
+      "path": "/api/crm/workspace/renewals/{renewal_id}/approve-send",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "renewal_approve_send"
+    },
+    {
+      "path": "/api/crm/workspace/renewals/{renewal_id}/declined",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "renewal_declined"
+    },
+    {
+      "path": "/api/crm/workspace/renewals/{renewal_id}/request-approval",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "renewal_request_approval"
+    },
+    {
+      "path": "/api/crm/workspace/renewals/{renewal_id}/resend",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "renewal_resend"
+    },
+    {
+      "path": "/api/crm/workspace/roles",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_roles"
+    },
+    {
+      "path": "/api/crm/workspace/roles/{user_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "assign_role"
+    },
+    {
+      "path": "/api/crm/workspace/roles/{user_id}/audit",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "role_audit"
+    },
+    {
+      "path": "/api/crm/workspace/sales-handover/{sales_quote_id}",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "raise_handover_now"
+    },
+    {
       "path": "/api/custom-properties",
       "methods": [
         "GET"
@@ -7440,6 +11221,42 @@
       "endpoint": "revoke_customer_grant"
     },
     {
+      "path": "/api/customer/certificates",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_certificates"
+    },
+    {
+      "path": "/api/customer/certificates/summary",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_certificates_summary"
+    },
+    {
+      "path": "/api/customer/certificates/{cert_id}/download",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_certificate_download"
+    },
+    {
       "path": "/api/customer/deliveries",
       "methods": [
         "GET"
@@ -7474,6 +11291,54 @@
       ],
       "mutating": false,
       "endpoint": "my_delivery_certificate"
+    },
+    {
+      "path": "/api/customer/warranties",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_warranties"
+    },
+    {
+      "path": "/api/customer/warranties/certificate",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "warranty_certificate_pdf"
+    },
+    {
+      "path": "/api/customer/warranties/enquire",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "enquire_aftersales"
+    },
+    {
+      "path": "/api/customer/warranties/summary",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_warranties_summary"
     },
     {
       "path": "/api/dealer-parts/ai/dealer-summary",
@@ -7788,6 +11653,19 @@
       "endpoint": "review_alias"
     },
     {
+      "path": "/api/dealer-parts/data/customers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": false,
+      "endpoint": "list_recommend_customers"
+    },
+    {
       "path": "/api/dealer-parts/data/import/bom",
       "methods": [
         "POST"
@@ -7851,6 +11729,45 @@
       ],
       "mutating": false,
       "endpoint": "get_invoice_job"
+    },
+    {
+      "path": "/api/dealer-parts/data/machine-aliases",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": false,
+      "endpoint": "list_machine_aliases"
+    },
+    {
+      "path": "/api/dealer-parts/data/machine-aliases",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": true,
+      "endpoint": "create_machine_alias"
+    },
+    {
+      "path": "/api/dealer-parts/data/machine-aliases/{alias_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": true,
+      "endpoint": "delete_machine_alias"
     },
     {
       "path": "/api/dealer-parts/data/machine-parts",
@@ -7955,6 +11872,58 @@
       ],
       "mutating": false,
       "endpoint": "most_used_analysis"
+    },
+    {
+      "path": "/api/dealer-parts/data/plan-vs-actuals",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": true,
+      "endpoint": "plan_vs_actuals"
+    },
+    {
+      "path": "/api/dealer-parts/data/pva-thresholds",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": false,
+      "endpoint": "get_pva_thresholds"
+    },
+    {
+      "path": "/api/dealer-parts/data/pva-thresholds/override",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": true,
+      "endpoint": "set_pva_threshold_override"
+    },
+    {
+      "path": "/api/dealer-parts/data/pva-thresholds/override/{machine_group}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": true,
+      "endpoint": "clear_pva_threshold_override"
     },
     {
       "path": "/api/dealer-parts/data/recommend",
@@ -8085,6 +12054,45 @@
       ],
       "mutating": true,
       "endpoint": "upload_finish_invoice"
+    },
+    {
+      "path": "/api/dealer-parts/data/warranty-plan",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": false,
+      "endpoint": "get_warranty_plan"
+    },
+    {
+      "path": "/api/dealer-parts/data/warranty-plan/import",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": true,
+      "endpoint": "import_warranty_plan"
+    },
+    {
+      "path": "/api/dealer-parts/data/warranty-plan/update-part",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_staff"
+      ],
+      "mutating": true,
+      "endpoint": "update_warranty_plan_part"
     },
     {
       "path": "/api/dealer-parts/dealers",
@@ -8725,6 +12733,26 @@
       "endpoint": "ask_documents"
     },
     {
+      "path": "/api/downloads/sicon-bruno-collection.zip",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "download_sicon_bruno_collection"
+    },
+    {
+      "path": "/api/downloads/sicon-field-mapping.csv",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "download_sicon_field_mapping"
+    },
+    {
       "path": "/api/dunning/at-risk",
       "methods": [
         "GET"
@@ -8819,6 +12847,78 @@
       ],
       "mutating": false,
       "endpoint": "get_all_equipment"
+    },
+    {
+      "path": "/api/equipment-gaps",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_gaps"
+    },
+    {
+      "path": "/api/equipment-gaps/bulk",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bulk_fill"
+    },
+    {
+      "path": "/api/equipment-gaps/export.xlsx",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_gaps"
+    },
+    {
+      "path": "/api/equipment-gaps/fields",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "gap_fields"
+    },
+    {
+      "path": "/api/equipment-gaps/scopes",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "gap_scopes"
+    },
+    {
+      "path": "/api/equipment-gaps/{equipment_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "patch_gap"
     },
     {
       "path": "/api/equipment-import/confirm-bulk/{batch_id}",
@@ -8969,8 +13069,10 @@
       "methods": [
         "GET"
       ],
-      "authenticated": false,
-      "auth_dependencies": [],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
       "mutating": false,
       "endpoint": "get_csv_template"
     },
@@ -8985,6 +13087,18 @@
       ],
       "mutating": false,
       "endpoint": "export_equipment_csv"
+    },
+    {
+      "path": "/api/equipment/facets",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "equipment_facets"
     },
     {
       "path": "/api/equipment/follow-ups",
@@ -9051,8 +13165,10 @@
       "methods": [
         "GET"
       ],
-      "authenticated": false,
-      "auth_dependencies": [],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
       "mutating": false,
       "endpoint": "list_manufacturers"
     },
@@ -9133,8 +13249,10 @@
       "methods": [
         "GET"
       ],
-      "authenticated": false,
-      "auth_dependencies": [],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
       "mutating": false,
       "endpoint": "get_equipment_csv_template"
     },
@@ -11474,6 +15592,18 @@
       "endpoint": "sicon_simulate_inbound"
     },
     {
+      "path": "/api/integrations/admin/sicon/simulate-inbound-appointment",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "sicon_simulate_inbound_appointment"
+    },
+    {
       "path": "/api/integrations/bridge/records",
       "methods": [
         "GET"
@@ -11588,6 +15718,18 @@
       "auth_dependencies": [],
       "mutating": false,
       "endpoint": "postcode_lookup"
+    },
+    {
+      "path": "/api/integrations/sicon/test-connection",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "test_sicon_connection"
     },
     {
       "path": "/api/integrations/{integration_id}",
@@ -12987,6 +17129,18 @@
       "endpoint": "contact_supplier"
     },
     {
+      "path": "/api/issues/{issue_id}/delivery-status",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_issue_delivery_status"
+    },
+    {
       "path": "/api/issues/{issue_id}/details",
       "methods": [
         "PATCH"
@@ -13985,6 +18139,16 @@
       "endpoint": "director_refine"
     },
     {
+      "path": "/api/marketing/creative/file/{token}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "creative_file"
+    },
+    {
       "path": "/api/marketing/creative/generate",
       "methods": [
         "POST"
@@ -14007,6 +18171,18 @@
       ],
       "mutating": true,
       "endpoint": "import_brand_library_asset"
+    },
+    {
+      "path": "/api/marketing/creative/permissions",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "creative_permissions"
     },
     {
       "path": "/api/marketing/creative/resolutions",
@@ -15637,6 +19813,30 @@
       "endpoint": "run_renewals"
     },
     {
+      "path": "/api/master-admin/bulk-import/backfill-crm",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "backfill_crm_companies"
+    },
+    {
+      "path": "/api/master-admin/bulk-import/batches",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_import_batches"
+    },
+    {
       "path": "/api/master-admin/bulk-import/contracts",
       "methods": [
         "POST"
@@ -15649,18 +19849,6 @@
       "endpoint": "bulk_import_contracts"
     },
     {
-      "path": "/api/master-admin/bulk-import/customers",
-      "methods": [
-        "POST"
-      ],
-      "authenticated": true,
-      "auth_dependencies": [
-        "get_current_user"
-      ],
-      "mutating": true,
-      "endpoint": "bulk_import_customers"
-    },
-    {
       "path": "/api/master-admin/bulk-import/equipment",
       "methods": [
         "POST"
@@ -15671,6 +19859,18 @@
       ],
       "mutating": true,
       "endpoint": "bulk_import_equipment"
+    },
+    {
+      "path": "/api/master-admin/bulk-import/equipment/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "preview_equipment_sites"
     },
     {
       "path": "/api/master-admin/bulk-import/sites",
@@ -15731,6 +19931,18 @@
       ],
       "mutating": false,
       "endpoint": "template_sites_passthrough"
+    },
+    {
+      "path": "/api/master-admin/bulk-import/undo/{batch_id}",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "undo_import_batch"
     },
     {
       "path": "/api/master-admin/canned-replies",
@@ -16332,6 +20544,18 @@
       ],
       "mutating": true,
       "endpoint": "update_document_supplier"
+    },
+    {
+      "path": "/api/master-admin/email-events/retry-failed",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "retry_all_failed_emails"
     },
     {
       "path": "/api/master-admin/email-events/{event_id}/retry",
@@ -17426,6 +21650,30 @@
       "endpoint": "ai_kit_import_commit"
     },
     {
+      "path": "/api/master-admin/mod-estate/bfpo-sites",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_bfpo_sites"
+    },
+    {
+      "path": "/api/master-admin/mod-estate/bfpo-territories",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_bfpo_territories"
+    },
+    {
       "path": "/api/master-admin/mod-estate/bulk-report/{run_id}.xlsx",
       "methods": [
         "GET"
@@ -17592,6 +21840,79 @@
       ],
       "mutating": true,
       "endpoint": "set_mod_equipment_location"
+    },
+    {
+      "path": "/api/master-admin/mod-estate/external-providers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_external_providers"
+    },
+    {
+      "path": "/api/master-admin/mod-estate/external-providers",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_external_provider"
+    },
+    {
+      "path": "/api/master-admin/mod-estate/external-providers/{supplier_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_external_provider"
+    },
+    {
+      "path": "/api/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_provider_engineer"
+    },
+    {
+      "path": "/api/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_provider_engineer"
+    },
+    {
+      "path": "/api/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}/reissue",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "reissue_provider_engineer_login"
+      ],
+      "mutating": true,
+      "endpoint": "reissue_provider_engineer_login"
     },
     {
       "path": "/api/master-admin/mod-estate/hqs",
@@ -18239,6 +22560,18 @@
       ],
       "mutating": true,
       "endpoint": "copy_features_from"
+    },
+    {
+      "path": "/api/master-admin/organizations/{org_id}/grant-pro-trial",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "grant_pro_trial"
     },
     {
       "path": "/api/master-admin/organizations/{org_id}/head-office",
@@ -19285,6 +23618,54 @@
       "endpoint": "download_trust_pager"
     },
     {
+      "path": "/api/master-admin/security-centre/abuse/active",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_active_abuse"
+    },
+    {
+      "path": "/api/master-admin/security-centre/abuse/clear",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "clear_abuse"
+    },
+    {
+      "path": "/api/master-admin/security-centre/alerts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "poll_alerts"
+    },
+    {
+      "path": "/api/master-admin/security-centre/alerts/ack",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "ack_alerts"
+    },
+    {
       "path": "/api/master-admin/security-centre/events",
       "methods": [
         "GET"
@@ -19391,6 +23772,18 @@
       ],
       "mutating": true,
       "endpoint": "revoke_service_desk"
+    },
+    {
+      "path": "/api/master-admin/service-desk/members/send-invite",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "send_service_desk_invite"
     },
     {
       "path": "/api/master-admin/service-desk/users",
@@ -20256,6 +24649,52 @@
       ],
       "mutating": true,
       "endpoint": "update_my_operator_prefs"
+    },
+    {
+      "path": "/api/me/pro-trial",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_pro_trial"
+    },
+    {
+      "path": "/api/me/pro-trial/cron/reminders",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "pro_trial_reminder_cron"
+    },
+    {
+      "path": "/api/me/pro-trial/dismiss-banner",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "dismiss_pro_trial_banner"
+    },
+    {
+      "path": "/api/me/pro-trial/request",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "request_another_pro_trial"
     },
     {
       "path": "/api/me/upgrade-to-pro",
@@ -23184,6 +27623,517 @@
       "endpoint": "stripe_webhook"
     },
     {
+      "path": "/api/migration/attendance/commit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "commit_attendance"
+    },
+    {
+      "path": "/api/migration/attendance/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "preview_attendance"
+    },
+    {
+      "path": "/api/migration/timesheets/commit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "commit_timesheets"
+    },
+    {
+      "path": "/api/migration/timesheets/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "preview_timesheets"
+    },
+    {
+      "path": "/api/mod-ops/quotes/authorisations",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "authorisation_queue"
+    },
+    {
+      "path": "/api/mod-ops/quotes/authorisations/{aid}/evidence",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "authorisation_evidence"
+    },
+    {
+      "path": "/api/mod-ops/quotes/authorisations/{aid}/verify",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user",
+        "verify_authorisation"
+      ],
+      "mutating": true,
+      "endpoint": "verify_authorisation"
+    },
+    {
+      "path": "/api/mod-ops/quotes/catalogue",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "catalogue"
+    },
+    {
+      "path": "/api/mod-ops/quotes/crm/company/{company_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "crm_company_quotes"
+    },
+    {
+      "path": "/api/mod-ops/quotes/customers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "search_customers"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_group"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_groups"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_group"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "revise_group"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "approve_group"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}/extend-validity",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "extend_validity"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}/notify",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "notify_customer"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}/pdfs.zip",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "group_zip"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}/publish",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "publish"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}/submit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "submit_for_approval"
+    },
+    {
+      "path": "/api/mod-ops/quotes/groups/{gid}/withdraw",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "withdraw"
+    },
+    {
+      "path": "/api/mod-ops/quotes/handovers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_handovers"
+    },
+    {
+      "path": "/api/mod-ops/quotes/handovers/{hid}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_handover"
+    },
+    {
+      "path": "/api/mod-ops/quotes/handovers/{hid}/setup",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "setup_handover"
+    },
+    {
+      "path": "/api/mod-ops/quotes/import-equipment",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "import_equipment"
+    },
+    {
+      "path": "/api/mod-ops/quotes/me",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_capabilities"
+    },
+    {
+      "path": "/api/mod-ops/quotes/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "preview"
+    },
+    {
+      "path": "/api/mod-ops/quotes/quotes/{qid}/pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "quote_pdf"
+    },
+    {
+      "path": "/api/mod-ops/quotes/quotes/{qid}/sage-ref",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_sage_ref"
+    },
+    {
+      "path": "/api/mod-ops/quotes/rates/import-preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "rates_import_preview"
+    },
+    {
+      "path": "/api/mod-ops/quotes/rates/price-lists",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "price_lists"
+    },
+    {
+      "path": "/api/mod-ops/quotes/rates/{pid}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "rates_approve"
+    },
+    {
+      "path": "/api/mod-ops/quotes/settings",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_settings"
+    },
+    {
+      "path": "/api/mod-ops/quotes/settings/validity",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": true,
+      "endpoint": "set_validity"
+    },
+    {
+      "path": "/api/mod-ops/quotes/sites/{site_id}/equipment",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "_require_bfpo",
+        "_require_staff",
+        "get_current_user",
+        "require_operator_crm_user"
+      ],
+      "mutating": false,
+      "endpoint": "site_equipment"
+    },
+    {
       "path": "/api/mod/aser",
       "methods": [
         "POST"
@@ -23787,6 +28737,18 @@
       "endpoint": "mod_mark_fault_resolved"
     },
     {
+      "path": "/api/mod/site/faults/{issue_id}/service-report.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "mod_fault_service_report"
+    },
+    {
       "path": "/api/mod/site/incidents",
       "methods": [
         "POST"
@@ -23859,6 +28821,54 @@
       "endpoint": "incident_save_to_documents"
     },
     {
+      "path": "/api/mod/site/machine-suppliers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_machine_suppliers"
+    },
+    {
+      "path": "/api/mod/site/machine-suppliers/bulk-reassign",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bulk_reassign"
+    },
+    {
+      "path": "/api/mod/site/machine-suppliers/third-party",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "add_third_party_supplier"
+    },
+    {
+      "path": "/api/mod/site/ppm",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "site_portal_ppm"
+    },
+    {
       "path": "/api/mod/site/proactive-nudges",
       "methods": [
         "GET"
@@ -23881,6 +28891,19 @@
       ],
       "mutating": false,
       "endpoint": "mod_qr_sheet_pdf"
+    },
+    {
+      "path": "/api/mod/site/quote-groups/{group_id}/zip",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "mod_site_quote_group_zip"
+      ],
+      "mutating": false,
+      "endpoint": "mod_site_quote_group_zip"
     },
     {
       "path": "/api/mod/site/quotes",
@@ -23909,6 +28932,19 @@
       "endpoint": "mod_site_quote_detail"
     },
     {
+      "path": "/api/mod/site/quotes/{quote_id}/authorise",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "mod_site_quote_authorise"
+      ],
+      "mutating": true,
+      "endpoint": "mod_site_quote_authorise"
+    },
+    {
       "path": "/api/mod/site/quotes/{quote_id}/pdf",
       "methods": [
         "GET"
@@ -23920,6 +28956,19 @@
       ],
       "mutating": false,
       "endpoint": "mod_site_quote_pdf"
+    },
+    {
+      "path": "/api/mod/site/quotes/{quote_id}/reviewing",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "mod_site_quote_reviewing"
+      ],
+      "mutating": true,
+      "endpoint": "mod_site_quote_reviewing"
     },
     {
       "path": "/api/mod/site/quotes/{quote_id}/sign",
@@ -24115,6 +29164,138 @@
       "endpoint": "recruit_sign_contract"
     },
     {
+      "path": "/api/new-starter/expenses/review/export",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_export_csv"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/export-months",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_export_months"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/export-xlsx",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_export_xlsx"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/pending",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_review_pending"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/receipts.zip",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_review_receipts_zip_month"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/{claim_id}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "expenses_review_approve"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/{claim_id}/export-xlsx",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_review_claim_export_xlsx"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/{claim_id}/receipt/{receipt_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_review_receipt"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/{claim_id}/receipts.zip",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "expenses_review_receipts_zip"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/{claim_id}/reimburse",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "expenses_review_reimburse"
+    },
+    {
+      "path": "/api/new-starter/expenses/review/{claim_id}/reject",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "expenses_review_reject"
+    },
+    {
       "path": "/api/new-starter/forgot-password",
       "methods": [
         "POST"
@@ -24163,7 +29344,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "get_current_user"
+        "get_current_user_portal"
       ],
       "mutating": false,
       "endpoint": "recruit_me"
@@ -24229,6 +29410,138 @@
       "endpoint": "portal_access"
     },
     {
+      "path": "/api/new-starter/portal/crash-packs",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "crash_list_mine"
+    },
+    {
+      "path": "/api/new-starter/portal/crash-packs",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "crash_create"
+    },
+    {
+      "path": "/api/new-starter/portal/crash-packs/bootstrap",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "crash_bootstrap"
+    },
+    {
+      "path": "/api/new-starter/portal/crash-packs/photo",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "crash_upload_photo"
+    },
+    {
+      "path": "/api/new-starter/portal/crash-packs/{pack_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "crash_get_mine"
+    },
+    {
+      "path": "/api/new-starter/portal/crash-packs/{pack_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "crash_save"
+    },
+    {
+      "path": "/api/new-starter/portal/crash-packs/{pack_id}/submit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "crash_submit"
+    },
+    {
+      "path": "/api/new-starter/portal/day/punch",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_punch"
+    },
+    {
+      "path": "/api/new-starter/portal/day/timesheet",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_day_timesheet"
+    },
+    {
+      "path": "/api/new-starter/portal/detail-change-request",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_request_detail_change"
+    },
+    {
+      "path": "/api/new-starter/portal/detail-change-requests",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_my_detail_requests"
+    },
+    {
       "path": "/api/new-starter/portal/documents",
       "methods": [
         "GET"
@@ -24239,6 +29552,138 @@
       ],
       "mutating": false,
       "endpoint": "portal_documents"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_expenses_list"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_expenses_create"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses/config",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_expenses_config"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses/{claim_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_expenses_get"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses/{claim_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_expenses_update"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses/{claim_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_expenses_delete"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses/{claim_id}/receipt",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_expenses_receipt"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses/{claim_id}/receipt/{receipt_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_expenses_receipt_get"
+    },
+    {
+      "path": "/api/new-starter/portal/expenses/{claim_id}/submit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_expenses_submit"
+    },
+    {
+      "path": "/api/new-starter/portal/handbook-guide",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_handbook_guide"
+    },
+    {
+      "path": "/api/new-starter/portal/handbook.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_handbook"
     },
     {
       "path": "/api/new-starter/portal/holidays",
@@ -24265,6 +29710,18 @@
       "endpoint": "portal_request_holiday"
     },
     {
+      "path": "/api/new-starter/portal/holidays/preview",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_holiday_preview"
+    },
+    {
       "path": "/api/new-starter/portal/holidays/{leave_id}",
       "methods": [
         "DELETE"
@@ -24277,6 +29734,114 @@
       "endpoint": "portal_cancel_holiday"
     },
     {
+      "path": "/api/new-starter/portal/my-day",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_my_day"
+    },
+    {
+      "path": "/api/new-starter/portal/my-time",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_my_time"
+    },
+    {
+      "path": "/api/new-starter/portal/notifications",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_notifications"
+    },
+    {
+      "path": "/api/new-starter/portal/notifications/read",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_notifications_read"
+    },
+    {
+      "path": "/api/new-starter/portal/period/{period_id}/submit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_submit_period"
+    },
+    {
+      "path": "/api/new-starter/portal/periods",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_current_periods"
+    },
+    {
+      "path": "/api/new-starter/portal/photo",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_upload_photo"
+    },
+    {
+      "path": "/api/new-starter/portal/photo",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_delete_photo"
+    },
+    {
+      "path": "/api/new-starter/portal/report-absence",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_report_absence"
+    },
+    {
       "path": "/api/new-starter/portal/rota",
       "methods": [
         "GET"
@@ -24287,6 +29852,30 @@
       ],
       "mutating": false,
       "endpoint": "portal_rota"
+    },
+    {
+      "path": "/api/new-starter/portal/rtw-pending",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_rtw_pending"
+    },
+    {
+      "path": "/api/new-starter/portal/rtw/{leave_id}/acknowledge",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_rtw_acknowledge"
     },
     {
       "path": "/api/new-starter/portal/timesheet",
@@ -24311,6 +29900,90 @@
       ],
       "mutating": true,
       "endpoint": "portal_timesheet_edit"
+    },
+    {
+      "path": "/api/new-starter/portal/timesheet/self-save",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_timesheet_self_save"
+    },
+    {
+      "path": "/api/new-starter/portal/timesheet/submit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_timesheet_submit"
+    },
+    {
+      "path": "/api/new-starter/portal/vehicle-check",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_get_check"
+    },
+    {
+      "path": "/api/new-starter/portal/vehicle-check/photo",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_upload_photo"
+    },
+    {
+      "path": "/api/new-starter/portal/vehicle-check/save",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_save_check"
+    },
+    {
+      "path": "/api/new-starter/portal/vehicle-check/submit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": true,
+      "endpoint": "portal_submit_check"
+    },
+    {
+      "path": "/api/new-starter/portal/vehicles",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_portal"
+      ],
+      "mutating": false,
+      "endpoint": "portal_vehicles"
     },
     {
       "path": "/api/new-starter/reset-password",
@@ -26142,6 +31815,234 @@
       "endpoint": "check_payment_status"
     },
     {
+      "path": "/api/payroll/field-mapping",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_mapping"
+    },
+    {
+      "path": "/api/payroll/field-mapping",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "put_mapping"
+    },
+    {
+      "path": "/api/payroll/periods",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_periods"
+    },
+    {
+      "path": "/api/payroll/periods",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_period"
+    },
+    {
+      "path": "/api/payroll/periods/generate",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "generate_period"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_period"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_period"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/adjustment",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "add_adjustment"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/adjustments",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_adjustments"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "approve"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/approve-ready",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "approve_ready"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/employee/{staff_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "employee_detail"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/export",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_period"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/lock",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "lock_period"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/return",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "return_for_correction"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/submit",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "submit"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/validation",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "validation"
+    },
+    {
+      "path": "/api/payroll/periods/{period_id}/workspace",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "workspace"
+    },
+    {
+      "path": "/api/payroll/reports",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "payroll_reports"
+    },
+    {
       "path": "/api/platform-docs/pdf",
       "methods": [
         "GET"
@@ -26222,6 +32123,30 @@
       ],
       "mutating": false,
       "endpoint": "check_send_consent"
+    },
+    {
+      "path": "/api/ppm/backfill/runs/{run_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_ppm_backfill_run"
+    },
+    {
+      "path": "/api/ppm/backfill/site/{site_id}",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "start_site_ppm_backfill"
     },
     {
       "path": "/api/ppm/checklists",
@@ -26388,6 +32313,86 @@
       "auth_dependencies": [],
       "mutating": false,
       "endpoint": "get_public_pricing"
+    },
+    {
+      "path": "/api/public/afs/agreement/{token}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "get_public_agreement"
+    },
+    {
+      "path": "/api/public/afs/agreement/{token}/decline",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "decline_public_agreement"
+    },
+    {
+      "path": "/api/public/afs/agreement/{token}/pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "public_agreement_pdf"
+    },
+    {
+      "path": "/api/public/afs/agreement/{token}/sign",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "sign_public_agreement"
+    },
+    {
+      "path": "/api/public/afs/quote/{shortcode}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "get_public_afs_quote"
+    },
+    {
+      "path": "/api/public/afs/quote/{shortcode}/accept",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "accept_public_afs_quote"
+    },
+    {
+      "path": "/api/public/afs/quote/{shortcode}/decline",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "decline_public_afs_quote"
+    },
+    {
+      "path": "/api/public/afs/quote/{shortcode}/pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "public_afs_quote_pdf"
     },
     {
       "path": "/api/public/billing/invoice/{invoice_id}/pay",
@@ -27873,6 +33878,16 @@
       "endpoint": "create_appointment"
     },
     {
+      "path": "/api/sicon/cron/nightly-sync",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "sicon_cron_nightly_sync"
+    },
+    {
       "path": "/api/sicon/engineers",
       "methods": [
         "GET"
@@ -27931,6 +33946,284 @@
       ],
       "mutating": false,
       "endpoint": "fetch_priorities"
+    },
+    {
+      "path": "/api/sicon/read/api-health",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_api_health"
+    },
+    {
+      "path": "/api/sicon/read/cases/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "read_cases_preview"
+    },
+    {
+      "path": "/api/sicon/read/cases/sync",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "read_cases_sync"
+    },
+    {
+      "path": "/api/sicon/read/conflicts",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_conflicts"
+    },
+    {
+      "path": "/api/sicon/read/conflicts/{external_id}/resolve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "read_resolve_conflict"
+    },
+    {
+      "path": "/api/sicon/read/customer-mappings",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_customer_mappings"
+    },
+    {
+      "path": "/api/sicon/read/customer-mappings",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "save_customer_mapping"
+    },
+    {
+      "path": "/api/sicon/read/dashboard",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_dashboard"
+    },
+    {
+      "path": "/api/sicon/read/differences",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_differences"
+    },
+    {
+      "path": "/api/sicon/read/differences/{diff_id}/resolve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "resolve_difference"
+    },
+    {
+      "path": "/api/sicon/read/engineer-mapping",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "read_engineer_mapping"
+      ],
+      "mutating": false,
+      "endpoint": "read_engineer_mapping"
+    },
+    {
+      "path": "/api/sicon/read/engineer-mapping",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "save_engineer_mapping"
+      ],
+      "mutating": true,
+      "endpoint": "save_engineer_mapping"
+    },
+    {
+      "path": "/api/sicon/read/equipment/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "read_equipment_preview"
+    },
+    {
+      "path": "/api/sicon/read/equipment/sync",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "read_equipment_sync"
+    },
+    {
+      "path": "/api/sicon/read/equipment/sync/{run_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_equipment_sync_status"
+    },
+    {
+      "path": "/api/sicon/read/equipment/{sicon_equipment_id}/cover",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_equipment_cover"
+    },
+    {
+      "path": "/api/sicon/read/onboarding/latest",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "onboarding_latest"
+    },
+    {
+      "path": "/api/sicon/read/onboarding/preview",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "onboarding_preview"
+    },
+    {
+      "path": "/api/sicon/read/onboarding/runs/{run_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "onboarding_run"
+    },
+    {
+      "path": "/api/sicon/read/onboarding/{run_id}/apply",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "onboarding_apply"
+    },
+    {
+      "path": "/api/sicon/read/reference",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_reference"
+    },
+    {
+      "path": "/api/sicon/read/reference",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "save_reference"
+    },
+    {
+      "path": "/api/sicon/read/sync-runs",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "read_sync_runs"
     },
     {
       "path": "/api/sicon/sync-case/{issue_id}",
@@ -29523,6 +35816,18 @@
       "endpoint": "total_unread"
     },
     {
+      "path": "/api/staffing/compliance",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "compliance_overview"
+    },
+    {
       "path": "/api/staffing/compliance/certs",
       "methods": [
         "GET"
@@ -29593,6 +35898,54 @@
       ],
       "mutating": false,
       "endpoint": "conflicts"
+    },
+    {
+      "path": "/api/staffing/departments",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "list_departments"
+    },
+    {
+      "path": "/api/staffing/detail-change-requests",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "hr_list_detail_requests"
+    },
+    {
+      "path": "/api/staffing/detail-change-requests/{req_id}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "hr_approve_detail_request"
+    },
+    {
+      "path": "/api/staffing/detail-change-requests/{req_id}/reject",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "hr_reject_detail_request"
     },
     {
       "path": "/api/staffing/forms/submissions",
@@ -30021,6 +36374,114 @@
       ],
       "mutating": true,
       "endpoint": "request_swap"
+    },
+    {
+      "path": "/api/staffing/me/portal-access",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "my_portal_access"
+    },
+    {
+      "path": "/api/staffing/my-visibility",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "my_visibility"
+    },
+    {
+      "path": "/api/staffing/notifications",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "staffing_notifications"
+    },
+    {
+      "path": "/api/staffing/notifications/read",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "staffing_notifications_read"
+    },
+    {
+      "path": "/api/staffing/offboarding",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "list_offboarding"
+    },
+    {
+      "path": "/api/staffing/offboarding/{staff_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "get_offboarding"
+    },
+    {
+      "path": "/api/staffing/offboarding/{staff_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": true,
+      "endpoint": "update_offboarding"
+    },
+    {
+      "path": "/api/staffing/offboarding/{staff_id}/complete",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": true,
+      "endpoint": "complete_offboarding"
+    },
+    {
+      "path": "/api/staffing/offboarding/{staff_id}/start",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": true,
+      "endpoint": "start_offboarding"
     },
     {
       "path": "/api/staffing/orgchart/charts",
@@ -30681,6 +37142,18 @@
       "endpoint": "create_staff"
     },
     {
+      "path": "/api/staffing/staff/module-access/bulk",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": true,
+      "endpoint": "staff_module_bulk"
+    },
+    {
       "path": "/api/staffing/staff/{staff_id}",
       "methods": [
         "PATCH"
@@ -30705,6 +37178,30 @@
       "endpoint": "archive_staff"
     },
     {
+      "path": "/api/staffing/staff/{staff_id}/dept-visibility",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": true,
+      "endpoint": "set_dept_visibility"
+    },
+    {
+      "path": "/api/staffing/staff/{staff_id}/employee-file",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "export_employee_file"
+    },
+    {
       "path": "/api/staffing/staff/{staff_id}/issue-credentials",
       "methods": [
         "POST"
@@ -30715,6 +37212,52 @@
       ],
       "mutating": true,
       "endpoint": "issue_staff_credentials"
+    },
+    {
+      "path": "/api/staffing/staff/{staff_id}/module-access",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "staff_module_access"
+    },
+    {
+      "path": "/api/staffing/staff/{staff_id}/module-access/{module}/grant",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": true,
+      "endpoint": "staff_module_grant"
+    },
+    {
+      "path": "/api/staffing/staff/{staff_id}/module-access/{module}/revoke",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": true,
+      "endpoint": "staff_module_revoke"
+    },
+    {
+      "path": "/api/staffing/staff/{staff_id}/photo",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "serve_staff_photo"
     },
     {
       "path": "/api/staffing/tasks",
@@ -30801,6 +37344,42 @@
       "endpoint": "uncomplete_task"
     },
     {
+      "path": "/api/staffing/team/module-matrix",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user_or_crm"
+      ],
+      "mutating": false,
+      "endpoint": "team_module_matrix"
+    },
+    {
+      "path": "/api/staffing/timesheet-schedule",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "get_timesheet_schedule"
+    },
+    {
+      "path": "/api/staffing/timesheet-schedule",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "save_timesheet_schedule"
+    },
+    {
       "path": "/api/staffing/timesheets",
       "methods": [
         "GET"
@@ -30811,6 +37390,66 @@
       ],
       "mutating": false,
       "endpoint": "list_timesheets"
+    },
+    {
+      "path": "/api/staffing/timesheets/export-week",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_week_timesheets"
+    },
+    {
+      "path": "/api/staffing/timesheets/month-export",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_month_timesheet"
+    },
+    {
+      "path": "/api/staffing/timesheets/month-pack",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "month_pack"
+    },
+    {
+      "path": "/api/staffing/timesheets/month-summary",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "month_summary"
+    },
+    {
+      "path": "/api/staffing/timesheets/payroll-pack",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "payroll_pack"
     },
     {
       "path": "/api/staffing/timesheets/{ts_id}/approve",
@@ -30835,6 +37474,30 @@
       ],
       "mutating": true,
       "endpoint": "dispute_timesheet"
+    },
+    {
+      "path": "/api/staffing/timesheets/{ts_id}/export",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_timesheet"
+    },
+    {
+      "path": "/api/staffing/timesheets/{ts_id}/return",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "return_timesheet"
     },
     {
       "path": "/api/staffing/workforce-dashboard",
@@ -31125,6 +37788,30 @@
       ],
       "mutating": true,
       "endpoint": "add_gym_comment"
+    },
+    {
+      "path": "/api/supplier/case/{token}/comments/gym/{comment_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "edit_gym_comment"
+    },
+    {
+      "path": "/api/supplier/case/{token}/comments/gym/{comment_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_gym_comment"
     },
     {
       "path": "/api/supplier/case/{token}/contact.vcf",
@@ -31629,6 +38316,18 @@
       "endpoint": "fire_ppm_due_reminders"
     },
     {
+      "path": "/api/svc/admin/ppm/fire-email-reminders",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "fire_ppm_email_reminders"
+    },
+    {
       "path": "/api/svc/admin/ppm/roll",
       "methods": [
         "POST"
@@ -32123,6 +38822,30 @@
       "endpoint": "update_case"
     },
     {
+      "path": "/api/svc/cases/{case_id}/calibration/certificate.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "case_calibration_certificate"
+    },
+    {
+      "path": "/api/svc/cases/{case_id}/calibration/certificate/email",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "case_calibration_certificate_email"
+    },
+    {
       "path": "/api/svc/cases/{case_id}/crm-context",
       "methods": [
         "GET"
@@ -32157,6 +38880,30 @@
       ],
       "mutating": true,
       "endpoint": "send_feedback_request"
+    },
+    {
+      "path": "/api/svc/cases/{case_id}/follow-up-draft",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "follow_up_draft_ep"
+    },
+    {
+      "path": "/api/svc/cases/{case_id}/job-file",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "case_job_file"
     },
     {
       "path": "/api/svc/cases/{case_id}/lifecycle",
@@ -32205,6 +38952,18 @@
       ],
       "mutating": true,
       "endpoint": "service_report_email"
+    },
+    {
+      "path": "/api/svc/cases/{case_id}/take-over",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "take_over_case"
     },
     {
       "path": "/api/svc/cases/{case_id}/tracking-link",
@@ -32411,6 +39170,54 @@
       "endpoint": "push_customer"
     },
     {
+      "path": "/api/svc/desk/customer-equipment",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "desk_customer_equipment"
+    },
+    {
+      "path": "/api/svc/desk/customer-equipment.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "desk_customer_equipment_pdf"
+    },
+    {
+      "path": "/api/svc/desk/customer-sites",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "desk_customer_sites"
+    },
+    {
+      "path": "/api/svc/desk/customers",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "desk_customers"
+    },
+    {
       "path": "/api/svc/desk/engineers",
       "methods": [
         "GET"
@@ -32421,6 +39228,54 @@
       ],
       "mutating": false,
       "endpoint": "desk_engineers"
+    },
+    {
+      "path": "/api/svc/desk/equipment-change-requests",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_change_requests"
+    },
+    {
+      "path": "/api/svc/desk/equipment-change-requests/{req_id}/approve",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "approve_change_request"
+    },
+    {
+      "path": "/api/svc/desk/equipment-change-requests/{req_id}/reject",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "reject_change_request"
+    },
+    {
+      "path": "/api/svc/desk/equipment-coverage",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "desk_equipment_coverage"
     },
     {
       "path": "/api/svc/desk/queue",
@@ -32878,6 +39733,18 @@
       "endpoint": "create_engineer_equipment"
     },
     {
+      "path": "/api/svc/engineer/equipment-change-requests",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "propose_equipment_change"
+    },
+    {
       "path": "/api/svc/engineer/equipment/by-code/{code}",
       "methods": [
         "GET"
@@ -33294,6 +40161,60 @@
       "endpoint": "engineer_job_detail"
     },
     {
+      "path": "/api/svc/engineer/jobs/{case_id}/acknowledge",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "engineer_acknowledge_job",
+        "get_current_user",
+        "require_engineer_app_access"
+      ],
+      "mutating": true,
+      "endpoint": "engineer_acknowledge_job"
+    },
+    {
+      "path": "/api/svc/engineer/jobs/{case_id}/calibration",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_engineer_app_access"
+      ],
+      "mutating": false,
+      "endpoint": "get_job_calibration"
+    },
+    {
+      "path": "/api/svc/engineer/jobs/{case_id}/calibration",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_engineer_app_access"
+      ],
+      "mutating": true,
+      "endpoint": "save_job_calibration"
+    },
+    {
+      "path": "/api/svc/engineer/jobs/{case_id}/calibration/certificate.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "engineer_calibration_certificate",
+        "get_current_user",
+        "require_engineer_app_access"
+      ],
+      "mutating": false,
+      "endpoint": "engineer_calibration_certificate"
+    },
+    {
       "path": "/api/svc/engineer/jobs/{case_id}/capture-serial",
       "methods": [
         "POST"
@@ -33425,6 +40346,18 @@
       ],
       "mutating": true,
       "endpoint": "clear_engineer_draft"
+    },
+    {
+      "path": "/api/svc/engineer/jobs/{case_id}/equipment-change-requests",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_case_change_requests"
     },
     {
       "path": "/api/svc/engineer/jobs/{case_id}/eta-update",
@@ -33713,6 +40646,19 @@
       ],
       "mutating": true,
       "endpoint": "engineer_safety_waive"
+    },
+    {
+      "path": "/api/svc/engineer/jobs/{case_id}/signoff",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user",
+        "require_engineer_app_access"
+      ],
+      "mutating": false,
+      "endpoint": "get_signoff"
     },
     {
       "path": "/api/svc/engineer/jobs/{case_id}/site-equipment",
@@ -35397,6 +42343,223 @@
       "endpoint": "confirm_pm_visit"
     },
     {
+      "path": "/api/svc/ppm/backfill",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "backfill_ppm"
+    },
+    {
+      "path": "/api/svc/ppm/backfill-jobs",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "backfill_ppm_jobs"
+    },
+    {
+      "path": "/api/svc/ppm/calendar",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "ppm_calendar"
+    },
+    {
+      "path": "/api/svc/ppm/engineer-load",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "engineer_load",
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "engineer_load"
+    },
+    {
+      "path": "/api/svc/ppm/plan/group",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "plan_group_sites"
+    },
+    {
+      "path": "/api/svc/ppm/schedule",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "schedule_ppm"
+    },
+    {
+      "path": "/api/svc/ppm/schedules",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_ppm_schedule"
+    },
+    {
+      "path": "/api/svc/ppm/schedules/bulk",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bulk_ppm_schedules"
+    },
+    {
+      "path": "/api/svc/ppm/schedules/delete",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "bulk_delete_schedules"
+    },
+    {
+      "path": "/api/svc/ppm/schedules/delete-all",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_all_for_customer"
+    },
+    {
+      "path": "/api/svc/ppm/schedules/{schedule_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "schedule_detail"
+    },
+    {
+      "path": "/api/svc/ppm/schedules/{schedule_id}/reschedule",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "reschedule_schedule"
+    },
+    {
+      "path": "/api/svc/ppm/search",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "search_schedules"
+    },
+    {
+      "path": "/api/svc/ppm/service-types",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_service_types"
+    },
+    {
+      "path": "/api/svc/ppm/service-types",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_service_type"
+    },
+    {
+      "path": "/api/svc/ppm/service-types/{st_id}",
+      "methods": [
+        "PUT"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_service_type"
+    },
+    {
+      "path": "/api/svc/ppm/service-types/{st_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_service_type"
+    },
+    {
+      "path": "/api/svc/ppm/services",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_services"
+    },
+    {
       "path": "/api/svc/public/track/{token}",
       "methods": [
         "GET"
@@ -36103,7 +43266,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": false,
@@ -36116,7 +43279,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36129,7 +43292,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36142,7 +43305,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36155,7 +43318,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": false,
@@ -36168,7 +43331,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36181,7 +43344,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": false,
@@ -36194,7 +43357,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36217,7 +43380,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": false,
@@ -36230,7 +43393,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36243,7 +43406,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36256,7 +43419,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": false,
@@ -36269,7 +43432,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36282,7 +43445,7 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": true,
@@ -36295,11 +43458,343 @@
       ],
       "authenticated": true,
       "auth_dependencies": [
-        "<fastapi.security.api_key.APIKeyHeader object at 0xfabe69452d10>",
+        "<fastapi.security.api_key.APIKeyHeader object at 0xf85a3ee71810>",
         "verify_api_key"
       ],
       "mutating": false,
       "endpoint": "supplier_webhook_status"
+    },
+    {
+      "path": "/api/vehicle-checks/cron/weekly-reminder",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": true,
+      "endpoint": "vehicle_reminder_cron"
+    },
+    {
+      "path": "/api/vehicle-checks/dashboard",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "fleet_dashboard"
+    },
+    {
+      "path": "/api/vehicle-checks/export-zip",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_checks_zip"
+    },
+    {
+      "path": "/api/vehicle-checks/export.csv",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_csv"
+    },
+    {
+      "path": "/api/vehicle-checks/photo/{file_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": false,
+      "auth_dependencies": [],
+      "mutating": false,
+      "endpoint": "vehicle_photo"
+    },
+    {
+      "path": "/api/vehicle-checks/register",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "check_register"
+    },
+    {
+      "path": "/api/vehicle-checks/send-reminders",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "vehicle_reminder_now"
+    },
+    {
+      "path": "/api/vehicle-checks/templates",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "vehicle_templates"
+    },
+    {
+      "path": "/api/vehicle-checks/{check_id}",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "check_detail"
+    },
+    {
+      "path": "/api/vehicle-checks/{check_id}/pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "check_pdf"
+    },
+    {
+      "path": "/api/vehicle-checks/{check_id}/review",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "review_check"
+    },
+    {
+      "path": "/api/vehicle-defects",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_defects"
+    },
+    {
+      "path": "/api/vehicle-defects/{defect_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_defect"
+    },
+    {
+      "path": "/api/vehicles",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "list_vehicles"
+    },
+    {
+      "path": "/api/vehicles",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "create_vehicle"
+    },
+    {
+      "path": "/api/vehicles/driver-options",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "driver_options"
+    },
+    {
+      "path": "/api/vehicles/export.csv",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_vehicles_csv"
+    },
+    {
+      "path": "/api/vehicles/export.pdf",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "export_vehicles_pdf"
+    },
+    {
+      "path": "/api/vehicles/fine-upload",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "upload_fine_doc"
+    },
+    {
+      "path": "/api/vehicles/import",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "import_vehicles"
+    },
+    {
+      "path": "/api/vehicles/import-candidates",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "import_candidates"
+    },
+    {
+      "path": "/api/vehicles/import-csv",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "import_csv"
+    },
+    {
+      "path": "/api/vehicles/import-template.csv",
+      "methods": [
+        "GET"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": false,
+      "endpoint": "import_template"
+    },
+    {
+      "path": "/api/vehicles/{vehicle_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_vehicle"
+    },
+    {
+      "path": "/api/vehicles/{vehicle_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_vehicle"
+    },
+    {
+      "path": "/api/vehicles/{vehicle_id}/fines",
+      "methods": [
+        "POST"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "add_fine"
+    },
+    {
+      "path": "/api/vehicles/{vehicle_id}/fines/{fine_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "update_fine"
+    },
+    {
+      "path": "/api/vehicles/{vehicle_id}/fines/{fine_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "authenticated": true,
+      "auth_dependencies": [
+        "get_current_user"
+      ],
+      "mutating": true,
+      "endpoint": "delete_fine"
     },
     {
       "path": "/api/webhook/stripe",

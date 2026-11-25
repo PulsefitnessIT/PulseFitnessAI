@@ -16,11 +16,12 @@ Tests verify:
      depend on them.
   5. The new router is registered in `route_registry/admin.py`.
 """
+from tests._paths import REPO  # noqa: E402
 import importlib
 import os
 
 
-BACKEND = '/app/backend'
+BACKEND = REPO + '/backend'
 
 
 def _route_pairs(router) -> set:

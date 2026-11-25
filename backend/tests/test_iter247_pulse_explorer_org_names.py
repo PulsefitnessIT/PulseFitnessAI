@@ -6,6 +6,7 @@ the frontend renders the name in an "organisation" column (raw uuid
 stays in the hover tooltip).
 """
 
+from tests._paths import REPO  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url
@@ -69,7 +70,7 @@ def test_pulse_explorer_org_name_matches_real_org():
 
 
 def test_frontend_renders_org_names():
-    src = open("/app/frontend/src/pages/MasterAdmin/PulseDbExplorerPanel.js", encoding="utf-8").read()
+    src = open(REPO + "/frontend/src/pages/MasterAdmin/PulseDbExplorerPanel.js", encoding="utf-8").read()
     assert "organization_name" in src
     assert "'organisation'" in src, "organization_id column must be re-labelled"
     assert "cellTitle" in src, "raw id must stay available in the tooltip"

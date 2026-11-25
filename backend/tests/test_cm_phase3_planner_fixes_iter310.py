@@ -1,6 +1,7 @@
 """Iteration 310 — CM Phase 3 Service Planner fixes (public URL), needs `_seed_p3ui.py seed` data.
 Run: cd /app/backend && PYTHONPATH=. python -m pytest -q -p no:xdist tests/test_cm_phase3_planner_fixes_iter310.py
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 from datetime import date, timedelta
@@ -15,7 +16,7 @@ from utils.auth import create_token
 def _pub():
     v = os.environ.get("REACT_APP_BACKEND_URL")
     if not v:
-        for ln in open("/app/frontend/.env"):
+        for ln in open(REPO + "/frontend/.env"):
             if ln.startswith("REACT_APP_BACKEND_URL="):
                 v = ln.split("=", 1)[1].strip()
     return v.rstrip("/")

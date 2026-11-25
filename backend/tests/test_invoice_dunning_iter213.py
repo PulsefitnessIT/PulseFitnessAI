@@ -10,6 +10,7 @@ Plus invoice-row state mutations (`reminders` audit trail) and stage
 selection logic.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import sys
@@ -69,7 +70,7 @@ def overdue_invoice(master_admin_token_session):
 
     # Back-date due_at via direct DB write.
     import asyncio
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # noqa: E402
 
     past_due = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
@@ -185,7 +186,7 @@ def test_remind_one_invoice_endpoint(overdue_invoice, master_admin_token_session
 def test_remind_rejects_paid_invoice(master_admin_token_session):
     """Create + immediately mark an invoice paid, then assert remind 400s."""
     import asyncio
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # noqa: E402
 
     base = _test_backend_url()
@@ -247,7 +248,7 @@ def test_remind_not_yet_overdue_returns_400_unless_forced(master_admin_token_ses
     assert r3.json()["ok"] is True
     # Cleanup
     import asyncio
-    sys.path.insert(0, "/app/backend")
+    sys.path.insert(0, REPO + "/backend")
     from utils.database import db  # noqa: E402
 
     async def _cleanup():

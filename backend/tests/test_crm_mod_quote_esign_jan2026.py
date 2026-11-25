@@ -9,6 +9,7 @@ Covers:
 - Quote status='accepted' in /api/crm/v2/quotes; contract 'active' in /api/crm/mod-quote/contracts
 - Invalid token → 404
 """
+from tests._paths import REPO  # noqa: E402
 import pytest
 pytestmark = pytest.mark.skip(reason="Legacy CRM MOD quote creation/rate-card writes retired 2026-11-25 (410). Replaced by tests/test_mod_ops_quotes.py and tests/test_mod_quotes_http.py; retirement asserted in test_legacy_mod_quote_creation_retired.")
 import os
@@ -19,7 +20,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     BASE_URL = line.strip().split("=", 1)[1].rstrip("/")
@@ -222,7 +223,7 @@ def test_cleanup():
         mongo_url = os.environ.get("MONGO_URL")
         db_name = os.environ.get("DB_NAME", "test_database")
         if not mongo_url:
-            with open("/app/backend/.env") as f:
+            with open(REPO + "/backend/.env") as f:
                 for line in f:
                     if line.startswith("MONGO_URL="):
                         mongo_url = line.strip().split("=", 1)[1]

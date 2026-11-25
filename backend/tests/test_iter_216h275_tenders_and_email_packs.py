@@ -47,6 +47,7 @@ re-populated. Fixed: now re-seeds when no **active** rows exist
 preserving any custom packs).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -69,7 +70,7 @@ def _strip_js(src: str) -> str:
 
 
 def test_tenders_label_renamed_in_i18n():
-    src = pathlib.Path("/app/frontend/src/i18n/locales/en.json").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/i18n/locales/en.json").read_text()
     assert '"tenders": "Tenders"' in src
     # No stale "Tender Engine" label in the canonical locale key
     lines = [ln for ln in src.splitlines() if '"tenders":' in ln]
@@ -78,9 +79,9 @@ def test_tenders_label_renamed_in_i18n():
 
 def test_tenders_label_renamed_in_master_admin_panels():
     for path in (
-        "/app/frontend/src/pages/MasterAdmin/AdminOrganizations.js",
-        "/app/frontend/src/pages/MasterAdmin/AdminFeatures.js",
-        "/app/frontend/src/pages/MasterAdmin/FeatureControlPanel.js",
+        REPO + "/frontend/src/pages/MasterAdmin/AdminOrganizations.js",
+        REPO + "/frontend/src/pages/MasterAdmin/AdminFeatures.js",
+        REPO + "/frontend/src/pages/MasterAdmin/FeatureControlPanel.js",
     ):
         src = pathlib.Path(path).read_text()
         # The crm_tenders entry must read "Tenders" (not "Tender Engine")
@@ -101,7 +102,7 @@ def test_nav_item_uses_feature_flag_not_internal_only():
     excluded 'Pulse Fitness Limited'. Now the gate is the master
     admin feature toggle."""
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMApp.js"
+        REPO + "/frontend/src/pages/CRM/CRMApp.js"
     ).read_text())
     # Find the Tenders nav entry
     m = re.search(r"id:\s*'tenders',[^}]+", src)
@@ -120,7 +121,7 @@ def test_nav_filter_evaluates_feature_flag():
     org has the matching feature toggle ON (with `is_pulse_internal`
     as a back-compat fallback for legacy unset flags)."""
     src = _strip_js(pathlib.Path(
-        "/app/frontend/src/pages/CRM/CRMApp.js"
+        REPO + "/frontend/src/pages/CRM/CRMApp.js"
     ).read_text())
     assert "featureOn(it.featureFlag)" in src, (
         "visibleNavItems filter must consume the featureFlag prop"
@@ -135,14 +136,14 @@ def test_nav_filter_evaluates_feature_flag():
 def test_crm_auth_me_returns_features_and_modules():
     """The frontend nav can only gate by feature flag if the
     /api/crm/auth/me payload actually carries `features` + `modules`."""
-    src = pathlib.Path("/app/backend/routes/crm_auth.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_auth.py").read_text()
     me_block = src.split("@router.get(\"/me\")")[1].split("@router")[0]
     assert '"features": features' in me_block
     assert '"modules": modules' in me_block
 
 
 def test_crm_auth_login_returns_features_and_modules():
-    src = pathlib.Path("/app/backend/routes/crm_auth.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_auth.py").read_text()
     login_block = src.split("@router.post(\"/login\")")[1].split("@router")[0]
     assert '"features": features' in login_block
     assert '"modules": modules' in login_block
@@ -152,7 +153,7 @@ def test_resolve_crm_brand_flags_name_check_uses_startswith():
     """Pulse Fitness Limited used to be excluded because the name
     check was strict ==. Now uses startswith so the LTD suffix
     doesn't lock the customer out of their own internal modules."""
-    src = pathlib.Path("/app/backend/routes/crm_auth.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_auth.py").read_text()
     block = src.split("async def _resolve_crm_brand_flags")[1].split("\nasync def")[0]
     assert 'startswith("pulse fitness")' in block, (
         "Name match must be startswith — strict == excluded 'Pulse Fitness Limited'"
@@ -163,7 +164,7 @@ def test_resolve_crm_brand_flags_returns_4_tuple():
     """The function signature now returns
     (crm_brand, is_pulse_internal, features, modules). Test by
     inspecting the actual return statement."""
-    src = pathlib.Path("/app/backend/routes/crm_auth.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/crm_auth.py").read_text()
     block = src.split("async def _resolve_crm_brand_flags")[1].split("\nasync def")[0]
     assert "return crm_brand, is_pulse_internal, features, modules" in block
 
@@ -176,7 +177,7 @@ def test_marketing_addons_reseeds_when_all_inactive():
     flow left the catalog empty forever. Now it re-seeds when no
     ACTIVE rows exist."""
     src = pathlib.Path(
-        "/app/backend/routes/marketing_addons.py"
+        REPO + "/backend/routes/marketing_addons.py"
     ).read_text()
     seed_block = src.split("async def _seed_catalog_if_empty")[1].split("\nasync def")[0]
     assert 'count_documents({"active": True})' in seed_block, (

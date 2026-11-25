@@ -21,10 +21,11 @@ us honest if someone removes them. Pure file-system check so we don't
 need a running React app.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
-ROUTES_FILE = Path("/app/frontend/src/routes/AppRoutes.js")
+ROUTES_FILE = Path(REPO + "/frontend/src/routes/AppRoutes.js")
 
 
 def _routes_text() -> str:
@@ -74,7 +75,7 @@ def test_no_remaining_links_to_known_dead_paths():
     """No JS/JSX file outside AppRoutes should still link to the dead
     paths. AppRoutes itself is allowed because that's where the
     redirects live."""
-    root = Path("/app/frontend/src")
+    root = Path(REPO + "/frontend/src")
     offenders: list[tuple[str, str]] = []
     DEAD_TARGETS = [
         '"/legal/privacy"', "'/legal/privacy'",
@@ -93,7 +94,7 @@ def test_no_remaining_links_to_known_dead_paths():
 def test_footer_links_to_developers_not_api_docs():
     """Footer's developer-docs link must use the new `/developers`
     path so the K8s ingress doesn't intercept it as a backend route."""
-    footer = Path("/app/frontend/src/components/shared/Footer.js").read_text(encoding="utf-8")
+    footer = Path(REPO + "/frontend/src/components/shared/Footer.js").read_text(encoding="utf-8")
     assert 'to="/developers"' in footer
     # The legacy path must not be linked from anywhere — only
     # registered as a Navigate alias inside AppRoutes.

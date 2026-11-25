@@ -11,6 +11,7 @@ approval, writing `trial.status='active'`, `trial.ends_at` (+10 days) and
 `subscription.current_period_end`.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -23,9 +24,9 @@ from pymongo import MongoClient
 
 from conftest import rate_limit_bypass_headers
 
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 ADMIN_PW = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
 MONGO_URL = os.environ["MONGO_URL"]

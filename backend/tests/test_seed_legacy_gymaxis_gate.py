@@ -1,4 +1,5 @@
 # seed_master_admin() — LEGACY_GYMAXIS_CLEANUP opt-in gate (no destructive deletes by default)
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import sys
@@ -12,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dotenv import dotenv_values  # noqa: E402
 
 _ENV = dotenv_values(os.path.join(os.path.dirname(__file__), "..", ".env"))
-_FE = dotenv_values("/app/frontend/.env")
+_FE = dotenv_values(REPO + "/frontend/.env")
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _FE.get("REACT_APP_BACKEND_URL")).rstrip("/")
 
 from utils.database import db  # noqa: E402

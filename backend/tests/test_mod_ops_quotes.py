@@ -82,7 +82,8 @@ def _override():
 
 
 @pytest.fixture
-async def client():
+async def client(monkeypatch):
+    monkeypatch.setenv("MOD_RATES_ALLOW_SYNTHETIC", "true")
     from routes.mod_ops_quotes import _ensure_rate_card
     await _ensure_rate_card()
     snapshot = await db.mod_sor_rate_card.find({}, {"_id": 0}).to_list(200)
@@ -427,3 +428,12 @@ async def test_foreign_equipment_rejected(client):
     rows = [dict(ROWS[0], equipment_id=f"not-on-site-{RUN}")]
     r = await client.post("/api/mod-ops/quotes/groups", json={"customer": _customer(), "rows": rows, "options": ["A"]})
     assert r.status_code == 422 and "equipment register" in r.text
+
+
+async def test_synthetic_workbook_cannot_replace_live_rates(client, monkeypatch):
+    monkeypatch.delenv("MOD_RATES_ALLOW_SYNTHETIC", raising=False)
+    r = await client.post("/api/mod-ops/quotes/rates/import-preview", files={"file": ("sor.xlsx", synthetic_sor_bytes())})
+    assert r.status_code == 200 and r.json()["synthetic"] is True
+    r = await client.post(f"/api/mod-ops/quotes/rates/{r.json()['price_list_id']}/approve",
+                          json={"effective_from": "2026-11-20", "confirm": True})
+    assert r.status_code == 409 and "SYNTHETIC" in r.text

@@ -8,6 +8,7 @@ Covers:
 - Reschedule-visit reverts to pending_confirmation with new proposed_date
 """
 
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import datetime as dt
@@ -20,7 +21,7 @@ def _get_base():
         return v.rstrip("/")
     # read from frontend/.env
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     return line.split("=", 1)[1].strip().rstrip("/")

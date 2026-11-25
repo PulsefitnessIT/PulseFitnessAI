@@ -8,6 +8,7 @@ Tests for freshly ported GymAxis→Pulse features (Jan 2026):
 - Equipment Transfers (router presence)
 - Regression: CRM Tenders + Master Admin routing
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -16,7 +17,7 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     # fall back to frontend/.env parse
     try:
-        with open("/app/frontend/.env") as f:
+        with open(REPO + "/frontend/.env") as f:
             for line in f:
                 if line.startswith("REACT_APP_BACKEND_URL="):
                     BASE_URL = line.split("=", 1)[1].strip().rstrip("/")

@@ -12,6 +12,7 @@ discoverable and shareable:
   • IndexNow is best-effort and safely no-ops without URLs / when disabled,
   • robots.txt points at the dynamic sitemap and the OG cover exists.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import re
 import uuid
@@ -128,7 +129,7 @@ def test_indexnow_noops_safely():
 # ─────────────── Static assets / robots wiring ────────────────────
 
 def test_robots_points_to_dynamic_sitemap_and_allows_seo():
-    with open("/app/frontend/public/robots.txt", encoding="utf-8") as f:
+    with open(REPO + "/frontend/public/robots.txt", encoding="utf-8") as f:
         robots = f.read()
     assert "Sitemap: https://gymaxisai.com/api/seo/sitemap.xml" in robots
     assert "Allow: /api/seo/" in robots
@@ -138,14 +139,14 @@ def test_robots_points_to_dynamic_sitemap_and_allows_seo():
 
 def test_indexnow_key_file_matches_configured_key():
     from utils.indexnow import INDEXNOW_KEY
-    path = f"/app/frontend/public/{INDEXNOW_KEY}.txt"
+    path = f"{REPO}/frontend/public/{INDEXNOW_KEY}.txt"
     assert os.path.exists(path), "IndexNow key file missing"
     with open(path, encoding="utf-8") as f:
         assert f.read().strip() == INDEXNOW_KEY
 
 
 def test_og_cover_image_exists():
-    assert os.path.exists("/app/frontend/public/brand/og-cover.jpg")
+    assert os.path.exists(REPO + "/frontend/public/brand/og-cover.jpg")
 
 
 def test_seo_router_registered_under_api():

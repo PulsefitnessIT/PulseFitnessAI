@@ -1,11 +1,12 @@
 # UI seed for iteration_296 retest; run with "seed" or "clean"
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import json
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from pymongo import MongoClient
-load_dotenv('/app/backend/.env')
+load_dotenv(REPO + '/backend/.env')
 db = MongoClient(os.environ['MONGO_URL'])[os.environ['DB_NAME']]
 ADMIN_ORG = "d19de469-645a-4b66-93b1-52455a643f5b"
 ADMIN_ID = "1fedcc01-1f53-408a-bc48-017375348536"

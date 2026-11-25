@@ -18,17 +18,18 @@ If anyone reverts to ``Receipt`` (or copy-pastes from a US-locale
 template), this test fails immediately.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import re
 
 ENGINEER_PAGES = [
-    "/app/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js",
-    "/app/frontend/src/pages/ServiceOps/Engineer/EngineerQuotes.js",
-    "/app/frontend/src/pages/ServiceOps/Engineer/EngineerInvoices.js",
-    "/app/frontend/src/pages/ServiceOps/Engineer/EngineerWorkspace.js",
-    "/app/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js",
-    "/app/frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js",
+    REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerHomeV2.js",
+    REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerQuotes.js",
+    REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerInvoices.js",
+    REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerWorkspace.js",
+    REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js",
+    REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerCustomers.js",
 ]
 
 

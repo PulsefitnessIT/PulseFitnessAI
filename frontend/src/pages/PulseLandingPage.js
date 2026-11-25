@@ -97,8 +97,17 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
     if (!mobileOpen) return undefined;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    const onKey = (e) => { if (e.key === 'Escape') setMobileOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
   }, [mobileOpen]);
+  useEffect(() => {
+    if (!langOpen) return undefined;
+    const close = (e) => { if (e.type === 'keydown' ? e.key === 'Escape' : !e.target.closest?.('[data-pulse-lang]')) setLangOpen(false); };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', close);
+    return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', close); };
+  }, [langOpen, setLangOpen]);
 
   const { t } = useTranslation();
   const NAV_LINKS = [
@@ -160,15 +169,18 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             onClick={toggleTheme}
             // Iter 215dk — mobile readability: 36→40px tap target (was below
             // the 44px Apple/Google minimum on phones).
-            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/40 hover:bg-white/10 transition-colors"
+            className="hidden sm:flex w-10 h-10 rounded-xl items-center justify-center border border-white/40 hover:bg-white/10 transition-colors"
             data-testid="pulse-theme-toggle"
             aria-label="Toggle theme"
           >
             {theme === 'dark' ? <Sun size={16} style={{ color: '#fbbf24' }} /> : <Moon size={16} style={{ color: '#ffffff' }} />}
           </button>
-          <div className="relative">
+          <div className="relative hidden sm:block" data-pulse-lang>
             <button
               onClick={() => setLangOpen(o => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={langOpen}
+              aria-label="Change language"
               className="h-10 px-3 rounded-xl flex items-center gap-1.5 border border-white/40 hover:bg-white/10 transition-colors"
               data-testid="pulse-lang-toggle"
             >
@@ -208,10 +220,11 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
-            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/10 transition-colors"
+            aria-expanded={mobileOpen}
+            className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center border border-white/40 hover:bg-white/10 transition-colors"
             data-testid="pulse-mobile-menu-btn"
           >
-            <Menu size={16} className="text-white/80" />
+            <Menu size={18} className="text-white" />
           </button>
         </div>
       </div>
@@ -265,6 +278,22 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
                 )
               ))}
             </nav>
+            <div className="border-t border-slate-200 px-5 py-4 space-y-3" data-testid="pulse-mobile-prefs">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Language">
+                {LANGUAGES.map((l) => (
+                  <button key={l.code} type="button" onClick={() => i18n.changeLanguage(l.code)} aria-pressed={!!i18n.language?.startsWith(l.code)}
+                    className={`h-9 px-3 rounded-lg text-xs font-semibold border transition-colors ${i18n.language?.startsWith(l.code) ? 'border-[var(--pulse-primary)] text-slate-900 bg-[var(--pulse-primary)]/15' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    data-testid={`pulse-mobile-lang-${l.code}`}>{l.label}</button>
+                ))}
+              </div>
+              <button type="button" onClick={toggleTheme} className="w-full h-11 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 flex items-center justify-center gap-2 hover:bg-slate-50" data-testid="pulse-mobile-theme">
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </button>
+              <button type="button" onClick={() => { setMobileOpen(false); onSignIn(); }} className="w-full h-11 rounded-lg text-sm font-semibold uppercase tracking-wide flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-ink)' }} data-testid="pulse-mobile-signin">
+                <LogIn size={15} /> {t('pulse.sign_in', 'Sign In')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -340,7 +369,7 @@ function Hero({ onSignIn }) {
             <KineticWord />
             <br />
             {t('pulse.hero_your_gym', 'your gym.')}<br />
-            <span style={{ fontWeight: 800, color: 'rgba(255,255,255,0.7)' }}>{t('pulse.hero_one_place', 'In one place.')}</span>
+            <span style={{ fontWeight: 800, color: 'rgba(255,255,255,0.82)' }}>{t('pulse.hero_one_place', 'In one place.')}</span>
           </motion.h1>
 
           <motion.p
@@ -352,10 +381,10 @@ function Hero({ onSignIn }) {
             <span className="font-bold" style={{ color: '#fff' }}>{t('pulse.hero_sub_bold', 'purpose-built for gym teams.')}</span>
           </motion.p>
 
-          <motion.div variants={FADE_UP} className="mt-9 sm:mt-12 flex flex-wrap gap-3">
+          <motion.div variants={FADE_UP} className="mt-9 sm:mt-12 flex flex-col sm:flex-row gap-3 max-w-sm sm:max-w-none">
             <Button
               onClick={onSignIn}
-              className="h-14 px-8 rounded-2xl text-sm !bg-[var(--pulse-primary)] !text-[var(--color-surface-dark-panel-alt)] hover:!bg-[var(--pulse-primary-deep)] shadow-xl shadow-[rgb(var(--rgb-pulse-primary)/0.3)] hover:shadow-2xl hover:shadow-[rgb(var(--rgb-pulse-primary)/0.4)] transition-all"
+              className="w-full sm:w-auto h-14 px-8 rounded-2xl text-sm !bg-[var(--pulse-primary)] !text-[var(--color-surface-dark-panel-alt)] hover:!bg-[var(--pulse-primary-deep)] shadow-xl shadow-[rgb(var(--rgb-pulse-primary)/0.3)] hover:shadow-2xl hover:shadow-[rgb(var(--rgb-pulse-primary)/0.4)] transition-all"
               style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-surface-dark-panel-alt)', fontWeight: 700, letterSpacing: '0.05em' }}
               data-testid="pulse-hero-login-btn"
             >
@@ -364,7 +393,7 @@ function Hero({ onSignIn }) {
             <Button
               variant="outline"
               onClick={onSignIn}
-              className="h-14 px-8 rounded-2xl text-sm border-2 !border-white/70 !text-white hover:!bg-white hover:!text-[var(--color-surface-dark-panel-alt)] !bg-transparent transition-all"
+              className="w-full sm:w-auto h-14 px-8 rounded-2xl text-sm border-2 !border-white/70 !text-white hover:!bg-white hover:!text-[var(--color-surface-dark-panel-alt)] !bg-transparent transition-all"
               style={{ fontWeight: 700, letterSpacing: '0.05em', color: '#fff' }}
               data-testid="pulse-hero-getstarted-btn"
             >
@@ -372,7 +401,7 @@ function Hero({ onSignIn }) {
             </Button>
           </motion.div>
 
-          <motion.div variants={FADE_UP} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-2 text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>
+          <motion.div variants={FADE_UP} className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-2 text-xs sm:text-sm" style={{ color: 'rgba(255,255,255,0.85)' }}>
             <div className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[var(--pulse-primary)]" /> {t('pulse.hero_check_1', 'No app install required')}</div>
             <div className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[var(--pulse-primary)]" /> {t('pulse.hero_check_2', 'Works on any browser')}</div>
             <div className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[var(--pulse-primary)]" /> {t('pulse.hero_check_3', '3-day free trial')}</div>
@@ -1735,6 +1764,7 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
     <Dialog open={open} onOpenChange={(o) => { if (!o) clear(); onOpenChange(o); }}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white border-slate-200 [&>button]:!mt-3 [&>button]:!mr-3" data-testid="pulse-login-dialog">
         <DialogHeader className="p-6 pb-0">
+          <img src="/brand/pulse-logo-dark.svg" alt="Pulse Fitness" className="h-7 w-auto self-start mb-3" onError={(e) => { e.currentTarget.style.display = 'none'; }} data-testid="pulse-login-logo" />
           <DialogTitle className="text-2xl font-bold text-[var(--color-surface-dark-panel-alt)]">{t('pulse.lm_title', 'Welcome back')}</DialogTitle>
           <DialogDescription className="text-[var(--color-text-slate)]">{t('pulse.lm_sub', 'Sign in to your Pulse Fitness portal')}</DialogDescription>
         </DialogHeader>
@@ -1774,7 +1804,8 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
                 required
                 data-testid="pulse-login-password"
               />
-              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Hide password' : 'Show password'} aria-pressed={showPass}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--pulse-primary)]" data-testid="pulse-login-toggle-password">
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -1787,7 +1818,7 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
             style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-ink, #1b1c1d)' }}
             data-testid="pulse-login-submit"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : t('pulse.sign_in', 'Sign In')}
+            {loading ? <span className="inline-flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> {t('pulse.lm_signing_in', 'Signing in…')}</span> : t('pulse.sign_in', 'Sign In')}
           </Button>
           <button
             type="button"

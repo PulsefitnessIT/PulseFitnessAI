@@ -9,13 +9,14 @@ to lazy (function-local) scope to fix the k8s deploy crash-loop, verify:
   3) Master-admin test-data purge endpoints are wired (200 with admin JWT,
      401 unauthenticated).
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import re
 import pytest
 import requests
 
 def _load_env():
-    p = "/app/frontend/.env"
+    p = REPO + "/frontend/.env"
     if os.path.exists(p):
         for line in open(p):
             if line.startswith("REACT_APP_BACKEND_URL="):

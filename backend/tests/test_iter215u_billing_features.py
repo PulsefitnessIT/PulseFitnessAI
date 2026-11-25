@@ -9,6 +9,7 @@ Iteration 215u — Backend tests for:
 7. Regression: non-smoothed plans use stripe_price_id and price_pence
 8. Regression: GET /api/member/bookings returns waitlist_position and promoted_from_waitlist_at
 """
+from tests._paths import REPO  # noqa: E402
 import pytest
 import requests
 import os
@@ -235,7 +236,7 @@ class TestStripeWebhookClassInvoice:
         """Verify mark_class_invoice_paid_from_session handler exists"""
         try:
             import sys
-            sys.path.insert(0, "/app/backend")
+            sys.path.insert(0, REPO + "/backend")
             from routes.memberships.studio_billing import mark_class_invoice_paid_from_session
 
             # Verify it's a coroutine function
@@ -253,7 +254,7 @@ class TestPDFRendering:
         """Import and call _render_invoice_pdf directly"""
         try:
             import sys
-            sys.path.insert(0, "/app/backend")
+            sys.path.insert(0, REPO + "/backend")
             from routes.memberships.studio_billing import _render_invoice_pdf
 
             test_invoice = {

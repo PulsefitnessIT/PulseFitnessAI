@@ -25,12 +25,13 @@ Validation chain:
 """
 
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 
-BACKEND = Path("/app/backend/routes/svc/work_report_fields.py")
-FRONTEND = Path("/app/frontend/src/pages/ServiceOps/Engineer/EngineerWorkReportFields.js")
+BACKEND = Path(REPO + "/backend/routes/svc/work_report_fields.py")
+FRONTEND = Path(REPO + "/frontend/src/pages/ServiceOps/Engineer/EngineerWorkReportFields.js")
 
 
 def _read(p: Path) -> str:

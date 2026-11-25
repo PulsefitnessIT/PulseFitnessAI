@@ -5,9 +5,10 @@ Equipment tab, Faults tab (incl. filters + severity labels), Documents
 tab and the Log-a-Fault wizard (LiteDialogs).
 """
 
+from tests._paths import REPO  # noqa: E402
 import json
 
-FRONTEND = "/app/frontend/src"
+FRONTEND = REPO + "/frontend/src"
 
 WIRED_FILES = {
     f"{FRONTEND}/components/shared/ModuleSwitcher.js": ["t(`modules.${m.id}`"],

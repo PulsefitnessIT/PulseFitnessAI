@@ -3,6 +3,7 @@
 Locks down the zero-data-loss behaviour of utils/price_list_import.py
 against the real Pulse cost-engineering workbook shape.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 
 import openpyxl
@@ -12,7 +13,7 @@ from utils.price_list_import import (
     analyze_workbook, extract_products, auto_map, CANONICAL_FIELDS,
 )
 
-SAMPLE = "/app/test_samples/pulse_master_price_list_sample.xlsx"
+SAMPLE = REPO + "/test_samples/pulse_master_price_list_sample.xlsx"
 
 
 def _make_workbook_bytes():

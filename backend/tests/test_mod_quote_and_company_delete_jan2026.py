@@ -5,6 +5,7 @@ Covers:
 - Row line maps to SingleStation Strength Machine (not Rowing)
 - DELETE /api/crm/v2/companies/{id} works for master admin
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import io
 import uuid
@@ -12,7 +13,7 @@ import pytest
 import requests
 
 def _read_env():
-    with open("/app/frontend/.env") as f:
+    with open(REPO + "/frontend/.env") as f:
         for line in f:
             if line.startswith("REACT_APP_BACKEND_URL="):
                 return line.split("=", 1)[1].strip()

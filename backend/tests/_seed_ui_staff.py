@@ -1,13 +1,14 @@
 """Seed a staff account for frontend UI testing. Prints creds+reset token."""
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import requests
 import sys
 from pymongo import MongoClient
 from dotenv import load_dotenv
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 
-BASE = open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip().strip('"')
+BASE = open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip().strip('"')
 MURL = os.environ["MONGO_URL"]; DBN = os.environ["DB_NAME"]
 
 tag = f"ui_{uuid.uuid4().hex[:6]}"

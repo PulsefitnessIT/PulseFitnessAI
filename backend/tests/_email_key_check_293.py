@@ -1,11 +1,12 @@
 # Iteration 293: ONE real email send to TEST_RECIPIENT_EMAIL + read-only Resend domains check. Never prints the key.
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import sys
 import requests
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 from dotenv import load_dotenv
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/backend/.env")
 
 
 async def main():

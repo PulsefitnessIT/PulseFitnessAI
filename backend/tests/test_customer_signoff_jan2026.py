@@ -5,6 +5,7 @@ service-report PDF sign-off block, calibration certificate sign-off section,
 BFPO job signature + complete gate + job-sheet PDF, BFPO PPM complete gate +
 certificate PDF.
 """
+from tests._paths import REPO  # noqa: E402
 import io
 import os
 import time
@@ -17,14 +18,14 @@ from pymongo import MongoClient
 from pypdf import PdfReader
 
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
-BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET") or "test-bypass-secret-for-ci-runs-only-2026"}
+BYPASS = {"x-ratelimit-bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET") or os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
 PNG = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==")
 
 
 def _env_db():
     url, name = os.environ.get("MONGO_URL"), os.environ.get("DB_NAME")
     if not url:
-        for line in open("/app/backend/.env"):
+        for line in open(REPO + "/backend/.env"):
             k, _, v = line.strip().partition("=")
             v = v.strip('"')
             if k == "MONGO_URL":

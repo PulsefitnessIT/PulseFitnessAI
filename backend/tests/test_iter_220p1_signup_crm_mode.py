@@ -16,6 +16,7 @@ Notes for the next agent:
   shared Motor event loop (the old asyncio.run cleanup raised
   "RuntimeError: Event loop is closed").
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 
@@ -33,7 +34,7 @@ def _bypass_secret() -> str:
     secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     if not secret:
         try:
-            with open("/app/backend/.env", encoding="utf-8") as fh:
+            with open(REPO + "/backend/.env", encoding="utf-8") as fh:
                 for line in fh:
                     if line.startswith("RATE_LIMIT_BYPASS_SECRET="):
                         secret = line.split("=", 1)[1].strip().strip('"').strip("'")

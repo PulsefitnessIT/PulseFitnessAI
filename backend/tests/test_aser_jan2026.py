@@ -3,6 +3,7 @@
 Covers MOD-only gating, site-scoping, create flow, equipment red-flag,
 actions (create-fault / flag-capex / close / dispose), dashboard cards.
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import time
 import pytest
@@ -12,7 +13,7 @@ def _load_be_url():
     v = os.environ.get("REACT_APP_BACKEND_URL")
     if not v:
         try:
-            with open("/app/frontend/.env") as f:
+            with open(REPO + "/frontend/.env") as f:
                 for line in f:
                     if line.startswith("REACT_APP_BACKEND_URL="):
                         v = line.split("=", 1)[1].strip()

@@ -11,6 +11,7 @@ live status, KPI timestamps, a timeline, and the case reference, and the
 fault is auto-resolved when the case closes.
 """
 
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import uuid
@@ -40,7 +41,7 @@ def _login(email: str, password: str) -> requests.Session:
 def _db():
     from dotenv import load_dotenv
     from motor.motor_asyncio import AsyncIOMotorClient
-    load_dotenv("/app/backend/.env")
+    load_dotenv(REPO + "/backend/.env")
     return AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 
@@ -176,5 +177,5 @@ def test_non_ops_case_is_untouched():
 
 
 def test_bridge_wired_into_transition_engine():
-    src = open("/app/backend/utils/svc_state.py", encoding="utf-8").read()
+    src = open(REPO + "/backend/utils/svc_state.py", encoding="utf-8").read()
     assert "mirror_case_state_to_issue" in src, "reverse bridge must be hooked into transition()"

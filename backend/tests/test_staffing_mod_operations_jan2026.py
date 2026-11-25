@@ -8,13 +8,14 @@ mirroring the main agent's self-test approach (HTTP auth is rate-limited &
 requires cookies + MFA-free path). This is the pattern used by the earlier
 iteration's test file for master_admin_users.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import sys
 
 import pytest
 from fastapi import HTTPException
 
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 
 from utils.database import db  # noqa: E402
 from routes.staffing import (  # noqa: E402

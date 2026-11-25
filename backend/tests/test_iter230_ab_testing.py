@@ -9,6 +9,7 @@ Covers:
     synthesised default variant on the GET response.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import os
 import uuid
@@ -17,12 +18,12 @@ import pytest
 import requests
 
 API_BASE = os.environ.get("API_BASE") or (
-    open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=", 1)[1].split("\n", 1)[0].strip() + "/api"
+    open(REPO + "/frontend/.env").read().split("REACT_APP_BACKEND_URL=", 1)[1].split("\n", 1)[0].strip() + "/api"
 )
 
 
 def _login(email: str, password: str) -> str:
-    headers = {"X-RateLimit-Bypass": "test-bypass-secret-for-ci-runs-only-2026"}
+    headers = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}
     r = requests.post(
         f"{API_BASE}/auth/login",
         json={"email": email, "password": password},

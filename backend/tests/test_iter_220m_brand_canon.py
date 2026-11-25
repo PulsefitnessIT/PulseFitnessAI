@@ -20,11 +20,12 @@ marketing generator imports the canon directly. This test file:
      canon (so future grep-led agents land on the right doc).
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import re
 from pathlib import Path
 
-ROOT = Path("/app")
+ROOT = Path(REPO)
 BRAND_PALETTE_MD = ROOT / "BRAND_PALETTE.md"
 PULSE_BRAND_PALETTE_MD = ROOT / "PULSE_BRAND_PALETTE.md"
 DESIGN_SYSTEM_MD = ROOT / "DESIGN_SYSTEM.md"
@@ -58,7 +59,7 @@ LEGACY_PULSE_HEXES = {
 
 
 def test_brand_palette_md_exists_and_contains_every_canonical_hex():
-    assert BRAND_PALETTE_MD.exists(), "/app/BRAND_PALETTE.md missing — it is the canonical source of truth"
+    assert BRAND_PALETTE_MD.exists(), REPO + "/BRAND_PALETTE.md missing — it is the canonical source of truth"
     text = BRAND_PALETTE_MD.read_text()
     missing = sorted(h for h in CANONICAL_HEXES if h not in text)
     assert not missing, f"BRAND_PALETTE.md is missing canonical hex(es): {missing}"
@@ -100,7 +101,7 @@ def test_generator_uses_canonical_hexes_and_no_legacy_hexes():
     missing = sorted(h for h in CANONICAL_HEXES if h not in used)
     assert not missing, (
         f"generate.py must use the canonical hex(es) {missing} from "
-        "/app/BRAND_PALETTE.md so tiles match the live site."
+        "/BRAND_PALETTE.md so tiles match the live site."
     )
     # And no legacy / Pulse-only hex may be referenced as a colour
     # in the generator (a textual mention inside a comment is fine —
@@ -145,7 +146,7 @@ def test_design_system_md_defers_to_brand_palette_md():
 
 
 def test_pulse_brand_palette_md_exists_and_contains_canonical_hexes():
-    assert PULSE_BRAND_PALETTE_MD.exists(), "/app/PULSE_BRAND_PALETTE.md missing — it is the canonical source of truth for Pulse Fitness"
+    assert PULSE_BRAND_PALETTE_MD.exists(), REPO + "/PULSE_BRAND_PALETTE.md missing — it is the canonical source of truth for Pulse Fitness"
     text = PULSE_BRAND_PALETTE_MD.read_text()
     missing = sorted(h for h in PULSE_CANONICAL_HEXES if h not in text)
     assert not missing, f"PULSE_BRAND_PALETTE.md is missing canonical hex(es): {missing}"
@@ -181,7 +182,7 @@ def test_brand_preview_script_pins_all_canonical_hexes():
 
 def test_brand_preview_html_is_generated_and_contains_both_brands():
     assert BRAND_PREVIEW_HTML.exists(), (
-        "/app/BRAND_PALETTE_PREVIEW.html missing — run `make brand-preview` "
+        REPO + "/BRAND_PALETTE_PREVIEW.html missing — run `make brand-preview` "
         "to generate it from the canon docs."
     )
     html = BRAND_PREVIEW_HTML.read_text()

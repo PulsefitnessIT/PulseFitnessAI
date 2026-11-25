@@ -9,6 +9,7 @@ Tests:
 5. Priority mapping from severity
 6. Equipment/site resolution from serial_number
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -416,10 +417,10 @@ class TestLintScript:
         """Run check_integration_mapping.py and verify exit 0, no errors"""
         import subprocess
         result = subprocess.run(
-            ["python", "/app/backend/scripts/check_integration_mapping.py"],
+            ["python", REPO + "/backend/scripts/check_integration_mapping.py"],
             capture_output=True,
             text=True,
-            cwd="/app/backend"
+            cwd=REPO + "/backend"
         )
 
         assert result.returncode == 0, f"Lint script failed with exit code {result.returncode}:\n{result.stdout}\n{result.stderr}"

@@ -1,10 +1,11 @@
 # Pulse Pro trial: once-per-org, dismissible banner, master-admin re-grant
+from tests._paths import REPO  # noqa: E402
 import os
 import sys
 import asyncio
 import pytest
 import requests
-sys.path.insert(0, "/app/backend")
+sys.path.insert(0, REPO + "/backend")
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 ORG_ID = "12cba6ed-6f87-40a6-be51-e19d0ba60c2d"
@@ -15,7 +16,7 @@ MASTER = {"email": "admin@pulsefitness.com", "password": "C2s9yJ3YAhydB4d34-Bykg
 def _db(coro_fn):
     from motor.motor_asyncio import AsyncIOMotorClient
     from dotenv import dotenv_values
-    env = dotenv_values("/app/backend/.env")
+    env = dotenv_values(REPO + "/backend/.env")
     async def run():
         c = AsyncIOMotorClient(env["MONGO_URL"])
         try:

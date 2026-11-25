@@ -1,4 +1,5 @@
 """UI-test setup helper: create + publish a TEST_ MOD quotation group via API (Clyde rows). Usage: python mod_quotes_ui_setup.py [publish|state|revise GID]"""
+from tests._paths import REPO  # noqa: E402
 import json
 import os
 import sys
@@ -6,8 +7,8 @@ import sys
 import requests
 from dotenv import load_dotenv
 
-load_dotenv("/app/frontend/.env")
-load_dotenv("/app/backend/.env")
+load_dotenv(REPO + "/frontend/.env")
+load_dotenv(REPO + "/backend/.env")
 API = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") + "/api"
 MQ = f"{API}/mod-ops/quotes"
 BYPASS = {"X-RateLimit-Bypass": os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")}

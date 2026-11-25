@@ -5,6 +5,7 @@ Endpoints:
   POST /api/migration/timesheets/preview
   POST /api/migration/timesheets/commit
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import uuid
 import requests
@@ -13,7 +14,7 @@ import pytest
 def _base():
     v = os.environ.get("REACT_APP_BACKEND_URL")
     if not v:
-        for line in open("/app/frontend/.env"):
+        for line in open(REPO + "/frontend/.env"):
             if line.startswith("REACT_APP_BACKEND_URL="):
                 v = line.split("=", 1)[1].strip()
                 break
@@ -22,8 +23,8 @@ def _base():
 BASE = _base()
 API = f"{BASE}/api"
 
-ATT_XLSX = "/app/backend/migration_samples/attendance_request.xlsx"
-TS_XLSX = "/app/backend/migration_samples/timesheets_2026.xlsx"
+ATT_XLSX = REPO + "/backend/migration_samples/attendance_request.xlsx"
+TS_XLSX = REPO + "/backend/migration_samples/timesheets_2026.xlsx"
 
 OWNER_EMAIL = "owner@isodemo.com"
 OWNER_PASSWORD = "IsoDemo123!"

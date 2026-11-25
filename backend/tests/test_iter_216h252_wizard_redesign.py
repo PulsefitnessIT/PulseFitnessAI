@@ -12,6 +12,7 @@ User feedback:
 - The class step should expose instructors via a dropdown.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import asyncio
 import pathlib
@@ -91,7 +92,7 @@ def test_basics_body_accepts_address_and_contact():
 def test_setup_status_returns_new_fields():
     """`/memberships/setup/status` must surface the new fields so the
     wizard can pre-populate Step 1 on reload."""
-    src = pathlib.Path("/app/backend/routes/memberships_ops.py").read_text()
+    src = pathlib.Path(REPO + "/backend/routes/memberships_ops.py").read_text()
     assert '"address_line1"' in src
     assert '"city"' in src
     assert '"postcode"' in src
@@ -102,7 +103,7 @@ def test_setup_status_returns_new_fields():
 # ─── Frontend: SetupWizard rewrites ───────────────────────────────
 
 def test_wizard_uses_friendly_app_address_label():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     # Old "App URL slug" string is gone.
     assert "App URL slug" not in src
     # New friendly label is present.
@@ -113,7 +114,7 @@ def test_wizard_uses_friendly_app_address_label():
 
 
 def test_wizard_uses_timezone_dropdown():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     # Timezone is rendered via the shared Select component.
     assert 'options={TIMEZONES}' in src
     assert 'Europe/London' in src
@@ -122,7 +123,7 @@ def test_wizard_uses_timezone_dropdown():
 
 
 def test_wizard_has_logo_dropzone():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     assert "function LogoDropzone" in src
     assert "onDrop=" in src
     assert "/account/logo" in src
@@ -130,7 +131,7 @@ def test_wizard_has_logo_dropzone():
 
 
 def test_wizard_captures_address_and_contact():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     for tid in (
         "mbr-setup-addr1", "mbr-setup-city", "mbr-setup-postcode",
         "mbr-setup-country", "mbr-setup-contact-email", "mbr-setup-contact-phone",
@@ -139,7 +140,7 @@ def test_wizard_captures_address_and_contact():
 
 
 def test_wizard_payment_cards_no_longer_use_light_bg():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     # The previous bg-white/[0.02] + border-white/10 combo was the
     # source of the light-mode leak on the "Soon" cards.
     assert "bg-white/[0.02]" not in src
@@ -150,7 +151,7 @@ def test_wizard_payment_cards_no_longer_use_light_bg():
 
 
 def test_wizard_has_instructor_step():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     assert "function InstructorStep" in src
     # The new step is wired in the STEPS array between plans and class.
     assert "{ id: 'instructor', label: 'Instructor' }" in src
@@ -161,7 +162,7 @@ def test_wizard_has_instructor_step():
 
 
 def test_wizard_class_step_uses_instructor_dropdown():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/SetupWizard.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/SetupWizard.js").read_text()
     assert 'data-testid="mbr-setup-class-instructor-select"' in src
     # Custom-name escape hatch present.
     assert '__custom__' in src

@@ -4,6 +4,7 @@ duplicate customers/equipment/quotes, unapproved prices cannot be issued.
 
 Fictional data only (prefix ``cm_bq_``). Uses the real document extractor.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import io
 import os
@@ -54,8 +55,8 @@ ROWS = ["M2-TRD-100 | M2Run 100 Treadmill | 2 | BQ-T-0001, BQ-T-0002 | 5995.00",
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
     mdb.organizations.insert_one({"id": CUST, "name": "Brightwater Leisure Trust"})
     mdb.sites.insert_one({"id": f"{T}site", "organization_id": CUST, "name": "Brightwater Leisure Centre", "postcode": "BS1 5TT"})
     mdb.crm2_companies.insert_many([

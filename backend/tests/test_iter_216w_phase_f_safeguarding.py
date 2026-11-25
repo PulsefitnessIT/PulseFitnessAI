@@ -10,6 +10,7 @@ Tests:
 - Regression: GET /api/memberships/instructors/performance still returns expected shape
 - Regression: GET /api/memberships/instructors/{id} still works (static routes don't shadow dynamic)
 """
+from tests._paths import REPO  # noqa: E402
 import os
 import pytest
 import requests
@@ -19,7 +20,7 @@ from datetime import datetime, timedelta
 OPERATOR_EMAIL = "bob@knockers.com"
 OPERATOR_PASSWORD = "Test123!"
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 
 
 def rate_limit_bypass_headers() -> dict:
@@ -27,7 +28,7 @@ def rate_limit_bypass_headers() -> dict:
     secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     if not secret:
         try:
-            env_path = "/app/backend/.env"
+            env_path = REPO + "/backend/.env"
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:

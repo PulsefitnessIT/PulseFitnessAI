@@ -7,15 +7,16 @@ test runs as a static-string check against the file at:
 ``/app/.githooks/pre-commit`` plus the Makefile install target.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 from pathlib import Path
 
 import pytest
 
 
-HOOK_PATH = Path("/app/.githooks/pre-commit")
-INSTALL_SCRIPT = Path("/app/scripts/install_hooks.sh")
-MAKEFILE = Path("/app/Makefile")
+HOOK_PATH = Path(REPO + "/.githooks/pre-commit")
+INSTALL_SCRIPT = Path(REPO + "/scripts/install_hooks.sh")
+MAKEFILE = Path(REPO + "/Makefile")
 
 
 @pytest.fixture(scope="module")

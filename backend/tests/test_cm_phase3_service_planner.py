@@ -3,6 +3,7 @@ completions (+ historical reconciliation, Action Centre, autogen guard).
 
 Fictional data only (prefix ``cm_p3_``); everything is removed afterwards.
 """
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import os
 import subprocess
@@ -50,8 +51,8 @@ def _cleanup():
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd="/app/backend",
-                   env={**os.environ, "PYTHONPATH": "/app/backend"}, check=True)
+    subprocess.run(["python", "scripts/seed_cm_workspace_test_users.py"], cwd=REPO + "/backend",
+                   env={**os.environ, "PYTHONPATH": REPO + "/backend"}, check=True)
     _cleanup()
     mdb.organizations.insert_one({"id": CUST, "name": "P3 Leisure Ltd"})
     mdb.crm2_companies.insert_one({"id": f"{T}co", "organization_id": OP, "name": "P3 Leisure", "legal_name": "P3 Leisure Ltd",

@@ -4,7 +4,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com").rstrip("/")
+       or (os.environ.get("TEST_API_URL") or "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com")).rstrip("/")
 
 
 def _login(email, pwd):

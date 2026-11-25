@@ -15,12 +15,13 @@ Three fixes:
    intelligence → tools.
 """
 from __future__ import annotations
+from tests._paths import REPO  # noqa: E402
 
 import pathlib
 
 
 def test_class_template_editor_is_portaled():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/StudioBuilderTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/StudioBuilderTab.js").read_text()
     # createPortal is imported from react-dom.
     assert "import { createPortal } from 'react-dom'" in src
     # The editor's return wraps in createPortal(..., document.body).
@@ -29,7 +30,7 @@ def test_class_template_editor_is_portaled():
 
 
 def test_class_template_editor_has_instructor_dropdown():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/StudioBuilderTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/StudioBuilderTab.js").read_text()
     assert 'data-testid="cte-instructor-select"' in src, "instructor must be a select"
     assert "+ Add new instructor" in src, "must offer add-new option"
     assert "onAddInstructor" in src, "must wire the add-instructor callback"
@@ -39,7 +40,7 @@ def test_class_template_editor_has_instructor_dropdown():
 def test_studio_builder_passes_add_instructor_callback():
     """The parent StudioBuilderTab must close itself and bubble the
     add-instructor request to the SchedulingHub tab."""
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/StudioBuilderTab.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/StudioBuilderTab.js").read_text()
     # Default export accepts onAddInstructor prop.
     assert "export default function StudioBuilderTab({ API, headers, onAddInstructor })" in src
     # And passes a wrapped version to the editor.
@@ -47,7 +48,7 @@ def test_studio_builder_passes_add_instructor_callback():
 
 
 def test_memberships_console_routes_add_instructor_to_instructors_tab():
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
     # SchedulingHubTab must declare onSetTab and pass it through.
     assert "function SchedulingHubTab({ API, headers, activeTabHint, onSetTab })" in src
     assert "onAddInstructor={() => onSetTab?.('instructors')}" in src
@@ -56,7 +57,7 @@ def test_memberships_console_routes_add_instructor_to_instructors_tab():
 def test_memberships_tab_order_rationalised():
     """The TABS array must place daily-ops + people groups before the
     commercial / analytics blocks."""
-    src = pathlib.Path("/app/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
+    src = pathlib.Path(REPO + "/frontend/src/pages/Memberships/MembershipsConsole.js").read_text()
     # Anchor: 'schedule' (daily ops) must appear before 'analytics'
     # (commercial block). Iter 230 — the old 'studio-brain' tab was
     # retired, so 'analytics' is the new commercial-block anchor.

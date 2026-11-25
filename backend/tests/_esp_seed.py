@@ -1,8 +1,9 @@
+from tests._paths import REPO  # noqa: E402
 import asyncio
 import sys
 import uuid
-sys.path.insert(0, '/app/backend')
-from dotenv import load_dotenv; load_dotenv('/app/backend/.env')
+sys.path.insert(0, REPO + '/backend')
+from dotenv import load_dotenv; load_dotenv(REPO + '/backend/.env')
 from utils.auth import hash_password
 UID, CASE, OTHER = "esp-test-eng-1", "esp-test-case-1", "esp-test-case-other"
 async def main(mode):

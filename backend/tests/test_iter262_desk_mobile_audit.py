@@ -13,6 +13,7 @@ Frontend (source pins): dashboard stat cards navigate to tabs, cases KPI
 cards drill into the filtered queue, tables scroll horizontally on mobile.
 """
 
+from tests._paths import REPO  # noqa: E402
 import requests
 
 from tests.conftest import _test_backend_url
@@ -71,7 +72,7 @@ def test_cases_sla_at_risk_filter():
 
 
 def test_frontend_mobile_audit_pins():
-    base = "/app/frontend/src/pages"
+    base = REPO + "/frontend/src/pages"
 
     # Dashboard stat cards navigate to tabs (2-up on mobile).
     summary = open(f"{base}/ServiceDesk/DeskSummary.js", encoding="utf-8").read()
