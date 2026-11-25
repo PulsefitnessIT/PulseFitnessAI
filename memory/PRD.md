@@ -39525,3 +39525,15 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Picking an item code fills in the suggested A/B coverage. In a mixed quote, Next is blocked until every item has A or B.
 - The call-out line always prints MOD-CALLOUT.
 - Owners and master admins can delete quote groups that are not accepted or handed over (DELETE /groups/{gid}). Each deletion is recorded in mod_quote_deletions. Tested in iteration_322.
+
+## MOD Operations integrity sprint (2026-11-25)
+- Engineer coverage has one source: utils/bfpo_coverage.py. It resolves BFPO estate sites and MOD establishment orgs, validates unknown ids (422) and removes duplicates. MOD Ops and Master Admin both use it.
+- /bfpo/sites for staff now includes mod_site orgs. Engineers → each engineer shows territories and specific sites separately, plus a coverage badge, login status and issues.
+- Allocating a job outside an engineer's coverage requires a reason, which is logged. Deactivated engineers cannot be allocated.
+- Deactivation: open jobs need a decision for each job (reassign / return to queue / keep, with a reason). Pending invites are revoked, and the login and invite links are refused (auth now checks is_active). Resend invite no longer reactivates.
+- Quotes: issued quotes must be recalled before an owner can delete them. Accepted and handed-over quotes can never be deleted. A full snapshot is kept in mod_quote_deletions (GET /deleted).
+- Follow-up email wording is drafted in-app, edited by managers and approved by an owner. Customers are emailed only when it is approved AND MOD_QUOTE_NOTIFY_LIVE=true. Chases raised while sending is off are not re-sent later.
+- Build: craco eslint enable:false. The webpack plugin's partial config failed on the gymaxis and unused-imports rule definitions, while the full flat-config ESLint step stays enforced. The yarn.lock is synced (frozen install passes).
+- Secret: the master admin password was removed from 54 test files (tests read MASTER_ADMIN_PASSWORD from backend/.env via conftest). The user must rotate it and clean the git history.
+- Prod data (read-only): John Maina has no territories or sites. Jimmy Connors (the second engineer) has one MOD site and no territory. These need re-allocating in Master Admin.
+- Tests: iteration_323 plus tests/test_mod_ops_integrity_iter323.py (38 pass).

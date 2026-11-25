@@ -78,8 +78,10 @@ export default function StaffEngineers() {
     setModal({ mode: 'edit', id: m.id, form: {
       full_name: m.full_name || '', email: m.email || '', phone: m.phone || '',
       bfpo_role: m.bfpo_role, password_mode: 'invite', temp_password: '',
-      bfpo_territory_ids: m.bfpo_territory_ids || [], bfpo_site_ids: m.bfpo_site_ids || [],
-    } });
+      // Dangling references (deleted territory/site) are dropped here so a save corrects them.
+      bfpo_territory_ids: (m.bfpo_territory_ids || []).filter((id) => territories.some((t) => t.id === id)),
+      bfpo_site_ids: (m.bfpo_site_ids || []).filter((id) => sites.some((x) => x.id === id)),
+    }, original: { t: m.bfpo_territory_ids || [], s: m.bfpo_site_ids || [] } });
   };
   const setF = (patch) => setModal((mo) => ({ ...mo, form: { ...mo.form, ...patch } }));
   const toggle = (key, id) => setModal((mo) => {
@@ -102,10 +104,12 @@ export default function StaffEngineers() {
         setResult({ name: r.data.member.full_name, invite_url: r.data.invite_url, temp_password: r.data.temp_password });
         setModal(null);
       } else {
+        const t = f.bfpo_role === 'staff' ? [] : f.bfpo_territory_ids;
+        const sIds = f.bfpo_role === 'staff' ? [] : f.bfpo_site_ids;
+        const same = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
         await bfpo.patch(`/staff/engineers/${modal.id}`, {
           full_name: f.full_name, phone: f.phone, bfpo_role: f.bfpo_role,
-          bfpo_territory_ids: f.bfpo_role === 'staff' ? [] : f.bfpo_territory_ids,
-          bfpo_site_ids: f.bfpo_role === 'staff' ? [] : f.bfpo_site_ids,
+          ...(same(t, modal.original.t) && same(sIds, modal.original.s) ? {} : { bfpo_territory_ids: t, bfpo_site_ids: sIds }),
         });
         setModal(null);
       }

@@ -397,7 +397,7 @@ function Pricing({ master }) {
 const SECTIONS = {
   quotes: ['All quotations', ListChecks, 'Prepare, approve and publish MOD service quotations.'],
   auth: ['Customer authorisations', FileCheck2, 'Customer purchase-order authorisations awaiting manager verification.'],
-  followups: ['Follow-ups', PhoneCall, 'Each published quotation is chased 2, 4 and 6 weeks after publication: the customer is emailed the quotation PDFs and the quote owner gets a reminder here.'],
+  followups: ['Follow-ups', PhoneCall, 'Each published quotation is chased 2, 4 and 6 weeks after publication. The quote owner gets a reminder here, and once the wording below is approved and sending is switched on, the customer is emailed the quotation PDFs.'],
   handover: ['Service handover', Truck, 'Accepted quotations passed to MOD Service Operations for contract set-up.'],
   pricing: ['Schedule of Rates', Tags, 'The approved price list used for every MOD quotation.'],
 };

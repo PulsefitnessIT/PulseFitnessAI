@@ -1357,10 +1357,14 @@ async def _apply_job_decisions(jobs: list, decisions: dict, leaver: dict, user: 
         action, reason = d["action"], d["reason"].strip()
         org = await _case_org(j["id"])
         if action == "reassign":
-            new = await db.users.find_one({"id": d["engineer_id"]}, {"_id": 0, "id": 1, "full_name": 1, "email": 1})
+            new = await db.users.find_one({"id": d["engineer_id"]}, {"_id": 0, "id": 1, "full_name": 1, "email": 1, "bfpo_role": 1,
+                                                                    "bfpo_territory_ids": 1, "bfpo_site_ids": 1})
             name = new.get("full_name") or new.get("email")
             await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"assigned_engineer_id": new["id"], "assigned_engineer_name": name, "updated_at": _now()}})
-            body = f"Reallocated from {leaver.get('full_name')} to {name} (engineer deactivated): {reason}"
+            from utils.bfpo_coverage import covers_case
+            case = await db.svc_cases.find_one({"id": j["id"]}, {"_id": 0})
+            outside = "" if await covers_case(new, case) else " — outside normal coverage"
+            body = f"Reallocated from {leaver.get('full_name')} to {name} (engineer deactivated){outside}: {reason}"
         elif action == "unassign":
             await db.svc_cases.update_one({"id": j["id"]}, {"$set": {"assigned_engineer_id": None, "assigned_engineer_name": None, "updated_at": _now()}})
             body = f"Returned to the unassigned queue (engineer {leaver.get('full_name')} deactivated): {reason}"
@@ -1374,7 +1378,7 @@ async def _apply_job_decisions(jobs: list, decisions: dict, leaver: dict, user: 
 @router.get("/staff/engineers/{eng_id}/open-jobs")
 async def engineer_open_jobs(eng_id: str, user=Depends(_require_staff)):
     jobs = await db.svc_cases.find(
-        {"assigned_engineer_id": eng_id, "status": {"$in": list(OPEN_STATES)}},
+        await _open_jobs_query(eng_id),
         {"_id": 0, "id": 1, "reference": 1, "title": 1, "status": 1, "site_name": 1}).to_list(500)
     return {"jobs": jobs}
 
@@ -1388,7 +1392,7 @@ async def set_engineer_status(eng_id: str, data: dict = Body(...), user=Depends(
     updates = {"is_active": active, "active": active, "updated_at": _now()}
     if not active:
         open_jobs = await db.svc_cases.find(
-            {"assigned_engineer_id": eng_id, "status": {"$in": list(OPEN_STATES)}},
+            await _open_jobs_query(eng_id),
             {"_id": 0, "id": 1, "reference": 1, "title": 1, "status": 1, "site_name": 1, "organization_id": 1}).to_list(500)
         decisions = {d.get("case_id"): d for d in (data.get("job_decisions") or []) if isinstance(d, dict)}
         missing = [j for j in open_jobs if j["id"] not in decisions]
@@ -1396,13 +1400,21 @@ async def set_engineer_status(eng_id: str, data: dict = Body(...), user=Depends(
             raise HTTPException(409, {"code": "open_jobs", "message": f"{len(missing)} open job(s) need a decision before deactivation",
                                       "jobs": missing})
         await _apply_job_decisions(open_jobs, decisions, u, user)
+        await db.bfpo_invites.delete_many({"user_id": eng_id, "status": {"$ne": "accepted"}})
         # Kill any live sessions for a deactivated engineer.
         updates["tokens_revoked_before"] = int(datetime.now(timezone.utc).timestamp())
     await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})
+    if active:
+        await db.svc_cases.update_many({"assigned_engineer_id": eng_id, "deactivated_engineer_hold": True},
+                                       {"$unset": {"deactivated_engineer_hold": ""}})
     if u.get("bfpo_role") in ("engineer", "lead"):
         await db.svc_engineers.update_one(
             {"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": {"active": active}})
     return {"success": True, "is_active": active}
+
+
+async def _open_jobs_query(eng_id: str) -> dict:
+    return {"assigned_engineer_id": eng_id, "status": {"$in": list(OPEN_STATES)}, **(await _ops_org_filter())}
 
 
 # ── Public invite acceptance (no session required) ───────────────
@@ -1416,7 +1428,9 @@ async def invite_status(token: str):
         return {"valid": False, "reason": "used"}
     if (inv.get("expires_at") or "") < _now():
         return {"valid": False, "reason": "expired"}
-    u = await db.users.find_one({"id": inv["user_id"]}, {"_id": 0, "full_name": 1})
+    u = await db.users.find_one({"id": inv["user_id"]}, {"_id": 0, "full_name": 1, "is_active": 1, "active": 1})
+    if not u or u.get("is_active") is False or u.get("active") is False:
+        return {"valid": False, "reason": "deactivated"}
     return {"valid": True, "email": inv["email"], "full_name": (u or {}).get("full_name", "")}
 
 
@@ -1428,8 +1442,11 @@ async def invite_accept(token: str, data: dict = Body(...)):
     password = data.get("password") or ""
     if len(password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
+    u = await db.users.find_one({"id": inv["user_id"]}, {"_id": 0, "is_active": 1, "active": 1})
+    if not u or u.get("is_active") is False or u.get("active") is False:
+        raise HTTPException(403, "This account has been deactivated — contact MOD Operations")
     await db.users.update_one({"id": inv["user_id"]}, {"$set": {
-        "password": hash_password(password), "invite_pending": False, "is_active": True,
+        "password": hash_password(password), "invite_pending": False,
         "must_change_password": False, "password_updated_at": _now()}})
     await db.bfpo_invites.update_one({"token": token},
                                      {"$set": {"status": "accepted", "accepted_at": _now()}})
