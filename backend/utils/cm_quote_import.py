@@ -48,32 +48,59 @@ def _pc(s) -> str:
 
 
 async def extract_document(pdf: bytes, doc_type: str) -> dict:
+    """Read every page: text pages in bounded sections, scanned pages with vision in batches.
+    Header fields come from the first part that has them; lines from all parts keep their source pages."""
+    import asyncio
     from emergentintegrations.llm.chat import ImageContent, LlmChat, UserMessage
-    from routes.equipment_import import _extract_pdf_text, _pdf_to_image_base64s
+    from utils.afs_doc_sections import page_images, read_document
     from utils.ai_guardrails import sanitize_prompt
     from utils.database import EMERGENT_LLM_KEY
     if not EMERGENT_LLM_KEY:
         raise HTTPException(503, "Document extraction is not configured.")
-    try:
-        text = _extract_pdf_text(pdf)
-    except HTTPException:
-        text = ""
-    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"cm_qimp_{uuid.uuid4().hex[:8]}",
-                   system_message="You extract structured data from business documents. Return ONLY valid JSON."
-                   ).with_model("anthropic", "claude-haiku-4-5")
+    doc = read_document("document.pdf", pdf, max_chars=6000)  # keeps each JSON reply well inside output limits
     label = DOC_TYPES[doc_type].replace(" (evidence only)", "")
-    if text and len(text) >= 50:
-        raw = await chat.send_message(UserMessage(text=_PROMPT.format(label=label, text=sanitize_prompt(text, max_chars=60000))))
-    else:
-        raw = await chat.send_message(UserMessage(text=_PROMPT.format(label=label, text="(scanned — read the attached pages)"),
-                                                  file_contents=[ImageContent(image_base64=b) for b in _pdf_to_image_base64s(pdf)]))
-    raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", (raw or "").strip())
-    try:
-        out = json.loads(raw)
-    except ValueError:
+    sem = asyncio.Semaphore(3)
+
+    async def _ask(part: str, text: str = "", images: list | None = None):
+        async with sem:
+            chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"cm_qimp_{uuid.uuid4().hex[:8]}",
+                           system_message="You extract structured data from business documents. Return ONLY valid JSON."
+                           ).with_model("anthropic", "claude-haiku-4-5")
+            msg = (UserMessage(text=_PROMPT.format(label=label, text="(scanned — read the attached pages)"),
+                               file_contents=[ImageContent(image_base64=b) for b in images]) if images
+                   else UserMessage(text=_PROMPT.format(label=label, text=sanitize_prompt(text, max_chars=len(text) + 1))))
+            try:
+                raw = await chat.send_message(msg)
+            except Exception:  # noqa: BLE001
+                return part, None
+        raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", (raw or "").strip())
+        try:
+            out = json.loads(raw)
+            return part, out if isinstance(out, dict) else None
+        except ValueError:
+            return part, None
+
+    jobs = [_ask(s["label"], s["text"]) for s in doc["sections"]]
+    jobs += [_ask(f"scanned pages {b[0]}–{b[-1]}", images=page_images(pdf, b)) for b in doc["vision_batches"]]
+    if not jobs:
+        raise HTTPException(422, "The document has no readable pages.")
+    results = await asyncio.gather(*jobs)
+    ok = [(part, out) for part, out in results if out is not None]
+    if not ok:
         raise HTTPException(422, "The document could not be read — check it is a clear invoice or delivery note.")
-    out["lines"] = [ln for ln in out.get("lines") or [] if isinstance(ln, dict)]
-    return out
+    merged: dict = {}
+    lines: list = []
+    for part, out in ok:
+        for k, v in out.items():
+            if k != "lines" and v not in (None, "", []) and merged.get(k) in (None, "", []):
+                merged[k] = v
+        lines += [{**ln, "source": part} for ln in out.get("lines") or [] if isinstance(ln, dict)]
+    merged["lines"] = lines
+    cov = doc["coverage"]
+    failed = [part for part, out in results if out is None]
+    merged["coverage"] = {**cov, "parts_total": len(results), "parts_read": len(ok), "parts_failed": failed,
+                          "complete": not failed and not cov.get("unread")}
+    return merged
 
 
 _CI = {"locale": "en", "strength": 2}          # case-insensitive, index-backed

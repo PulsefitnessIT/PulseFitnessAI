@@ -39,7 +39,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path("/app")
+REPO_ROOT = Path(__file__).resolve().parent.parent
 REPORT_DIR = REPO_ROOT / "reports"
 REPORT_DIR.mkdir(exist_ok=True)
 
@@ -289,7 +289,7 @@ def render_markdown(snap: HealthSnapshot, prev: HealthSnapshot | None) -> str:
         lines.append("| File | Max CC | Worst block |")
         lines.append("|---|---:|---|")
         for row in snap.top_complex_files:
-            short = row["file"].replace("/app/", "")
+            short = row["file"].replace(f"{REPO_ROOT}/", "")
             lines.append(f"| `{short}` | {row['max_cc']} | `{row['worst_block']}` |")
     lines.append("")
 

@@ -678,6 +678,8 @@ async def followup_done(fid: str, body: FollowupDoneIn, user=Depends(_sales)):
         "status": "done", "outcome": body.outcome.strip(), "done_by": user.get("full_name") or user.get("email"), "done_at": _now()}})
     if not res.modified_count:
         raise HTTPException(409, "This follow-up is already closed")
+    await db.mod_quote_groups.update_one({"id": f["group_id"], "chase_schedule.n": f["chase_no"]},
+                                         {"$set": {"chase_schedule.$.contacted": True, "chase_schedule.$.outcome": body.outcome.strip()}})
     await _event(f["group_id"], "follow_up_recorded", user, detail={"chase": f["chase_no"], "outcome": body.outcome.strip()})
     return {"ok": True}
 

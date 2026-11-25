@@ -49,7 +49,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path("/app")
+REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_STATE_PATH = REPO_ROOT / "reports" / "uptime-state.json"
 
 

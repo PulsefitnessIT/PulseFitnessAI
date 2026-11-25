@@ -18,6 +18,8 @@ from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
+import asyncio
+import logging
 import uuid
 import re
 import io
@@ -1268,23 +1270,17 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
         raise HTTPException(400, "Provide a file or file_id")
     if not data:
         raise HTTPException(400, "Empty file")
-    text = _extract_document_text(filename, data)
-    use_vision = False
-    images_b64 = []
-    if len(text.strip()) < 20:
-        if (filename or "").lower().endswith(".pdf"):
-            images_b64 = _render_pdf_images(data, max_pages=30)
-        if not images_b64:
-            raise HTTPException(422, "No readable text found in that document (it may be a scanned image).")
-        use_vision = True
-    text = text[:60000]
+    from utils.afs_doc_sections import page_images, read_document
+    doc = read_document(filename, data)
+    if not doc["sections"] and not doc["vision_batches"]:
+        raise HTTPException(422, "No readable text found in that document.")
     system = (
         "You extract commercial pricing from maintenance/service tender agreements. "
         "Return STRICT JSON only. Never invent prices — only include what is written. "
         "Prices are numbers (no currency symbol)."
     )
     instruction = (
-        "Extract, from this maintenance/service tender, THREE pricing schedules plus a short summary. "
+        "Extract, from this PART of a maintenance/service tender, THREE pricing schedules plus a short summary. "
         "1) SERVICE prices per machine TYPE. 2) REPAIR labour rates per machine TYPE (£ per hour) — if the "
         "tender gives a single flat repair rate for everything, return one entry with type 'All'. 3) TRAVEL cost per site/location. "
         'Return JSON exactly like: {"currency":"GBP",'
@@ -1294,75 +1290,91 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
         '"summary":{"headline":"one-line description of the contract","term":"e.g. 3 years","ppm_visits":"e.g. 2 per year",'
         '"sla":"e.g. 48h response","key_points":["notable clause","min charge","etc"]}}. '
         "Use the machine type words as written (Treadmill, Bike, Rower, Cross Trainer, Power Rack, Free Weights, Ski Erg, etc). "
-        "Never invent values. If a section is absent, use an empty array; if unknown, use an empty string."
+        "Never invent values. If a section is absent in this part, use an empty array; if unknown, use an empty string."
     )
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        chat = LlmChat(api_key=api_key, session_id=f"afs-pricing-{uuid.uuid4()}",
-                       system_message=system).with_model("anthropic", "claude-sonnet-4-6")
-        if use_vision:
-            from emergentintegrations.llm.chat import ImageContent
-            msg = UserMessage(
-                text=("These images are the scanned pages of a maintenance agreement. "
-                      "Read the Schedule of Charges / pricing pages. " + instruction),
-                file_contents=[ImageContent(image_base64=b) for b in images_b64],
-            )
-        else:
-            msg = UserMessage(text=instruction + "\n\nDOCUMENT:\n" + text)
-        resp = await chat.send_message(msg)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(503, "AI is temporarily unavailable — please try again") from exc
-    raw = (resp or "").strip()
-    if "```" in raw:
-        raw = raw.split("```")[1].replace("json", "", 1).strip()
-    s, e = raw.find("{"), raw.rfind("}")
-    parsed = {}
-    if s != -1 and e != -1:
-        import json as _json
+    from emergentintegrations.llm.chat import ImageContent, LlmChat, UserMessage
+    sem = asyncio.Semaphore(3)
+
+    async def _ask(label: str, text: str = "", images: list | None = None) -> dict:
+        async with sem:
+            chat = LlmChat(api_key=api_key, session_id=f"afs-pricing-{uuid.uuid4()}",
+                           system_message=system).with_model("anthropic", "claude-sonnet-4-6")
+            msg = (UserMessage(text="These images are scanned pages of a maintenance agreement. Read the pricing pages. " + instruction,
+                               file_contents=[ImageContent(image_base64=b) for b in images])
+                   if images else UserMessage(text=instruction + f"\n\nDOCUMENT PART ({label}):\n" + text))
+            try:
+                raw = (await chat.send_message(msg) or "").strip()
+            except Exception:  # noqa: BLE001
+                return {"_label": label, "_failed": True}
+        if "```" in raw:
+            raw = raw.split("```")[1].replace("json", "", 1).strip()
+        s, e = raw.find("{"), raw.rfind("}")
         try:
-            parsed = _json.loads(raw[s:e + 1])
+            import json as _json
+            out = _json.loads(raw[s:e + 1]) if s != -1 and e != -1 else {}
         except Exception:  # noqa: BLE001
-            parsed = {}
-    machine_services = []
-    for m in (parsed.get("machine_services") or []):
-        try:
-            price = float(m.get("service_price"))
-        except (TypeError, ValueError):
-            continue
-        if m.get("type"):
-            machine_services.append({"type": str(m["type"]).strip(), "service_price": round(price, 2)})
-    travel = []
-    for tr in (parsed.get("travel") or []):
-        try:
-            price = float(tr.get("price"))
-        except (TypeError, ValueError):
-            continue
-        if tr.get("location"):
-            travel.append({"location": str(tr["location"]).strip(), "price": round(price, 2)})
-    repairs = []
-    for rp in (parsed.get("repairs") or []):
-        try:
-            rate = float(rp.get("hourly_rate"))
-        except (TypeError, ValueError):
-            continue
-        if rp.get("type"):
-            repairs.append({"type": str(rp["type"]).strip(), "hourly_rate": round(rate, 2)})
-    summary = parsed.get("summary") if isinstance(parsed.get("summary"), dict) else {}
+            out = {"_unparsed": True}
+        return {**(out if isinstance(out, dict) else {}), "_label": label}
+
+    jobs = [_ask(s["label"], s["text"]) for s in doc["sections"]]
+    jobs += [_ask(f"scanned pages {b[0]}–{b[-1]}", images=page_images(data, b)) for b in doc["vision_batches"]]
+    parts = await asyncio.gather(*jobs)
+    failed = [p["_label"] for p in parts if p.get("_failed") or p.get("_unparsed")]
+    if failed and len(failed) == len(parts):
+        raise HTTPException(503, "AI is temporarily unavailable — please try again")
+
+    def _merge(key: str, name_key: str, price_key: str) -> list:
+        """Same item in several parts: identical price → one row; different prices → every value kept, flagged."""
+        seen: dict = {}
+        for p in parts:
+            for m in (p.get(key) or []):
+                if not isinstance(m, dict) or not str(m.get(name_key) or "").strip():
+                    continue
+                try:
+                    price = round(float(m.get(price_key)), 2)
+                except (TypeError, ValueError):
+                    continue
+                nm = str(m[name_key]).strip()
+                row = seen.setdefault(nm.lower(), {name_key: nm, price_key: price, "sources": [], "values": []})
+                row["sources"].append(p["_label"])
+                if price not in row["values"]:
+                    row["values"].append(price)
+        out = []
+        for row in seen.values():
+            if len(row["values"]) > 1:
+                row["needs_review"] = True
+                row["review_reason"] = "Different prices found: " + ", ".join(f"{v:,.2f}" for v in row["values"])
+            out.append(row)
+        return out
+
+    machine_services = _merge("machine_services", "type", "service_price")
+    repairs = _merge("repairs", "type", "hourly_rate")
+    travel = _merge("travel", "location", "price")
+    summaries = [p["summary"] for p in parts if isinstance(p.get("summary"), dict)]
+    first = next((s for s in summaries if s.get("headline")), summaries[0] if summaries else {})
+    points: list = []
+    for s in summaries:
+        points += [str(k)[:200] for k in (s.get("key_points") or []) if k and str(k)[:200] not in points]
     summary = {
-        "headline": str(summary.get("headline") or "")[:400],
-        "term": str(summary.get("term") or "")[:120],
-        "ppm_visits": str(summary.get("ppm_visits") or "")[:120],
-        "sla": str(summary.get("sla") or "")[:200],
-        "key_points": [str(k)[:200] for k in (summary.get("key_points") or []) if k][:12],
+        "headline": str(first.get("headline") or "")[:400],
+        "term": str(next((s.get("term") for s in summaries if s.get("term")), "") or "")[:120],
+        "ppm_visits": str(next((s.get("ppm_visits") for s in summaries if s.get("ppm_visits")), "") or "")[:120],
+        "sla": str(next((s.get("sla") for s in summaries if s.get("sla")), "") or "")[:200],
+        "key_points": points[:20],
     }
+    cov = doc["coverage"]
+    coverage = {**cov, "parts_total": len(parts), "parts_read": len(parts) - len(failed), "parts_failed": failed,
+                "complete": not failed and not cov.get("unread"),
+                "chars_read": sum(len(s["text"]) for s in doc["sections"])}
     return {
-        "currency": parsed.get("currency") or "GBP",
+        "currency": next((p.get("currency") for p in parts if p.get("currency")), "GBP"),
         "machine_services": machine_services,
         "repairs": repairs,
         "travel": travel,
         "summary": summary,
         "source_filename": filename,
-        "extracted_chars": len(text),
+        "extracted_chars": coverage["chars_read"],
+        "coverage": coverage,
     }
 
 
@@ -4124,18 +4136,112 @@ IMPORT_STAGE = {"sales_invoice": "identified_from_invoice", "delivery_note": "de
                 "maintenance_invoice": "verification_required"}
 STAGE_RANK = {"verification_required": 1, "identified_from_invoice": 1, "delivered": 2, "installed": 3}
 
+AFS_IMPORT_MAX_BYTES = int(os.environ.get("AFS_IMPORT_MAX_MB", "50")) * 1024 * 1024
+
+
 @router.post("/build-quote/imports")
 async def create_quote_import(doc_type: str = Form(...), company_id: str = Form(""), file: UploadFile = File(...),
                               user=Depends(require_crm_perm("quotes.maintenance"))):
+    """Small direct upload (kept for compatibility). Large documents use /build-quote/imports/from-file."""
+    return await _create_import(user, doc_type, company_id, await file.read(), file.filename)
+
+
+class ImportFromFileIn(BaseModel):
+    file_id: str
+    doc_type: str
+    company_id: str = ""
+
+
+@router.post("/build-quote/imports/from-file")
+async def create_quote_import_from_file(body: ImportFromFileIn, user=Depends(require_crm_perm("quotes.maintenance"))):
+    """Start reading a document already uploaded in ~1 MB pieces via /files/upload/chunks (org-scoped file id).
+    Reading runs in the background (large files take minutes) — poll GET /build-quote/jobs/{job_id}."""
+    fdoc = await _org_file(body.file_id, user)
+    from utils import cm_quote_import as qi
+    if body.doc_type not in qi.DOC_TYPES:
+        raise HTTPException(400, "Choose sales invoice, delivery note or maintenance invoice.")
+    prior = await db.crm2_afs_quote_imports.find_one({**_of(user), "sha256": fdoc.get("content_hash"), "doc_type": body.doc_type}, _PUBLIC)
+    if prior:
+        return {"job_id": None, "status": "done", "import": {**prior, "existing": True}}
+
+    async def work():
+        from utils.database import get_object
+        data, _ct = get_object(fdoc["storage_path"])
+        doc = await _create_import(user, body.doc_type, body.company_id, data,
+                                   fdoc.get("original_filename") or "document.pdf", file_id=fdoc["id"])
+        return {"import_id": doc["id"]}
+    return await _start_job(user, "import", f"{fdoc.get('content_hash')}:{body.doc_type}", work)
+
+
+@router.post("/extract-pricing-jobs")
+async def start_pricing_extraction(file_id: str = Query(...), user=Depends(require_crm_perm("quotes.maintenance"))):
+    """Background version of /extract-pricing-document for large tenders — poll GET /build-quote/jobs/{job_id}."""
+    fdoc = await _org_file(file_id, user)
+
+    async def work():
+        return await extract_pricing_document(file=None, file_id=file_id, user=user)
+    return await _start_job(user, "pricing", f"{fdoc.get('content_hash')}:pricing:{_id()}", work)
+
+
+@router.get("/build-quote/jobs/{job_id}")
+async def doc_job_status(job_id: str, user=Depends(require_crm_perm("quotes.maintenance"))):
+    j = await db.crm2_afs_doc_jobs.find_one({"id": job_id, "organization_id": _org(user)}, {"_id": 0})
+    if not j:
+        raise HTTPException(404, "Job not found")
+    if j["status"] == "running" and j.get("started_at", "") < (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat():
+        await db.crm2_afs_doc_jobs.update_one({"id": job_id, "status": "running"}, {"$set": {"status": "failed", "error": "Processing was interrupted — please try again"}})
+        j = {**j, "status": "failed", "error": "Processing was interrupted — please try again"}
+    if j["status"] == "done" and j["kind"] == "import":
+        j["import"] = await db.crm2_afs_quote_imports.find_one({"id": j["result"]["import_id"], **_of(user)}, _PUBLIC)
+    return j
+
+
+async def _org_file(file_id: str, user: dict) -> dict:
+    fdoc = await db.files.find_one({"id": file_id, "organization_id": user.get("organization_id")}, {"_id": 0})
+    if not fdoc:
+        raise HTTPException(404, "Uploaded file not found")
+    return fdoc
+
+
+_DOC_TASKS: set = set()
+
+
+async def _start_job(user: dict, kind: str, dedupe: str, work) -> dict:
+    """One active job per document (repeat clicks return the same job); the work runs after the response."""
+    active = await db.crm2_afs_doc_jobs.find_one({"organization_id": _org(user), "dedupe": dedupe, "status": {"$in": ["queued", "running"]}}, {"_id": 0})
+    if active:
+        return {"job_id": active["id"], "status": active["status"]}
+    jid = _id()
+    await db.crm2_afs_doc_jobs.insert_one({"id": jid, "organization_id": _org(user), "kind": kind, "dedupe": dedupe,
+                                          "status": "running", "created_by": user.get("email"), "created_at": _now(), "started_at": _now()})
+
+    async def runner():
+        try:
+            res = await work()
+            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "done", "result": res, "finished_at": _now()}})
+        except HTTPException as e:
+            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "failed", "error": str(e.detail), "finished_at": _now()}})
+        except Exception as e:  # noqa: BLE001
+            logging.getLogger(__name__).exception("[afs-doc-job] %s failed", jid)
+            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "failed", "error": "The document could not be processed",
+                                                                        "diagnostic": f"{type(e).__name__}: {str(e)[:300]}", "finished_at": _now()}})
+    t = asyncio.create_task(runner())
+    _DOC_TASKS.add(t)
+    t.add_done_callback(_DOC_TASKS.discard)
+    return {"job_id": jid, "status": "running"}
+
+
+async def _create_import(user: dict, doc_type: str, company_id: str, data: bytes, filename: str, file_id: str | None = None):
     """Store the source document, extract it once (same file → same import), recognise
     the existing customer and match every machine. Nothing is priced or created yet."""
     from utils import cm_quote_import as qi
     from utils.cm_agreements import _put
     if doc_type not in qi.DOC_TYPES:
         raise HTTPException(400, "Choose sales invoice, delivery note or maintenance invoice.")
-    data = await file.read()
-    if not data.startswith(b"%PDF") or len(data) > 20 * 1024 * 1024:
-        raise HTTPException(400, "Upload the document as a PDF (max 20 MB).")
+    if not data.startswith(b"%PDF"):
+        raise HTTPException(400, "Upload the document as a PDF.")
+    if len(data) > AFS_IMPORT_MAX_BYTES:
+        raise HTTPException(413, f"The document is larger than {AFS_IMPORT_MAX_BYTES // (1024 * 1024)} MB.")
     of, org_id, digest = _of(user), _org(user), qi.sha256(data)
     prior = await db.crm2_afs_quote_imports.find_one({**of, "sha256": digest, "doc_type": doc_type}, _PUBLIC)
     if prior:
@@ -4153,8 +4259,9 @@ async def create_quote_import(doc_type: str = Form(...), company_id: str = Form(
         cust = await qi.match_customer(org_id, extracted)
     linked = await _resolve_linked_org_for_company(cust["company"], user) if cust.get("company") else None
     lines = await qi.match_lines(org_id, extracted.get("lines") or [], doc_type, linked)
-    doc = {"id": iid, "organization_id": org_id, "doc_type": doc_type, "filename": file.filename, "sha256": digest,
-           "storage_path": path, "size": len(data), "extracted": extracted, "customer": cust,
+    doc = {"id": iid, "organization_id": org_id, "doc_type": doc_type, "filename": filename, "sha256": digest,
+           "storage_path": path, "size": len(data), "file_id": file_id, "extracted": extracted,
+           "coverage": extracted.pop("coverage", None), "customer": cust,
            "company_id": (cust.get("company") or {}).get("id"), "lines": lines, "summary": qi.summarise(lines),
            "status": "review",
            "created_by": user.get("email"), "created_at": _now(), "updated_at": _now()}

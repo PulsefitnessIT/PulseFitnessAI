@@ -88,6 +88,7 @@ async def init_chunked_upload(data: dict, user: dict = Depends(get_current_user)
     total_chunks = int(data.get("total_chunks") or 0)
     content_type = (data.get("content_type") or "application/octet-stream").strip()
     category = (data.get("category") or "general").strip()
+    sha256 = (data.get("sha256") or "").strip().lower() or None
 
     if not filename:
         raise HTTPException(400, "filename is required")
@@ -108,6 +109,7 @@ async def init_chunked_upload(data: dict, user: dict = Depends(get_current_user)
         "content_type": content_type,
         "category": category,
         "total_chunks": total_chunks,
+        "sha256": sha256,
         "status": "in_progress",
         "created_at": _now().isoformat(),
         "expires_at": _now() + timedelta(minutes=SESSION_TTL_MINUTES),
@@ -158,8 +160,26 @@ async def put_chunk(upload_id: str, index: int, request: Request,
 
 @router.post("/files/upload/chunks/{upload_id}/complete")
 async def complete_chunked_upload(upload_id: str, user: dict = Depends(get_current_user)):
-    """Assemble chunks, validate, store, return the file_doc."""
+    """Assemble chunks, validate, store, return the file_doc. Retrying a finished upload
+    returns the same file (no duplicate records); a concurrent second call is refused."""
+    done = await db.file_upload_sessions.find_one({"id": upload_id, "user_id": user["id"], "status": "complete"}, {"_id": 0})
+    if done and done.get("file_id"):
+        existing = await db.files.find_one({"id": done["file_id"]}, {"_id": 0})
+        if existing:
+            return existing
     sess = await _load_session(upload_id, user)
+    claim = await db.file_upload_sessions.update_one({"id": upload_id, "status": "in_progress"},
+                                                     {"$set": {"status": "assembling"}})
+    if not claim.modified_count:
+        raise HTTPException(409, "This upload is already being finished — retry in a moment")
+    try:
+        return await _assemble(upload_id, sess, user)
+    except Exception:
+        await db.file_upload_sessions.update_one({"id": upload_id, "status": "assembling"}, {"$set": {"status": "in_progress"}})
+        raise
+
+
+async def _assemble(upload_id: str, sess: dict, user: dict) -> dict:
     received = await db.file_upload_chunks.count_documents({"upload_id": upload_id})
     if received != sess["total_chunks"]:
         raise HTTPException(400, f"Missing chunks: have {received}/{sess['total_chunks']}")
@@ -174,6 +194,8 @@ async def complete_chunked_upload(upload_id: str, user: dict = Depends(get_curre
             400,
             f"Assembled size mismatch: expected {sess['size']}, got {len(data)}",
         )
+    if sess.get("sha256") and hashlib.sha256(data).hexdigest() != sess["sha256"]:
+        raise HTTPException(400, "The uploaded file failed its integrity check — please retry the upload")
 
     # Mirror the validation / category logic of /files/upload. Sniffing
     # the assembled bytes catches polyglots that slipped past the

@@ -573,6 +573,13 @@ async def mm_contract(cid: str, user=Depends(require_crm_perm("contracts.read"))
     return {"contract": c, "changes": hist}
 
 
+# Commercial / contractual fields: a meaningful reason is mandatory (stored with every change record).
+SUBSTANTIVE_FIELDS = {"start_date", "end_date", "annual_value", "original_amount", "contract_amount", "payment_frequency",
+                      "billing_frequency", "direct_debit", "contract_number", "contract_ref", "sicon_contract_id",
+                      "sage_account_ref", "visits_per_year", "contract_term", "contract_type", "instalment_amount",
+                      "invoice_account", "beds_belts_covered", "upholstery_covered"}
+
+
 class EditIn(BaseModel):
     revision: int
     changes: dict
@@ -609,6 +616,10 @@ async def edit_contract(cid: str, body: EditIn, user=Depends(require_crm_perm("c
             sets["title"] = new
     if not diffs:
         return {"contract": c, "changed": []}
+    substantive = [f for f, _o, _n in diffs if f in SUBSTANTIVE_FIELDS]
+    if substantive and len(body.reason.strip()) < 5:
+        raise HTTPException(422, "Give a reason for changing " + ", ".join(f.replace("_", " ") for f in substantive)
+                            + " — it is kept in the contract's audit history.")
     sets.update({"updated_at": _now(), "updated_by": _who(user)})
     s = c.get("sicon_sync") or {}
     if s.get("state") == "synced_verified":

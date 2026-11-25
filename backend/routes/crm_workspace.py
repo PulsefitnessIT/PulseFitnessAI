@@ -166,6 +166,18 @@ async def renewal_resend(renewal_id: str, user=Depends(require_crm_perm("renewal
     return res
 
 
+@router.post("/renewals/{renewal_id}/cancel-email")
+async def renewal_cancel_email(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.approve"))):
+    from utils.cm_renewals import cancel_queued_renewal_email
+    reason = ((data or {}).get("reason") or "").strip()
+    if not reason:
+        raise HTTPException(422, "Give a reason for cancelling the customer email")
+    res = await cancel_queued_renewal_email(renewal_id, user, reason)
+    if not res.get("ok"):
+        raise HTTPException(409, res.get("error"))
+    return res
+
+
 @router.post("/renewals/{renewal_id}/declined")
 async def renewal_declined(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.review"))):
     from utils.cm_renewals import record_outcome
@@ -239,6 +251,11 @@ async def _daily_checks_all(run_id: str) -> None:
             results.append(await run_daily_checks(org_id, actor="Daily checks (7am)"))
         except Exception as e:  # keep other orgs running
             results.append({"organization_id": org_id, "error": str(e)})
+    try:
+        from utils.cm_renewals import dispatch_queued_renewals
+        results.append({"renewal_emails": await dispatch_queued_renewals()})
+    except Exception as e:  # never block the other checks
+        results.append({"renewal_emails_error": str(e)})
     try:
         from utils.mod_quote_chase import run_chases
         results.append({"mod_quote_chases": await run_chases()})

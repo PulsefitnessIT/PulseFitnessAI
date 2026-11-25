@@ -21,6 +21,7 @@ import { InvoiceRunPreview } from './CMDailyAndInvoice';
 import SubTabBar from '../../../components/shared/SubTabBar';
 import CRMContracts from '../CRMContracts';
 import EstateOnboarding from './EstateOnboarding';
+import AfsDocumentUploader, { waitForJob } from './AfsDocumentUploader';
 import {
   LayoutDashboard, SlidersHorizontal, Wrench, ShieldCheck, RefreshCw, AlertTriangle,
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
@@ -739,6 +740,32 @@ const FLAG_LABEL = {
   duplicate_serials: 'Duplicate serials', discontinued: 'Discontinued model', no_approved_price: 'No approved price',
   price_provisional: 'Price provisional', unsupported: 'Not contract-eligible', evidence_only_price: 'Invoice price is evidence only',
 };
+const MATCH_STATUSES = [['exact', 'Exact match'], ['suggested', 'Suggested match'], ['review', 'Manual review required'],
+  ['unmatched', 'Not matched'], ['excluded', 'Excluded'], ['registered', 'Already registered']];
+const MATCH_LABEL = Object.fromEntries(MATCH_STATUSES);
+function matchStatus(ln, decision) {
+  const k = decision === 'excluded' ? 'excluded'
+    : (ln.flags || []).includes('already_covered') || (ln.existing_equipment || []).length > 0 ? 'registered'
+      : ln.auto_accepted ? 'exact' : decision === 'accepted' ? 'suggested' : ln.matched ? 'review' : 'unmatched';
+  return [k, MATCH_LABEL[k]];
+}
+
+function CoverageNote({ cov, testId }) {
+  const parts = [];
+  if (cov.pages_total) parts.push(`${cov.pages_total} page(s): ${cov.pages_text} text, ${cov.pages_scanned || 0} scanned`);
+  if (cov.sheets) parts.push(`${cov.sheets.length} worksheet(s), ${cov.rows} row(s)`);
+  if (!cov.sheets && cov.rows != null) parts.push(`${cov.rows} row(s)`);
+  if (cov.tables != null) parts.push(`${cov.tables} table(s)`);
+  const ok = cov.complete;
+  return (
+    <p className="text-[11px] my-1" data-testid={testId} style={{ color: ok ? 'var(--color-success-alt)' : 'var(--color-accent-amber)' }}>
+      {ok ? 'Whole document read' : 'Document only partly read — check before relying on it'} · {parts.join(' · ')} · {cov.parts_read}/{cov.parts_total} part(s) processed
+      {(cov.parts_failed || []).length > 0 && ` · could not read: ${cov.parts_failed.join(', ')}`}
+      {(cov.notes || []).map(n => ` · ${n}`)}
+    </p>
+  );
+}
+
 function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
   const [docType, setDocType] = useState('sales_invoice');
   const [imp, setImp] = useState(null);
@@ -771,24 +798,24 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
     }, 300);
   };
   useEffect(() => () => { clearTimeout(coReq.current.timer); coReq.current.ctrl?.abort(); }, []);
-  const fileRef = useRef(null);
   useEffect(() => {
     if (!imp?.company_id) { setSites([]); return; }
     axios.get(`${API}/crm/v2/aftersales/estate/${imp.company_id}`, { headers: headers() })
       .then(r => { const ss = (r.data.sites || []).filter(x => x.id !== '__unassigned__'); setSites(ss); setSiteId(ss.length === 1 ? ss[0].id : ''); })
       .catch(() => setSites([]));
   }, [API, headers, imp?.company_id]);
-  const upload = async (f) => {
-    if (!f) return;
-    setBusy(true); setImp(null); setDec({});
+  const onUploaded = async (doc) => {
+    setBusy(true); setImp(null); setDec({}); setPage(0);
     try {
-      const fd = new FormData(); fd.append('file', f); fd.append('doc_type', docType);
-      const r = await axios.post(`${API}/crm/v2/aftersales/build-quote/imports`, fd, { headers: headers() });
-      setImp(r.data);
-      toast.success(r.data.existing ? 'This document was already imported — showing the saved result' : `Read ${r.data.lines.length} line(s) from the document`);
-    } catch (e) { toast.error(apiMsg(e, 'The document could not be read')); }
-    finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+      const r = await axios.post(`${API}/crm/v2/aftersales/build-quote/imports/from-file`, { file_id: doc.id, doc_type: docType }, { headers: headers() });
+      const result = r.data.import || (await waitForJob(axios, API, headers, r.data.job_id)).import;
+      setImp(result);
+      toast.success(result.existing ? 'This document was already imported — showing the saved result' : `Read ${result.lines.length} line(s) from the document`);
+    } finally { setBusy(false); }
   };
+  const [page, setPage] = useState(0);
+  const [lineQ, setLineQ] = useState('');
+  const [lineFilter, setLineFilter] = useState('all');
   const pickCustomer = async (cid) => {
     if (!cid) return;
     setBusy(true);
@@ -813,6 +840,12 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
   const lines = imp?.lines || [];
   const state = (ln) => dec[ln.line_no]?.decision || ln.decision;
   const pending = lines.filter(ln => state(ln) === 'review').length;
+  const PAGE = 50;
+  const q = lineQ.trim().toLowerCase();
+  const shown = lines.filter(ln => (lineFilter === 'all' || matchStatus(ln, state(ln))[0] === lineFilter)
+    && (!q || [ln.item_code, ln.model, ln.description, ...(ln.serials || [])].some(v => (v || '').toLowerCase().includes(q))));
+  const pageRows = shown.slice(page * PAGE, page * PAGE + PAGE);
+  const bulkExclude = () => setDec(d => { const n = { ...d }; shown.filter(ln => state(ln) === 'review').forEach(ln => { n[ln.line_no] = { decision: 'excluded' }; }); return n; });
   return (
     <Card c={c} isDark={isDark} className="mb-4" testId="afs-aq-import">
       <div className="flex flex-wrap items-end gap-3">
@@ -821,9 +854,8 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
           <select data-testid="afs-aq-import-type" value={docType} onChange={e => setDocType(e.target.value)} className="block mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle}>
             <option value="sales_invoice">Sales invoice</option><option value="delivery_note">Delivery note</option><option value="maintenance_invoice">Maintenance invoice (evidence only)</option>
           </select></label>
-        <input ref={fileRef} data-testid="afs-aq-import-file" type="file" accept=".pdf" disabled={busy} onChange={e => upload(e.target.files?.[0])} className="text-xs" style={{ color: c.textDim }} />
-        {busy && <Loader2 size={16} className="animate-spin" style={{ color: c.textDim }} />}
       </div>
+      <div className="mt-2"><AfsDocumentUploader c={c} accept=".pdf" typesLabel="PDF sales invoice or delivery note" disabled={busy} testId="afs-aq-import-upload" onUploaded={onUploaded} /></div>
       {imp && (
         <div className="mt-3" data-testid="afs-aq-import-result">
           <p className="text-xs mb-2" style={{ color: c.textDim }}>
@@ -841,15 +873,26 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
                 {(coResults || []).map(x => <option key={`a-${x.id}`} value={x.id}>{x.name}</option>)}
               </select></>}
           </div>
+          {imp.coverage && <CoverageNote cov={imp.coverage} testId="afs-aq-import-coverage" />}
+          {lines.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 my-2 text-xs" data-testid="afs-aq-import-tools">
+              <input data-testid="afs-aq-import-line-search" placeholder="Search code, model or serial…" value={lineQ} onChange={e => { setLineQ(e.target.value); setPage(0); }} className="px-2 py-1 rounded-md w-56" style={inpStyle} />
+              <select data-testid="afs-aq-import-line-filter" value={lineFilter} onChange={e => { setLineFilter(e.target.value); setPage(0); }} className="px-2 py-1 rounded-md" style={inpStyle}>
+                <option value="all">All lines ({lines.length})</option>
+                {MATCH_STATUSES.map(([k, l]) => <option key={k} value={k}>{l} ({lines.filter(ln => matchStatus(ln, state(ln))[0] === k).length})</option>)}
+              </select>
+              <button type="button" data-testid="afs-aq-import-bulk-exclude" onClick={bulkExclude} className="underline" style={{ color: c.textDim }}>Exclude shown lines that need review</button>
+            </div>
+          )}
           {imp.summary && <p className="text-[11px] mb-1" data-testid="afs-aq-import-summary" style={{ color: c.textDim }}>
             {imp.summary.matched} of {imp.summary.lines} machine line(s) identified · {imp.summary.commercially_ready} price approved · {imp.summary.price_approval_required} need price approval · {imp.summary.needs_identification} need a decision · {imp.summary.excluded} excluded.
             {imp.doc_type !== 'maintenance_invoice' && ' New machines are added as awaiting installation — not marked installed.'}</p>}
           <table className="w-full text-xs" data-testid="afs-aq-import-lines">
-            <thead><tr style={{ color: c.textDim }}><th className="text-left py-1">Code</th><th className="text-left">Machine</th><th>Qty</th><th className="text-left">Serials</th><th className="text-left">Match</th><th className="text-left">Decision</th></tr></thead>
+            <thead><tr style={{ color: c.textDim }}><th className="text-left py-1">Code</th><th className="text-left">Machine</th><th>Qty</th><th className="text-left">Serials</th><th className="text-left">Match</th><th className="text-left">Status</th><th className="text-left">Decision</th></tr></thead>
             <tbody>
-              {lines.map(ln => (
+              {pageRows.map(ln => (
                 <tr key={ln.line_no} className="border-t align-top" style={{ borderColor: c.border, color: c.text }} data-testid={`afs-aq-import-line-${ln.line_no}`}>
-                  <td className="py-1">{ln.item_code || '—'}</td>
+                  <td className="py-1">{ln.item_code || '—'}{ln.source && <div className="text-[10px]" style={{ color: c.textDim }}>{ln.source}</div>}</td>
                   <td>{ln.model || ln.description}{ln.flags.length > 0 && <div className="text-[10px]" style={{ color: 'var(--color-accent-amber)' }}>{ln.flags.map(f => FLAG_LABEL[f] || f).join(' · ')}</div>}</td>
                   <td className="text-center">{ln.quantity}</td>
                   <td className="text-[11px]" style={{ color: c.textDim }}>{ln.serials.join(', ') || '—'}{ln.existing_equipment.length > 0 && <div>{ln.existing_equipment.length} on register</div>}</td>
@@ -867,6 +910,7 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
                             className="block underline text-left" style={{ color: c.textDim }}>{r.model}{r.console_type ? ` / ${r.console_type}` : ''}</button>))}
                       </div>)}
                   </td>
+                  <td className="text-[11px]" data-testid={`afs-aq-import-status-${ln.line_no}`}>{matchStatus(ln, state(ln))[1]}</td>
                   <td>
                     <select data-testid={`afs-aq-import-decision-${ln.line_no}`} value={state(ln)} onChange={e => setDec(d => ({ ...d, [ln.line_no]: { ...(d[ln.line_no] || {}), decision: e.target.value } }))} className="px-1 py-0.5 rounded text-[11px]" style={inpStyle}>
                       {state(ln) === 'review' && <option value="review">Needs review</option>}
@@ -878,6 +922,13 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
               ))}
             </tbody>
           </table>
+          {shown.length > PAGE && (
+            <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: c.textDim }} data-testid="afs-aq-import-pager">
+              <button type="button" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="underline disabled:opacity-40" data-testid="afs-aq-import-prev">Previous</button>
+              <span>Lines {page * PAGE + 1}–{Math.min(shown.length, page * PAGE + PAGE)} of {shown.length}</span>
+              <button type="button" disabled={(page + 1) * PAGE >= shown.length} onClick={() => setPage(p => p + 1)} className="underline disabled:opacity-40" data-testid="afs-aq-import-next">Next</button>
+            </div>
+          )}
           <div className="flex flex-wrap items-end gap-2 mt-3">
             <label className="text-xs" style={{ color: c.textDim }}>Site
               <select data-testid="afs-aq-import-site" value={siteId} onChange={e => setSiteId(e.target.value)} className="block mt-1 px-2 py-1.5 text-sm rounded-md" style={inpStyle}>
@@ -907,7 +958,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
   const [busy, setBusy] = useState(false);
   const [rrpEdit, setRrpEdit] = useState({});
   const [warrantyOpps, setWarrantyOpps] = useState([]);
-  const [uploadBusy, setUploadBusy] = useState(false);
+  const [, setUploadBusy] = useState(false);
   const [customData, setCustomData] = useState(null);   // {machine_services:[], travel:[]}
   const [customResult, setCustomResult] = useState(null);
   const [rateCards, setRateCards] = useState([]);
@@ -922,7 +973,6 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
   const [excluded, setExcluded] = useState({});     // asset_id → true (machines left off the quote)
   const [editQuoteId, setEditQuoteId] = useState(''); // set when editing a saved quote (overwrite)
   const [includeAnnexe, setIncludeAnnexe] = useState(false); // append per-site equipment appendix to PDF
-  const fileRef = useRef(null);
   const isCustom = contractType === 'custom';
   useEffect(() => {
     if (!isCustom || !companyId) { setRateCards([]); return; }
@@ -954,28 +1004,24 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
       alert('Could not save rate card: ' + (err?.response?.data?.detail || err.message));
     } finally { setSavingCard(false); }
   };
-  const onUploadPricing = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setUploadBusy(true); setCustomData(null); setCustomResult(null);
+  const [pricingCoverage, setPricingCoverage] = useState(null);
+  const onPricingUploaded = async (doc, f) => {
+    setUploadBusy(true); setCustomData(null); setCustomResult(null); setPricingCoverage(null);
     try {
-      const fd = new FormData(); fd.append('file', f);
-      const mainTok = localStorage.getItem('token');
-      const up = await axios.post(`${API}/files/upload?category=contracts`, fd,
-        { headers: { Authorization: `Bearer ${mainTok}` } });
-      const fid = up.data?.id;
-      const ex = await axios.post(`${API}/crm/v2/aftersales/extract-pricing-document?file_id=${fid}`, {},
-        { headers: headers() });
+      const job = await axios.post(`${API}/crm/v2/aftersales/extract-pricing-jobs?file_id=${doc.id}`, {}, { headers: headers() });
+      const ex = { data: (await waitForJob(axios, API, headers, job.data.job_id)).result };
       setCustomData({ machine_services: ex.data.machine_services || [], travel: ex.data.travel || [], repairs: ex.data.repairs || [], summary: ex.data.summary || null });
+      setPricingCoverage(ex.data.coverage || null);
       setLastFilename(ex.data.source_filename || f.name || '');
       if (customMode === 'wizard') setWizStep(2);
-    } catch (err) {
-      alert('Could not read that document: ' + (err?.response?.data?.detail || err.message));
-    } finally {
-      setUploadBusy(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
+    } finally { setUploadBusy(false); }
   };
+  const pricingUploader = (tid) => (
+    <>
+      <AfsDocumentUploader c={c} accept=".pdf,.xlsx,.xlsm,.docx,.csv,.txt" typesLabel="PDF, Excel, Word or CSV" testId={tid} onUploaded={onPricingUploaded} />
+      {pricingCoverage && <CoverageNote cov={pricingCoverage} testId={`${tid}-coverage`} />}
+    </>
+  );
   const buildCustom = async (save) => {
     if (!companyId || !customData) return;
     setBusy(true);
@@ -1262,8 +1308,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
                         </div>
                       </div>
                     )}
-                    <input ref={fileRef} data-testid="afs-wiz-file" type="file" accept=".pdf,.xlsx,.xls,.docx,.csv,.txt" onChange={onUploadPricing} disabled={uploadBusy} className="block text-xs" style={{ color: c.textDim }} />
-                    {uploadBusy && <p className="text-xs mt-2" style={{ color: c.textDim }} data-testid="afs-wiz-uploading">Reading document with AI…</p>}
+                    {pricingUploader('afs-wiz-upload')}
                     {customData && <button data-testid="afs-wiz-next-1" onClick={() => setWizStep(2)} className="mt-3 px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Next: Summary →</button>}
                   </div>
                 )}
@@ -1357,8 +1402,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
               </div>
             )}
             {customMode === 'quick' && (<>
-            <input ref={fileRef} data-testid="afs-aq-pricing-file" type="file" accept=".pdf,.xlsx,.xls,.docx,.csv,.txt" onChange={onUploadPricing} disabled={uploadBusy}
-              className="block text-xs" style={{ color: c.textDim }} />
+            {pricingUploader('afs-aq-pricing-upload')}
             {rateCards.length > 0 && (
               <div className="mt-3" data-testid="afs-aq-ratecards">
                 <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Saved rate cards for this customer</p>
@@ -1374,7 +1418,6 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
                 <p className="text-[11px] mt-1" style={{ color: c.textDim }}>Load a saved card to skip re-uploading, or upload a new document above.</p>
               </div>
             )}
-            {uploadBusy && <p className="text-xs mt-2" style={{ color: c.textDim }} data-testid="afs-aq-pricing-uploading">Reading document with AI…</p>}
             {customData && (
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="afs-aq-pricing-review">
                 <div>

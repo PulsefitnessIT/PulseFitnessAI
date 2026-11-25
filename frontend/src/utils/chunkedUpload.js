@@ -52,7 +52,7 @@ async function singleShotUpload({ baseURL, file, category, authHeaders, onProgre
   return res.data;
 }
 
-async function uploadOneChunk({ baseURL, uploadId, index, blob, authHeaders }) {
+async function uploadOneChunk({ baseURL, uploadId, index, blob, authHeaders, signal }) {
   let attempt = 0;
   let lastErr;
   while (attempt <= CHUNK_MAX_RETRIES) {
@@ -64,11 +64,13 @@ async function uploadOneChunk({ baseURL, uploadId, index, blob, authHeaders }) {
           headers: { ...authHeaders, 'Content-Type': 'application/octet-stream' },
           // 60s per chunk gives 4G plenty of headroom for 1 MB.
           timeout: 60_000,
+          signal,
         },
       );
       return res.data;
     } catch (err) {
       lastErr = err;
+      if (signal?.aborted) throw err;
       attempt += 1;
       if (attempt > CHUNK_MAX_RETRIES) break;
       // Exponential backoff with a small jitter — 300 / 600 / 1200 / 2400 ms.
@@ -83,6 +85,9 @@ export async function chunkedUpload({
   baseURL, file, category = 'general', authHeaders = {},
   onProgress, onSession, resumeUploadId,
   chunkSize = CHUNK_SIZE_BYTES, threshold = CHUNK_THRESHOLD_BYTES,
+  // Optional: sha256 hex of the whole file (server verifies the assembled bytes),
+  // an AbortSignal for Cancel, and keepSessionOnError so the caller can offer Resume.
+  sha256, signal, keepSessionOnError = false,
 }) {
   if (!file || !(file instanceof Blob)) {
     throw new Error('chunkedUpload: a File/Blob is required');
@@ -145,6 +150,7 @@ export async function chunkedUpload({
         content_type: file.type || 'application/octet-stream',
         category,
         total_chunks: totalChunks,
+        ...(sha256 ? { sha256 } : {}),
       },
       { headers: authHeaders },
     );
@@ -185,7 +191,8 @@ export async function chunkedUpload({
       if (idx < 0) break;
       const start = idx * chunkSize;
       const blob = file.slice(start, Math.min(start + chunkSize, file.size));
-      await uploadOneChunk({ baseURL, uploadId, index: idx, blob, authHeaders });
+      if (signal?.aborted) throw Object.assign(new Error('Upload cancelled'), { code: 'cancelled' });
+      await uploadOneChunk({ baseURL, uploadId, index: idx, blob, authHeaders, signal });
       completed[idx] = true;
       reportProgress();
     }
@@ -200,7 +207,7 @@ export async function chunkedUpload({
     // server-side session is still live for the next attempt. For
     // a non-resume run, abort opportunistically so the TTL doesn't
     // have to wait an hour.
-    if (!resumeUploadId) {
+    if (!resumeUploadId && !keepSessionOnError) {
       try {
         await axios.delete(`${baseURL}/files/upload/chunks/${uploadId}`, { headers: authHeaders });
       } catch { /* swallow — TTL will collect it */ }

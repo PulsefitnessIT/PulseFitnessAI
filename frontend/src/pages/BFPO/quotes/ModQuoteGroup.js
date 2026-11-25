@@ -6,6 +6,16 @@ import { Btn, StatusChip, Banner, Field } from './MqUi';
 
 export { StatusChip };
 
+function chaseLabel(c) {
+  if (c.status === 'cancelled') return 'not needed';
+  if (!['done', 'task_created'].includes(c.status)) return 'scheduled';
+  const bits = ['reminder task created'];
+  if (c.email_status === 'sent') bits.push('customer emailed');
+  else if (c.email_status === 'awaiting_approval') bits.push('email held for review');
+  if (c.contacted) bits.push('customer contacted — outcome recorded');
+  return bits.join(' · ');
+}
+
 export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
   const [g, setG] = useState(null);
   const [sel, setSel] = useState([]);
@@ -153,7 +163,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
           <div className="flex flex-wrap gap-2">
             {g.chase_schedule.map((c) => (
               <StatusChip key={c.n} status={['done', 'task_created'].includes(c.status) ? 'accepted' : c.status === 'cancelled' ? 'withdrawn' : 'pending_approval'}
-                label={`${c.weeks} weeks · ${new Date(c.due).toLocaleDateString('en-GB')} · ${['done', 'task_created'].includes(c.status) ? 'chased' : c.status === 'cancelled' ? 'not needed' : 'scheduled'}`} />
+                label={`${c.weeks} weeks · ${new Date(c.due).toLocaleDateString('en-GB')} · ${chaseLabel(c)}`} />
             ))}
           </div>
         </div>

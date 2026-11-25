@@ -110,6 +110,15 @@ async def dispatch_ready(live: bool, templates: dict) -> dict:
                                                     "email_reason": "Quotation closed or revised before sending"}})
             continue
         qs = [q for q in await _quotes(g["id"]) if q.get("customer_visible")]
+        today_s = date.today().isoformat()
+        current = [q for q in qs if (q.get("valid_until") or "9999") >= today_s]
+        to_now = (g.get("notified_to") or g["customer"].get("contact_email") or "").strip()
+        why = ("No published quotation" if not qs else "Quotation has expired" if not current
+               else "Customer email address changed or missing" if to_now != (f.get("contact_email") or "") else None)
+        if why:
+            await db.mod_quote_followups.update_one({"id": f["id"]}, {"$set": {"email_status": "not_applicable", "email_reason": why}})
+            continue
+        qs = current
         owner = await db.users.find_one({"id": g.get("created_by")}, {"_id": 0, "full_name": 1}) or {}
         result: dict = {}
         ok = False
@@ -124,6 +133,8 @@ async def dispatch_ready(live: bool, templates: dict) -> dict:
             await db.mod_quote_followups.update_one({"id": f["id"]}, {"$set": {
                 "email_status": "sent", "email_sent_at": _iso_now(), "email_message_id": result.get("message_id"),
                 "email_attachments": len(qs), "email_reason": None}})
+            await db.mod_quote_groups.update_one({"id": g["id"], "chase_schedule.n": f["chase_no"]},
+                                                 {"$set": {"chase_schedule.$.email_status": "sent"}})
             await _event(g["id"], "follow_up_emailed", None, version=g.get("revision"),
                          detail={"chase": f["chase_no"], "to": f["contact_email"], "attachments": len(qs)})
             sent += 1
