@@ -107,6 +107,7 @@ async def get_rate_card(user=Depends(require_operator_crm_user)):
 
 @router.put("/rate-card/{item_id}")
 async def update_rate_card_item(item_id: str, data: dict, user=Depends(require_operator_perm("pricing.manage"))):
+    raise HTTPException(410, "Retired: MOD quotations and Schedule of Rates are managed in MOD Operations → Quotations")
     if not _is_admin(user):
         raise HTTPException(403, "Only CRM admins can edit the SOR rate card")
     entry = await db.mod_sor_rate_card.find_one({"id": item_id}, {"_id": 0})
@@ -135,6 +136,7 @@ async def update_rate_card_item(item_id: str, data: dict, user=Depends(require_o
 
 @router.post("/rate-card/reseed")
 async def reseed_rate_card(user=Depends(require_operator_perm("pricing.manage")), confirm: bool = False):
+    raise HTTPException(410, "Retired: MOD quotations and Schedule of Rates are managed in MOD Operations → Quotations")
     """Reset the rate card to the built-in SCAFFOLD.
 
     ⚠️ The built-in card ships only PLACEHOLDER prices — the real contracted
@@ -221,6 +223,7 @@ def _key_col(header: list):
 @router.post("/rate-card/import")
 async def import_rate_card(file: UploadFile = File(...), valid_from: str = Form(""), valid_to: str = Form(""),
                            dry_run: bool = Form(True), user=Depends(require_operator_perm("pricing.manage"))):
+    raise HTTPException(410, "Retired: MOD quotations and Schedule of Rates are managed in MOD Operations → Quotations")
     """Upload the contracted MOD price file (xlsx/csv). Matches each row to a
     rate-card line by item number or SOR code, previews first (dry_run), then
     writes VERIFIED prices with their validity window and keeps history."""
@@ -633,6 +636,7 @@ async def import_spreadsheet(
 
 @router.post("/generate")
 async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quotes.mod"))):
+    raise HTTPException(410, "Retired: MOD quotations and Schedule of Rates are managed in MOD Operations → Quotations")
     ct = (data.get("contract_type") or "A").upper()
     if ct not in ("A", "B", "C"):
         raise HTTPException(400, "contract_type must be A, B or C")
@@ -829,6 +833,8 @@ async def _quote_org_branding(org_id: str | None) -> dict:
 
 @router.post("/{quote_id}/send-esign")
 async def send_quote_for_esign(quote_id: str, data: dict, user=Depends(require_operator_perm("quotes.mod"))):
+    if await db.crm2_quotes.find_one({"id": quote_id, "mod_group_id": {"$exists": True}}, {"_id": 1}):
+        raise HTTPException(409, "This quotation is managed in MOD Operations — publish it to MODService instead")
     """Email the MOD/customer contact a secure link to view and e-sign the
     quote. Returns the link so it also works in preview (email disabled)."""
     quote = await db.crm2_quotes.find_one(

@@ -49,7 +49,7 @@ export default function BFPOApp() {
     || (user.module_overrides && user.module_overrides.mod_operations === true)));
   const rawRole = (user?.bfpo_role || '').toLowerCase();
   const role = ['engineer', 'lead', 'staff'].includes(rawRole) ? rawRole : (hasModOps ? 'staff' : '');
-  const [view, setView] = useState('home');
+  const [view, setView] = useState(() => (new URLSearchParams(window.location.search).get('view') === 'quotations' ? 'quotations' : 'home'));
   const [jobId, setJobId] = useState(null);
   const [jobFilter, setJobFilter] = useState('all_open');
   const [staffFilter, setStaffFilter] = useState({});

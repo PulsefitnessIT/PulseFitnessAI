@@ -252,6 +252,8 @@ function ReviewStage({ preview }) {
             <div className="flex justify-between font-semibold"><span>TOTAL GROSS</span><span>{gbp(p.gross)}</span></div>
           </div>
           {p.issues.map((i) => <div key={i} className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{i}</div>)}
+          {p.excluded_rows?.length > 0 && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }} data-testid={`mq-excluded-${t}`}>Not quoted (quantity 0): {p.excluded_rows.join(', ')}</div>}
+          {p.unverified_lines?.length > 0 && <div className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>Unverified rates on lines {p.unverified_lines.map((u) => u.line_no).join(', ')} — manager exception needed before publishing</div>}
         </div>
       ))}
     </div>
@@ -267,9 +269,10 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
   const [catalogue, setCatalogue] = useState([]);
   const [preview, setPreview] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [idemKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => { mq.get('/catalogue').then((r) => setCatalogue(r.data.entries)).catch((e) => notify.error(errText(e))); }, []);
-  const payload = useMemo(() => ({ customer, rows, options, callout_qty: calloutQty }), [customer, rows, options, calloutQty]);
+  const payload = useMemo(() => ({ customer, rows, options, callout_qty: calloutQty, idempotency_key: group ? null : idemKey }), [customer, rows, options, calloutQty, group, idemKey]);
   useEffect(() => {
     if (!customer || !rows.length || !options.length) { setPreview(null); return undefined; }
     const t = setTimeout(() => mq.post('/preview', payload).then((r) => setPreview(r.data.options)).catch(() => setPreview(null)), 300);

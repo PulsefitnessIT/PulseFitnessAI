@@ -504,10 +504,17 @@ async def mod_site_service_providers(user: dict = Depends(get_current_user)):
 
 # ── MOD site quotes (view & sign in-portal — no extra login) ───────
 
+def _coverage_summary(q: dict) -> dict:
+    lines = [ln for ln in ((q.get("pricing_snapshot") or {}).get("lines") or q.get("lines") or []) if ln.get("coverage") and ln.get("kind") != "call_out"]
+    return {"A": sum(int(ln.get("qty") or 0) for ln in lines if ln["coverage"] == "A"),
+            "B": sum(int(ln.get("qty") or 0) for ln in lines if ln["coverage"] == "B")}
+
+
 def _visible_quote_filter(site_id: str) -> dict:
     """Customers only ever see published, current versions (or legacy quotes explicitly sent for e-sign)."""
     return {"mod_site_id": site_id, "quote_kind": "mod_sor", "$or": [
-        {"mod_group_id": {"$exists": True}, "customer_visible": True, "status": {"$ne": "superseded"}},
+        {"mod_group_id": {"$exists": True}, "customer_visible": True, "status": {"$nin": ["superseded", "staging", "failed_staging"]},
+         "published_pdf_path": {"$exists": True}},
         {"mod_group_id": {"$exists": False}, "$or": [{"esign_status": {"$in": ["sent", "signed"]}}, {"status": "accepted"}]},
     ]}
 
@@ -538,6 +545,8 @@ async def mod_site_quotes(user: dict = Depends(get_current_user)):
         "subtotal": q.get("subtotal"), "vat_amount": q.get("vat_amount"), "total": q.get("total"),
         "currency": q.get("currency", "GBP"), "line_count": len(q.get("lines") or []),
         "valid_until": q.get("valid_until"), "published_at": q.get("published_at"), "version": q.get("version"),
+        "is_expired": bool(q.get("valid_until") and q["valid_until"] < datetime.now(timezone.utc).date().isoformat()),
+        "coverage_summary": _coverage_summary(q),
         "signer_name": q.get("signer_name"), "signed_at": q.get("signed_at"), "created_at": q.get("created_at"),
     } for q in rows]
     groups: dict = {}
@@ -641,8 +650,8 @@ async def mod_site_quote_authorise(quote_id: str, po_reference: str = Form(""), 
     if not q.get("mod_group_id"):
         raise HTTPException(400, "Not available for this quotation")
     g = await db.mod_quote_groups.find_one({"id": q["mod_group_id"]}, {"_id": 0})
-    if q["status"] == "superseded" or q.get("version") != g.get("revision"):
-        raise HTTPException(409, "This quotation has been replaced by a newer version")
+    from routes.mod_ops_quotes import assert_quote_current
+    assert_quote_current(q, g)
     if g["status"] in ("accepted", "handed_over", "withdrawn", "expired", "declined"):
         raise HTTPException(409, f"This quotation is {g['status'].replace('_', ' ')}")
     if await db.mod_quote_authorisations.find_one({"group_id": g["id"], "status": "submitted"}):

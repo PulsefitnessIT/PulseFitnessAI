@@ -10,6 +10,7 @@ import {
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
 import PreInstallSurveys from './PreInstallSurveys';
+import CRMModQuotesPanel from './CRMModQuotesPanel';
 import { EnrichFromWebsiteButton } from './CRMPhase3Panels';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
 import AIKitImportModal from '@/pages/MasterAdmin/AIKitImportModal';
@@ -1740,6 +1741,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     { id: 'contacts',         label: `Contacts (${company.contacts?.length || 0})` },
     { id: 'opportunities',    label: `Deals (${company.opportunities?.length || 0})` },
     { id: 'quotes',           label: `Quotes (${company.quotes?.length || 0})` },
+    { id: 'mod_quotes',       label: 'MOD Quotations' },
     { id: 'tenders',          label: `Tenders (${company.tenders?.length || 0})` },
     { id: 'invoices',         label: 'Invoices' },
     { id: 'equipment_assets', label: 'Equipment & Assets' },
@@ -2186,6 +2188,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
           <CompanyFileTab companyId={companyId} category="drawings" label="CAD Drawings & Plans" accept=".pdf,.dwg,.dxf" API={API} headers={headers} c={c} isDark={isDark} />
         )}
 
+        {activeSection === 'mod_quotes' && <CRMModQuotesPanel companyId={companyId} API={API} headers={headers} c={c} />}
         {/* Pre-Install Site Surveys tab (structured feature) */}
         {activeSection === 'surveys' && (
           <PreInstallSurveys companyId={companyId} companyName={company.name} API={API} headers={headers} c={c} isDark={isDark} />

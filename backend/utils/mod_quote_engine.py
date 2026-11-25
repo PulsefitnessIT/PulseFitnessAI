@@ -118,8 +118,10 @@ def diff_against_card(entries: list[dict], card: list[dict]) -> list[dict]:
     return out
 
 
-def apply_entry(card_entry: dict, e: dict) -> dict:
-    """Return the $set for one Schedule B row onto its rate-card entry."""
+def apply_entry(card_entry: dict, e: dict, approval: dict | None = None) -> dict:
+    """Return the $set for one Schedule B row onto its rate-card entry.
+
+    Verification is per service type: only the imported type's rate is (re)verified."""
     t = e["service_type"]
     key = "a" if t == "A" else "b"
     hist = HISTORICAL_PRINTED_REFS.get(e["uid"])
@@ -135,10 +137,34 @@ def apply_entry(card_entry: dict, e: dict) -> dict:
         f"ambiguous_sage_code_{key}": e["ambiguous_sage_code"], "uom": e.get("uom") or "Each",
     }
     if e["is_poa"]:
-        upd["is_poa"] = True
+        upd[f"poa_{key}"] = True
+        upd[f"type_{key}_price"] = None
+        upd[f"price_status_{key}"] = "poa"
     else:
+        upd[f"poa_{key}"] = False
         upd[f"type_{key}_price"] = e["price"]
+        upd[f"price_status_{key}"] = "verified" if approval else "unverified"
+    upd[f"rate_{key}"] = {
+        "amount": e["price"], "currency": "GBP", "source": (approval or {}).get("source"),
+        "schedule_b_uid": e["uid"], "schedule_b_ref": e["tl_ref"], "sage_code": e["sage_code"],
+        "printed_ref": printed_ref, "printed_ref_source": src,
+        "effective_from": (approval or {}).get("effective_from"), "expires_on": (approval or {}).get("expires_on"),
+        "status": upd[f"price_status_{key}"], "approved_by": (approval or {}).get("approved_by"),
+        "approved_at": (approval or {}).get("approved_at"), "version": (approval or {}).get("version"),
+    }
     return upd
+
+
+def rate_is_verified(entry: dict, key: str, on_date: str) -> bool:
+    """A rate is customer-ready only if its own type was approved and is in its rate period."""
+    rate = entry.get(f"rate_{key}") or {}
+    if entry.get(f"price_status_{key}") != "verified" or rate.get("status") != "verified":
+        return False
+    if rate.get("amount") is None or float(rate["amount"]) != float(entry.get(f"type_{key}_price") or -1):
+        return False
+    if rate.get("effective_from") and rate["effective_from"] > on_date:
+        return False
+    return not (rate.get("expires_on") and rate["expires_on"] < on_date)
 
 
 def suggest_coverage(entry: dict | None) -> str:
@@ -146,11 +172,11 @@ def suggest_coverage(entry: dict | None) -> str:
     return "A" if any(k in name for k in CARDIO_TYPES) else "B"
 
 
-def _row_line(row: dict, entry: dict, t: str) -> tuple[dict | None, str | None]:
+def _row_line(row: dict, entry: dict, t: str, on_date: str) -> tuple[dict | None, str | None]:
     key = t.lower()
     price = entry.get(f"type_{key}_price")
-    if entry.get("is_poa") or price is None:
-        return None, f"{row.get('description') or entry.get('label')}: no approved Type {t} price"
+    if entry.get(f"poa_{key}") or (entry.get("is_poa") and price is None) or price is None:
+        return None, f"{row.get('description') or entry.get('label')}: Type {t} is price-on-application — no quotable rate"
     desc = entry.get(f"printed_desc_{key}") or f"{entry.get(f'tl_ref_{key}') or ''} - {entry.get('label')} - Type {t} Service"
     if row.get("label"):
         desc = f"{desc} ({row['label']})"
@@ -161,15 +187,19 @@ def _row_line(row: dict, entry: dict, t: str) -> tuple[dict | None, str | None]:
         "unit_price": float(money(price)), "total": float(money(price) * qty),
         "coverage": t, "rate_card_id": entry["id"], "row_id": row.get("row_id"),
         "schedule_b_uid": entry.get(f"schedule_b_uid_{key}"), "printed_ref": entry.get(f"printed_ref_{key}"),
-        "price_status": entry.get("price_status") or "placeholder",
+        "price_status": "verified" if rate_is_verified(entry, key, on_date) else (entry.get(f"price_status_{key}") or "unverified"),
+        "rate_version": (entry.get(f"rate_{key}") or {}).get("version"),
         "printed_ref_source": entry.get(f"printed_ref_source_{key}") or "unmapped",
     }, None
 
 
-def build_quote(rows: list[dict], qtype: str, card_by_id: dict, callout_qty: int = 1, vat_rate: float = 20.0) -> dict:
+def build_quote(rows: list[dict], qtype: str, card_by_id: dict, callout_qty: int = 1, vat_rate: float = 20.0,
+                on_date: str | None = None) -> dict:
     """Lines + totals for one quote option. Header lines follow QT9410/QT9411/QT9412."""
+    from datetime import date
+    on_date = on_date or date.today().isoformat()
     qtype = qtype.upper()
-    lines, issues = [], []
+    lines, issues, excluded = [], [], []
 
     def hdr(h):
         lines.append({**h, "qty": 1, "unit": "Each", "unit_price": 0.0, "total": 0.0, "special": True})
@@ -183,10 +213,18 @@ def build_quote(rows: list[dict], qtype: str, card_by_id: dict, callout_qty: int
         if not co or co.get("type_b_price") is None:
             issues.append("Type B call-out has no approved price")
         else:
-            line, _ = _row_line({"qty": callout_qty}, co, "B")
-            lines.append({**line, "special": True, "kind": "call_out"})
+            line, err = _row_line({"qty": callout_qty}, co, "B", on_date)
+            if err:
+                issues.append(err)
+            else:
+                lines.append({**line, "kind": "call_out"})
     for row in rows:
-        if int(row.get("qty") or 0) <= 0:
+        qty = row.get("qty")
+        if not isinstance(qty, int) or isinstance(qty, bool) or qty < 0:
+            issues.append(f"{row.get('description')}: quantity must be a whole number of 0 or more")
+            continue
+        if qty == 0:
+            excluded.append(row.get("description") or "(blank row)")
             continue
         entry = card_by_id.get(row.get("rate_card_id"))
         if not entry:
@@ -196,7 +234,7 @@ def build_quote(rows: list[dict], qtype: str, card_by_id: dict, callout_qty: int
         if t not in ("A", "B"):
             issues.append(f"{row.get('description')}: choose Type A or Type B coverage")
             continue
-        line, err = _row_line(row, entry, t)
+        line, err = _row_line(row, entry, t, on_date)
         if err:
             issues.append(err)
         else:
@@ -205,9 +243,11 @@ def build_quote(rows: list[dict], qtype: str, card_by_id: dict, callout_qty: int
         ln["line_no"] = i
     net = sum((money(ln["total"]) for ln in lines), Decimal("0"))
     vat = money(net * Decimal(str(vat_rate)) / 100)
-    unverified = [ln["description"] for ln in lines if not ln.get("special") and ln.get("price_status") != "verified"]
+    unverified = [{"line_no": ln["line_no"], "item_code": ln["item_code"], "description": ln["description"],
+                   "unit_price": ln["unit_price"], "coverage": ln.get("coverage")}
+                  for ln in lines if not ln.get("special") and ln.get("price_status") != "verified"]
     return {"quote_type": qtype, "lines": lines, "net": float(net), "vat_rate": vat_rate, "vat": float(vat),
-            "gross": float(net + vat), "issues": issues, "unverified_lines": unverified}
+            "gross": float(net + vat), "issues": issues, "unverified_lines": unverified, "excluded_rows": excluded}
 
 
 def parse_equipment_file(filename: str, content: bytes) -> list[dict]:

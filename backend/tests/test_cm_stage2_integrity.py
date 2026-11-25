@@ -145,6 +145,7 @@ def test_renewals_are_prepared_once_and_sent_only_on_approval():
     assert requests.post(f"{API}/crm/workspace/renewals/{rid}/approve-send", headers=h, json={}).status_code == 409
 
 
+@pytest.mark.skip(reason="Legacy CRM MOD quote creation/rate-card writes retired 2026-11-25 (410). Replaced by tests/test_mod_ops_quotes.py and tests/test_mod_quotes_http.py; retirement asserted in test_legacy_mod_quote_creation_retired.")
 def test_mod_placeholder_rates_block_sending_until_verified(tmp_path):
     h = _crm("cm-test-admin")
     mdb.mod_sor_rate_card.update_many({}, {"$set": {"price_status": "placeholder"}, "$unset": {"valid_to": "", "valid_from": ""}})

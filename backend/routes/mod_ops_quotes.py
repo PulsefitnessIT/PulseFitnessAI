@@ -16,8 +16,10 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from pymongo.errors import DuplicateKeyError
 
 from routes.bfpo import _require_staff
+from routes.crm_auth import get_crm_user
 from routes.crm_mod_quote import _ensure_rate_card
 from utils.database import db, get_object, put_object
 from utils.mod_quote_engine import (QUOTE_TYPES, TYPE_LABELS, apply_entry, build_quote, diff_against_card,
@@ -29,7 +31,9 @@ router = APIRouter(prefix="/mod-ops/quotes", tags=["mod-ops-quotes"])
 
 PERM_SALES, PERM_APPROVE, PERM_PRICING = "sales", "manager", "pricing"
 CUSTOMER_VISIBLE = ("published", "customer_review", "authorisation_submitted", "accepted", "handed_over")
-VALIDITY_DAYS = 30
+DEFAULT_VALIDITY = {"id": "validity", "days": 30, "status": "provisional",
+                    "note": "Provisional internal setting — official MOD validity period not yet approved"}
+HIDDEN_STATUSES = ("superseded", "staging", "failed_staging")
 
 
 def _now() -> str:
@@ -98,7 +102,7 @@ async def _group(gid: str) -> dict:
 async def _quotes(gid: str, current_only=True) -> list[dict]:
     flt = {"mod_group_id": gid}
     if current_only:
-        flt["status"] = {"$ne": "superseded"}
+        flt["status"] = {"$nin": list(HIDDEN_STATUSES)}
     order = {"A": 0, "B": 1, "AB": 2}
     qs = await db.crm2_quotes.find(flt, {"_id": 0, "esign_token": 0}).to_list(50)
     return sorted(qs, key=lambda q: (q.get("version") or 0, order.get(q.get("mod_quote_type"), 3)))
@@ -197,7 +201,7 @@ class Customer(BaseModel):
 class Row(BaseModel):
     row_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     description: str
-    qty: int = 1
+    qty: int = Field(1, ge=0, le=100000)
     rate_card_id: str | None = None
     label: str = ""
     coverage: str | None = None
@@ -212,8 +216,9 @@ class GroupIn(BaseModel):
     customer: Customer
     rows: list[Row]
     options: list[str] = ["A", "B", "AB"]
-    callout_qty: int = 1
+    callout_qty: int = Field(1, ge=0, le=50)
     notes: str = ""
+    idempotency_key: str | None = None
 
 
 def _check_options(opts: list[str]) -> list[str]:
@@ -230,40 +235,81 @@ async def preview(body: GroupIn, user=Depends(_sales)):
     return {"options": {o: build_quote(rows, o, card, body.callout_qty) for o in _check_options(body.options)}}
 
 
-async def _make_quotes(group: dict, rows: list[dict], options: list[str], callout_qty: int, user: dict, version: int):
+async def _resolve_site(customer: dict) -> dict:
+    """Server-side truth for the MOD establishment and its linked CRM company."""
+    site = await db.organizations.find_one({"id": customer["site_id"], "account_type": {"$in": ["mod_site", "mod_org"]}},
+                                           {"_id": 0, "id": 1, "name": 1})
+    if not site:
+        raise HTTPException(422, "Select a valid MOD establishment")
+    comp = await db.crm2_companies.find_one({"linked_organization_id": site["id"]}, {"_id": 0, "id": 1})
+    return {**customer, "site_id": site["id"], "crm_company_id": (comp or {}).get("id")}
+
+
+async def _make_quotes(group: dict, rows: list[dict], options: list[str], callout_qty: int, user: dict, version: int,
+                       batch: str) -> list[str]:
+    """Insert one quote per option in 'staging' status; caller promotes the batch once the group is saved."""
     card = await _card_by_id()
     built = {o: build_quote(rows, o, card, callout_qty) for o in options}
     bad = {o: b["issues"] for o, b in built.items() if b["issues"]}
     if bad:
         raise HTTPException(422, {"message": "Resolve these before generating", "issues": bad})
     cust = group["customer"]
+    ids = []
     for o, b in built.items():
         qid = str(uuid.uuid4())
-        await db.crm2_quotes.insert_one({
+        ids.append(qid)
+        await db.crm2_quotes.insert_one({"staging_batch": batch, "excluded_rows": b["excluded_rows"],
             "id": qid, "organization_id": group["organization_id"], "quote_kind": "mod_sor", "mod_group_id": group["id"],
             "mod_quote_type": o, "mod_contract_type": "A" if o == "A" else ("B" if o == "B" else "AB"),
             "quote_number": await _next_ref(), "sage_quote_number": None,
             "title": f"{TYPE_LABELS[o]} — {cust['name']}", "company_id": cust.get("crm_company_id"),
             "company_name": cust["name"], "contact_name": cust.get("contact_name"),
-            "mod_site_id": cust["site_id"], "mod_site_name": cust["name"], "status": "draft", "version": version,
+            "mod_site_id": cust["site_id"], "mod_site_name": cust["name"], "status": "staging", "version": version,
             "lines": b["lines"], "subtotal": b["net"], "vat_rate": b["vat_rate"], "vat_amount": b["vat"],
             "tax_rate": b["vat_rate"], "tax_amount": b["vat"], "tax_label": "VAT", "total": b["gross"], "currency": "GBP",
             "unverified_rate_lines": b["unverified_lines"], "price_list_version": card.get("sor-2", {}).get("price_list_version"),
             "customer_visible": False, "created_by": user.get("id"), "created_by_name": user.get("full_name") or user.get("email"),
             "created_at": _now(), "updated_at": _now(), "notes": group.get("notes", "")})
+    return ids
+
+
+async def _promote(batch: str, status: str = "draft"):
+    await db.crm2_quotes.update_many({"staging_batch": batch, "status": "staging"}, {"$set": {"status": status}})
+
+
+async def _fail_batch(batch: str):
+    await db.crm2_quotes.update_many({"staging_batch": batch, "status": "staging"},
+                                     {"$set": {"status": "failed_staging", "customer_visible": False}})
 
 
 @router.post("/groups")
 async def create_group(body: GroupIn, user=Depends(_sales)):
     opts = _check_options(body.options)
+    if body.idempotency_key:
+        await db.mod_quote_groups.create_index("idempotency_key", unique=True, partialFilterExpression={"idempotency_key": {"$type": "string"}})
+        prior = await db.mod_quote_groups.find_one({"idempotency_key": body.idempotency_key}, {"_id": 0, "id": 1})
+        if prior:
+            return await get_group(prior["id"], user)
+    customer = await _resolve_site(body.customer.model_dump())
     gid = str(uuid.uuid4())
-    group = {"id": gid, "organization_id": user.get("organization_id"), "customer": body.customer.model_dump(),
-             "crm_company_id": body.customer.crm_company_id, "mod_site_id": body.customer.site_id,
+    group = {"id": gid, "organization_id": user.get("organization_id"), "customer": customer,
+             "crm_company_id": customer["crm_company_id"], "mod_site_id": customer["site_id"],
+             "idempotency_key": body.idempotency_key,
              "rows": [r.model_dump() for r in body.rows], "options": opts, "callout_qty": body.callout_qty,
              "notes": body.notes, "status": "draft", "revision": 1, "created_by": user.get("id"),
              "created_by_name": user.get("full_name") or user.get("email"), "created_at": _now(), "updated_at": _now()}
-    await _make_quotes(group, group["rows"], opts, body.callout_qty, user, 1)
-    await db.mod_quote_groups.insert_one(dict(group))
+    batch = str(uuid.uuid4())
+    await _make_quotes(group, group["rows"], opts, body.callout_qty, user, 1, batch)
+    try:
+        await db.mod_quote_groups.insert_one(dict(group))
+    except DuplicateKeyError:
+        await _fail_batch(batch)
+        prior = await db.mod_quote_groups.find_one({"idempotency_key": body.idempotency_key}, {"_id": 0, "id": 1})
+        return await get_group(prior["id"], user)
+    except Exception:
+        await _fail_batch(batch)
+        raise
+    await _promote(batch)
     await _event(gid, "created", user, version=1, detail={"options": opts})
     await _crm_activity(group, "MOD quotation group created", f"{len(opts)} option(s) drafted in MOD Operations", user)
     return await get_group(gid, user)
@@ -309,12 +355,21 @@ async def revise_group(gid: str, body: GroupIn, user=Depends(_sales)):
     if g["status"] in ("accepted", "handed_over"):
         raise HTTPException(409, "An accepted quotation cannot be revised")
     opts = _check_options(body.options)
+    if body.customer.site_id != g["mod_site_id"]:
+        raise HTTPException(409, "A quotation group cannot be moved to a different MOD establishment — create a new quotation for that site")
+    customer = await _resolve_site(body.customer.model_dump())
     issued = g["status"] not in ("draft", "pending_approval")
     version = g["revision"] + 1 if issued else g["revision"]
-    newg = {**g, "customer": body.customer.model_dump(), "rows": [r.model_dump() for r in body.rows], "options": opts,
-            "callout_qty": body.callout_qty, "notes": body.notes, "crm_company_id": body.customer.crm_company_id}
+    newg = {**g, "customer": customer, "rows": [r.model_dump() for r in body.rows], "options": opts,
+            "callout_qty": body.callout_qty, "notes": body.notes, "crm_company_id": customer["crm_company_id"]}
     old_ids = [x["id"] for x in await _quotes(gid)]
-    await _make_quotes(newg, newg["rows"], opts, body.callout_qty, user, version)
+    batch = str(uuid.uuid4())
+    await _make_quotes(newg, newg["rows"], opts, body.callout_qty, user, version, batch)
+    res = await db.mod_quote_groups.update_one({"id": gid, "revision": g["revision"], "status": g["status"]},
+                                               {"$set": {"revising_batch": batch}})
+    if res.modified_count != 1:
+        await _fail_batch(batch)
+        raise HTTPException(409, "This quotation group was changed by someone else — reload and try again")
     await db.crm2_quotes.update_many({"id": {"$in": old_ids}},
                                      {"$set": {"status": "superseded", "customer_visible": False, "superseded_at": _now()}})
     if issued:
@@ -324,7 +379,8 @@ async def revise_group(gid: str, body: GroupIn, user=Depends(_sales)):
     await db.mod_quote_groups.update_one({"id": gid}, {"$set": {
         "customer": newg["customer"], "rows": newg["rows"], "options": opts, "callout_qty": body.callout_qty,
         "notes": body.notes, "crm_company_id": newg["crm_company_id"], "status": "draft", "revision": version,
-        "updated_at": _now(), "approved_by": None, "approved_at": None}})
+        "updated_at": _now(), "approved_by": None, "approved_at": None, "revising_batch": None}})
+    await _promote(batch)
     await _event(gid, "revised" if issued else "edited", user, version=version)
     return await get_group(gid, user)
 
@@ -345,10 +401,34 @@ async def submit_for_approval(gid: str, user=Depends(_sales)):
     return {"ok": True}
 
 
+class CommercialException(BaseModel):
+    quote_id: str
+    line_no: int
+    reason: str = Field(..., min_length=10, max_length=500)
+    original_rate: float
+    proposed_rate: float
+    valid_until: str
+
+
 class ApproveIn(BaseModel):
     approve: bool = True
-    commercial_exception_reason: str = ""
+    exceptions: list[CommercialException] = []
     notes: str = ""
+
+
+def _today() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def _exception_gaps(q: dict) -> list[dict]:
+    """Unverified priced lines on a quote that lack a valid, matching commercial exception."""
+    exc = {e["line_no"]: e for e in (q.get("commercial_exceptions") or [])}
+    gaps = []
+    for ln in q.get("unverified_rate_lines") or []:
+        e = exc.get(ln["line_no"])
+        if not e or e["valid_until"] < _today() or float(e["proposed_rate"]) != float(ln["unit_price"]):
+            gaps.append({"quote_id": q["id"], "quote_number": q["quote_number"], **ln})
+    return gaps
 
 
 @router.post("/groups/{gid}/approve")
@@ -362,15 +442,84 @@ async def approve_group(gid: str, body: ApproveIn, user=Depends(require_operator
         await _event(gid, "approval_rejected", user, version=g["revision"], detail={"notes": body.notes})
         return {"ok": True, "status": "draft"}
     qs = await _quotes(gid)
-    unverified = sorted({d for q in qs for d in (q.get("unverified_rate_lines") or [])})
-    if unverified and len(body.commercial_exception_reason.strip()) < 10:
-        raise HTTPException(422, {"message": "These lines use unverified rates — a commercial exception reason is required",
-                                  "unverified": unverified})
-    await _set_status(gid, "approved", extra={"approved_by": user.get("full_name") or user.get("email"), "approved_at": _now(),
-                                              "commercial_exception_reason": body.commercial_exception_reason or None})
-    await _event(gid, "approved", user, version=g["revision"],
-                 detail={"commercial_exception": body.commercial_exception_reason or None, "unverified": unverified})
+    by_q = {q["id"]: q for q in qs}
+    who, when = user.get("full_name") or user.get("email"), _now()
+    staged: dict[str, list] = {}
+    for e in body.exceptions:
+        q = by_q.get(e.quote_id)
+        line = next((ln for ln in (q or {}).get("unverified_rate_lines") or [] if ln["line_no"] == e.line_no), None)
+        if not line:
+            raise HTTPException(422, f"Exception for line {e.line_no} does not match an unverified line on that quotation")
+        if float(e.original_rate) != float(line["unit_price"]):
+            raise HTTPException(422, f"Line {e.line_no}: original rate must be the quoted £{line['unit_price']:.2f}")
+        if float(e.proposed_rate) != float(line["unit_price"]):
+            raise HTTPException(422, f"Line {e.line_no}: to quote a different rate, revise the quotation — exceptions approve the quoted rate only")
+        if e.valid_until < _today():
+            raise HTTPException(422, f"Line {e.line_no}: exception validity has already passed")
+        staged.setdefault(e.quote_id, []).append({**e.model_dump(), "description": line["description"],
+                                                  "item_code": line["item_code"], "authorised_by": who, "authorised_at": when})
+    for qid, lst in staged.items():
+        await db.crm2_quotes.update_one({"id": qid}, {"$set": {"commercial_exceptions": lst}})
+        by_q[qid]["commercial_exceptions"] = lst
+    gaps = [gp for q in by_q.values() for gp in _exception_gaps(q)]
+    if gaps:
+        raise HTTPException(422, {"message": "These priced lines use unverified rates — each needs a structured commercial exception",
+                                  "unverified": [f"{gp['quote_number']} line {gp['line_no']}: {gp['description']} £{gp['unit_price']:.2f}" for gp in gaps],
+                                  "lines": gaps})
+    await _set_status(gid, "approved", extra={"approved_by": who, "approved_at": when})
+    await _event(gid, "approved", user, version=g["revision"], detail={"exceptions": sum(len(v) for v in staged.values())})
     return {"ok": True, "status": "approved"}
+
+
+async def _validity() -> dict:
+    return await db.mod_quote_settings.find_one({"id": "validity"}, {"_id": 0}) or dict(DEFAULT_VALIDITY)
+
+
+@router.get("/settings")
+async def get_settings(user=Depends(_sales)):
+    return {"validity": await _validity()}
+
+
+class ValidityIn(BaseModel):
+    days: int = Field(..., ge=1, le=365)
+    approved_commercially: bool = False
+    note: str = ""
+
+
+@router.put("/settings/validity")
+async def set_validity(body: ValidityIn, user=Depends(require_operator_crm_user)):
+    _need(user, PERM_APPROVE)
+    doc = {"id": "validity", "days": body.days, "status": "approved" if body.approved_commercially else "provisional",
+           "note": body.note, "updated_by": user.get("full_name") or user.get("email"), "updated_at": _now()}
+    await db.mod_quote_settings.update_one({"id": "validity"}, {"$set": doc}, upsert=True)
+    return {"validity": doc}
+
+
+def assert_quote_current(q: dict, g: dict):
+    """Server-side guard used by every acceptance path."""
+    if not q or q.get("status") in HIDDEN_STATUSES or not q.get("customer_visible") or q.get("version") != g.get("revision"):
+        raise HTTPException(409, "This quotation version is no longer current and cannot be accepted")
+    if q.get("valid_until") and q["valid_until"] < _today():
+        raise HTTPException(409, f"This quotation expired on {q['valid_until']} — please ask Pulse Fitness for a replacement or an extension")
+
+
+class ExtendIn(BaseModel):
+    valid_until: str
+    reason: str = Field(..., min_length=10)
+
+
+@router.post("/groups/{gid}/extend-validity")
+async def extend_validity(gid: str, body: ExtendIn, user=Depends(require_operator_crm_user)):
+    _need(user, PERM_APPROVE)
+    g = await _group(gid)
+    if g["status"] in ("accepted", "handed_over", "withdrawn"):
+        raise HTTPException(409, f"Quotation is {g['status']}")
+    if body.valid_until <= _today():
+        raise HTTPException(422, "New validity date must be in the future")
+    res = await db.crm2_quotes.update_many({"mod_group_id": gid, "customer_visible": True, "status": {"$nin": list(HIDDEN_STATUSES)}},
+                                           {"$set": {"valid_until": body.valid_until}})
+    await _event(gid, "validity_extended", user, version=g["revision"], detail={"valid_until": body.valid_until, "reason": body.reason})
+    return {"ok": True, "updated": res.modified_count}
 
 
 def _pdf_payload(q: dict, g: dict) -> dict:
@@ -391,6 +540,8 @@ def pdf_filename(q: dict, g: dict) -> str:
 async def quote_pdf_bytes(q: dict, g: dict) -> bytes:
     if q.get("published_pdf_path"):
         data, _ = get_object(q["published_pdf_path"])
+        if q.get("published_pdf_sha256") and hashlib.sha256(data).hexdigest() != q["published_pdf_sha256"]:
+            raise HTTPException(500, f"Integrity check failed for published quotation {q['quote_number']}")
         return data
     return render_mod_quote_pdf(_pdf_payload(q, g))
 
@@ -401,32 +552,48 @@ class PublishIn(BaseModel):
 
 @router.post("/groups/{gid}/publish")
 async def publish(gid: str, body: PublishIn, user=Depends(_sales)):
-    g = await _group(gid)
-    if g["status"] != "approved":
+    g = await db.mod_quote_groups.find_one_and_update({"id": gid, "status": "approved"}, {"$set": {"status": "publishing"}},
+                                                      projection={"_id": 0})
+    if not g:
         raise HTTPException(409, "Only internally approved quotations can be published")
-    site = await db.organizations.find_one({"id": g["mod_site_id"], "account_type": {"$in": ["mod_site", "mod_org"]}}, {"_id": 0, "id": 1})
-    if not site:
-        raise HTTPException(422, "The MOD site for this quotation no longer exists")
-    c = g["customer"]
-    missing = [k for k in ("name", "address_lines") if not c.get(k)]
-    if missing:
-        raise HTTPException(422, f"Customer details incomplete: {', '.join(missing)}")
-    qs = [q for q in await _quotes(gid) if q["id"] in body.quote_ids]
-    if not qs:
-        raise HTTPException(400, "Select at least one quotation to publish")
-    valid_until = (datetime.now(timezone.utc) + timedelta(days=VALIDITY_DAYS)).date().isoformat()
-    for q in qs:
-        q["published_at"] = _now()
-        pdf = render_mod_quote_pdf(_pdf_payload(q, g))
-        path = f"mod_quotes/{gid}/{q['id']}_v{q['version']}.pdf"
-        put_object(path, pdf, "application/pdf")
-        await db.crm2_quotes.update_one({"id": q["id"]}, {"$set": {
-            "status": "published", "customer_visible": True, "published_at": q["published_at"],
-            "published_by": user.get("full_name") or user.get("email"), "published_pdf_path": path,
-            "published_pdf_sha256": hashlib.sha256(pdf).hexdigest(), "valid_until": valid_until,
-            "pricing_snapshot": {"lines": q["lines"], "net": q["subtotal"], "vat": q["vat_amount"], "gross": q["total"],
-                                 "price_list_version": q.get("price_list_version")}}})
-        await _event(gid, "published", user, q["id"], q["version"], {"option": TYPE_LABELS[q["mod_quote_type"]], "ref": q["quote_number"]})
+    try:
+        await _resolve_site(g["customer"])
+        c = g["customer"]
+        missing = [k for k in ("name", "address_lines") if not c.get(k)]
+        if missing:
+            raise HTTPException(422, f"Customer details incomplete: {', '.join(missing)}")
+        qs = [q for q in await _quotes(gid) if q["id"] in body.quote_ids]
+        if not qs:
+            raise HTTPException(400, "Select at least one quotation to publish")
+        gaps = [gp for q in qs for gp in _exception_gaps(q)]
+        if gaps:
+            raise HTTPException(422, {"message": "Unverified rates without a valid commercial exception cannot be published",
+                                      "unverified": [f"{gp['quote_number']} line {gp['line_no']}: {gp['description']}" for gp in gaps]})
+        validity = await _validity()
+        valid_until = (datetime.now(timezone.utc) + timedelta(days=int(validity["days"]))).date().isoformat()
+        rendered = []
+        for q in qs:
+            if q.get("published_pdf_path"):
+                continue
+            q["published_at"] = _now()
+            pdf = render_mod_quote_pdf(_pdf_payload(q, g))
+            path = f"mod_quotes/{gid}/{q['id']}_v{q['version']}.pdf"
+            put_object(path, pdf, "application/pdf")
+            rendered.append((q, path, hashlib.sha256(pdf).hexdigest()))
+        for q, path, sha in rendered:
+            await db.crm2_quotes.update_one({"id": q["id"], "published_pdf_path": {"$exists": False}}, {"$set": {
+                "status": "published", "customer_visible": True, "published_at": q["published_at"],
+                "published_by": user.get("full_name") or user.get("email"), "published_pdf_path": path,
+                "published_pdf_sha256": sha, "valid_until": valid_until,
+                "validity_basis": {"days": validity["days"], "status": validity["status"]},
+                "pricing_snapshot": {"lines": q["lines"], "net": q["subtotal"], "vat": q["vat_amount"], "gross": q["total"],
+                                     "price_list_version": q.get("price_list_version"),
+                                     "commercial_exceptions": q.get("commercial_exceptions") or [],
+                                     "customer": {k: c.get(k) for k in ("name", "address_lines", "delivery_lines", "customer_reference")}}}})
+            await _event(gid, "published", user, q["id"], q["version"], {"option": TYPE_LABELS[q["mod_quote_type"]], "ref": q["quote_number"]})
+    except Exception:
+        await db.mod_quote_groups.update_one({"id": gid, "status": "publishing"}, {"$set": {"status": "approved"}})
+        raise
     await db.crm2_quotes.update_many({"mod_group_id": gid, "status": "approved", "id": {"$nin": body.quote_ids}},
                                      {"$set": {"status": "approved_not_published"}})
     await db.mod_quote_groups.update_one({"id": gid}, {"$set": {"status": "published", "published_at": _now(), "updated_at": _now()}})
@@ -434,8 +601,33 @@ async def publish(gid: str, body: PublishIn, user=Depends(_sales)):
     return await get_group(gid, user)
 
 
+class SageRefIn(BaseModel):
+    sage_quote_number: str = Field(..., min_length=3, max_length=30)
+    verified: bool
+
+
+@router.post("/quotes/{qid}/sage-ref")
+async def set_sage_ref(qid: str, body: SageRefIn, user=Depends(_sales)):
+    """Record a Sage-assigned number. Only used on documents published after it is recorded."""
+    if not body.verified:
+        raise HTTPException(422, "Confirm the number was assigned by Sage")
+    ref = body.sage_quote_number.strip().upper()
+    if ref.startswith("PFQ-"):
+        raise HTTPException(422, "PFQ references are internal — enter the number Sage assigned")
+    q = await db.crm2_quotes.find_one({"id": qid, "mod_group_id": {"$exists": True}}, {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    if q.get("published_pdf_path"):
+        raise HTTPException(409, "This quotation is already published — record the Sage number on a revision")
+    await db.crm2_quotes.update_one({"id": qid}, {"$set": {"sage_quote_number": ref, "sage_ref_recorded_by": user.get("full_name") or user.get("email"), "sage_ref_recorded_at": _now()}})
+    await _event(q["mod_group_id"], "sage_reference_recorded", user, qid, q["version"], {"sage_quote_number": ref})
+    return {"ok": True}
+
+
 class NotifyIn(BaseModel):
     to: str = ""
+    confirm_to: str = ""
+    attach_pdfs: bool = False
     resend: bool = False
 
 
@@ -451,6 +643,9 @@ async def notify_customer(gid: str, body: NotifyIn, user=Depends(_sales)):
     to = (body.to or g["customer"].get("contact_email") or "").strip()
     if "@" not in to:
         raise HTTPException(422, "No customer email address held — enter one")
+    if body.confirm_to.strip().lower() != to.lower():
+        raise HTTPException(422, "Re-type the recipient address to confirm it")
+    live = os.environ.get("MOD_QUOTE_NOTIFY_LIVE", "").lower() == "true"
     portal = os.environ.get("MOD_PORTAL_URL", "").rstrip("/")
     rows = "".join(f"<li>{q['quote_number']} — {TYPE_LABELS[q['mod_quote_type']]}: £{q['total']:,.2f} inc. VAT</li>" for q in qs)
     html = (f"<p>Dear {g['customer'].get('contact_name') or 'Customer'},</p><p>Your Pulse Fitness maintenance quotations "
@@ -459,12 +654,16 @@ async def notify_customer(gid: str, body: NotifyIn, user=Depends(_sales)):
             f"tell us which option you would like to pursue. Downloading a quotation does not commit you to it.</p>"
             f"<p>Pulse Fitness MOD Sales</p>")
     import base64
-    atts = [{"filename": pdf_filename(q, g), "content": base64.b64encode(await quote_pdf_bytes(q, g)).decode()} for q in qs]
+    atts = [{"filename": pdf_filename(q, g), "content": base64.b64encode(await quote_pdf_bytes(q, g)).decode()} for q in qs] if body.attach_pdfs else []
+    if not live:
+        await _event(gid, "customer_notification_dry_run", user, version=g["revision"],
+                     detail={"to": to, "attachments": len(atts), "reason": "MOD_QUOTE_NOTIFY_LIVE is not enabled"})
+        return {"ok": True, "to": to, "sent": False, "dry_run": True}
     await send_email(to, f"Your Pulse Fitness quotations — {g['customer']['name']}", html, atts,
                      organization_id=g["organization_id"], kind="mod_quote_ready")
     await db.mod_quote_groups.update_one({"id": gid}, {"$set": {"notified_revision": g["revision"], "notified_at": _now(), "notified_to": to}})
     await _event(gid, "customer_notified", user, version=g["revision"], detail={"to": to, "attachments": len(atts)})
-    return {"ok": True, "to": to}
+    return {"ok": True, "to": to, "sent": True}
 
 
 class StatusIn(BaseModel):
@@ -546,8 +745,7 @@ async def verify_authorisation(aid: str, body: VerifyIn, user=Depends(require_op
         await _set_status(g["id"], "customer_review", {"customer_visible": True})
         await _event(g["id"], "authorisation_rejected", user, q["id"], q["version"], {"notes": body.notes})
         return {"ok": True, "status": "rejected"}
-    if not q or q["status"] == "superseded" or not q.get("customer_visible") or q.get("version") != g["revision"]:
-        raise HTTPException(409, "This quotation version is no longer current and cannot be accepted")
+    assert_quote_current(q, g)
     if g["status"] in ("accepted", "handed_over"):
         raise HTTPException(409, "An option in this group has already been accepted")
     res = await db.mod_quote_groups.update_one({"id": g["id"], "status": {"$nin": ["accepted", "handed_over"]}},
@@ -570,6 +768,7 @@ async def verify_authorisation(aid: str, body: VerifyIn, user=Depends(require_op
             "id": opp_id, "organization_id": g["organization_id"], "company_id": g["crm_company_id"], "mod_group_id": g["id"],
             "name": f"MOD maintenance — {g['customer']['name']}", "value": q["subtotal"], "stage": "won", "status": "won",
             "source": "mod_operations_quote", "quote_id": q["id"], "created_at": _now()}}, upsert=True)
+    q["status"] = "accepted"
     handover = await handover_quote(q, g, user)
     return {"ok": True, "status": "accepted", "handover_id": handover["id"]}
 
@@ -580,7 +779,9 @@ async def handover_quote(q: dict, g: dict, user: dict) -> dict:
     existing = await db.mod_quote_handovers.find_one({"source_quote_id": q["id"]}, {"_id": 0})
     if existing:
         return existing
-    eq_lines = [ln for ln in q["lines"] if not ln.get("special")]
+    if q.get("status") not in ("accepted", "handed_over"):
+        raise HTTPException(409, "Only an accepted quotation can be handed to Operations")
+    eq_lines = [ln for ln in q["lines"] if not ln.get("special") and ln.get("kind") != "call_out"]
     a_lines = [ln for ln in eq_lines if ln["coverage"] == "A"]
     rows = {r["row_id"]: r for r in g["rows"]}
     doc = {"id": str(uuid.uuid4()), "source_quote_id": q["id"], "source_quote_number": q["quote_number"],
@@ -596,7 +797,7 @@ async def handover_quote(q: dict, g: dict, user: dict) -> dict:
            "sicon_sync_state": "not_synchronised", "created_by": user.get("id"), "created_at": _now()}
     try:
         await db.mod_quote_handovers.insert_one(dict(doc))
-    except Exception:
+    except DuplicateKeyError:
         return await db.mod_quote_handovers.find_one({"source_quote_id": q["id"]}, {"_id": 0})
     await db.mod_quote_groups.update_one({"id": g["id"]}, {"$set": {"status": "handed_over", "handover_id": doc["id"]}})
     await db.crm2_quotes.update_one({"id": q["id"]}, {"$set": {"status": "handed_over"}})
@@ -611,13 +812,16 @@ async def list_handovers(user=Depends(_sales)):
 
 # ── CRM read-side ──────────────────────────────────────────────────────
 @router.get("/crm/company/{company_id}")
-async def crm_company_quotes(company_id: str, user=Depends(require_operator_crm_user)):
+async def crm_company_quotes(company_id: str, user=Depends(get_crm_user)):
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "is_operator_company": 1})
+    if not user.get("is_master_admin") and not (org or {}).get("is_operator_company"):
+        raise HTTPException(403, "MOD quotations are restricted to Pulse Fitness staff")
     out = []
     async for q in db.crm2_quotes.find({"company_id": company_id, "mod_group_id": {"$exists": True}}, {"_id": 0, "lines": 0, "pricing_snapshot": 0}).sort("created_at", -1):
         g = await db.mod_quote_groups.find_one({"id": q["mod_group_id"]}, {"_id": 0, "status": 1, "accepted_quote_id": 1, "handover_id": 1})
         dl = await db.mod_quote_events.count_documents({"quote_id": q["id"], "kind": "customer_downloaded"})
         out.append({k: q.get(k) for k in ("id", "quote_number", "mod_group_id", "mod_quote_type", "subtotal", "total", "status",
-                                          "created_at", "created_by_name", "published_at", "version")} |
+                                          "created_at", "created_by_name", "published_at", "version", "mod_site_name", "sage_quote_number")} |
                    {"group_status": (g or {}).get("status"), "selected": (g or {}).get("accepted_quote_id") == q["id"],
                     "customer_downloads": dl, "handover_id": (g or {}).get("handover_id")})
     return {"quotes": out}
@@ -643,6 +847,7 @@ async def rates_import_preview(file: UploadFile = File(...), user=Depends(requir
 
 class RatesApproveIn(BaseModel):
     effective_from: str
+    expires_on: str | None = None
     confirm: bool = False
 
 
@@ -663,9 +868,11 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
             continue
         await db.mod_sor_rate_card_history.insert_one({"id": str(uuid.uuid4()), "rate_card_id": c["id"], "before": c,
                                                        "price_list_id": pid, "changed_by": user.get("id"), "at": _now()})
+        approval = {"source": f"Schedule B import {pl['filename']} (sha256 {pl['sha256'][:12]})", "effective_from": body.effective_from,
+                    "expires_on": body.expires_on, "approved_by": user.get("full_name") or user.get("email"),
+                    "approved_at": _now(), "version": version}
         await db.mod_sor_rate_card.update_one({"id": c["id"]}, {"$set": {
-            **apply_entry(c, e), "price_status": "verified", "price_list_version": version,
-            "valid_from": body.effective_from, "updated_at": _now()}})
+            **apply_entry(c, e, approval), "price_list_version": version, "updated_at": _now()}})
     await db.mod_sor_price_lists.update_many({"status": "live"}, {"$set": {"status": "superseded"}})
     await db.mod_sor_price_lists.update_one({"id": pid}, {"$set": {"status": "live", "version": version,
                                                                    "effective_from": body.effective_from,
@@ -689,3 +896,68 @@ async def my_capabilities(user=Depends(_sales)):
             return False
     return {"sales": True, "manager": can(PERM_APPROVE), "pricing": can(PERM_PRICING),
             "name": user.get("full_name") or user.get("email")}
+
+
+# ── MOD Service Operations handover queue ──────────────────────────────
+@router.get("/handovers/{hid}")
+async def get_handover(hid: str, user=Depends(_sales)):
+    h = await db.mod_quote_handovers.find_one({"id": hid}, {"_id": 0})
+    if not h:
+        raise HTTPException(404, "Handover not found")
+    g = await _group(h["group_id"])
+    q = await db.crm2_quotes.find_one({"id": h["source_quote_id"]}, {"_id": 0, "accepted_evidence_id": 1, "valid_until": 1})
+    auth = await db.mod_quote_authorisations.find_one({"id": (q or {}).get("accepted_evidence_id")}, {"_id": 0})
+    outstanding = []
+    if not g["customer"].get("contact_email"):
+        outstanding.append("Site contact email")
+    if h["annual_ppm_required"] and not h.get("start_date"):
+        outstanding.append("Contract commencement date")
+    if any(not c.get("equipment_id") for c in h["coverage"]):
+        outstanding.append("Some lines are not linked to equipment register records")
+    return {**h, "customer": g["customer"], "authorisation": auth, "outstanding": outstanding}
+
+
+class SetupIn(BaseModel):
+    start_date: str
+    notes: str = ""
+
+
+@router.post("/handovers/{hid}/setup")
+async def setup_handover(hid: str, body: SetupIn, user=Depends(require_operator_crm_user)):
+    """Manager action: create the Type A annual contract and/or Type B one-off record from the accepted scope.
+    Idempotent. Proposes (does not confirm) the annual visit; no bookings, invoices or Sicon writes."""
+    _need(user, PERM_APPROVE)
+    h = await db.mod_quote_handovers.find_one({"id": hid}, {"_id": 0})
+    if not h:
+        raise HTTPException(404, "Handover not found")
+    if h.get("status") == "setup_complete":
+        return {"ok": True, "already": True, "records": h.get("service_records", [])}
+    await db.mod_service_contracts.create_index([("source_handover_id", 1), ("contract_type", 1)], unique=True,
+                                                partialFilterExpression={"source_handover_id": {"$type": "string"}})
+    now, who = _now(), user.get("full_name") or user.get("email")
+    records = []
+    for ct in ("A", "B"):
+        cov = [c for c in h["coverage"] if c["coverage"] == ct]
+        if not cov:
+            continue
+        doc = {"id": str(uuid.uuid4()), "organization_id": user.get("organization_id"), "contract_type": ct,
+               "source_handover_id": hid, "quote_id": h["source_quote_id"], "quote_number": h["source_quote_number"],
+               "mod_site_id": h["mod_site_id"], "mod_site_name": h["mod_site_name"], "currency": "GBP",
+               "coverage": cov, "equipment_count": sum(int(c["qty"]) for c in cov), "start_date": body.start_date,
+               "created_by": user.get("id"), "created_by_name": who, "created_at": now, "updated_at": now,
+               "sicon_sync_state": "not_synchronised", "notes": body.notes}
+        if ct == "A":
+            doc.update({"status": "active", "activated_at": now, "term_months": 12, "annual_value": h["annual_type_a_value"],
+                        "annual_visit": {"status": "pending_confirmation", "proposed_date": body.start_date[:10], "scheduled_date": None,
+                                         "engineer": None, "notes": None, "confirmed_by": None, "confirmed_at": None, "created_at": now}})
+        else:
+            doc.update({"status": "one_off_awaiting_booking", "one_off_value": h["one_off_type_b_value"], "annual_obligation": False})
+        try:
+            await db.mod_service_contracts.insert_one(dict(doc))
+        except DuplicateKeyError:
+            doc = await db.mod_service_contracts.find_one({"source_handover_id": hid, "contract_type": ct}, {"_id": 0})
+        records.append({"id": doc["id"], "contract_type": ct, "status": doc["status"]})
+    await db.mod_quote_handovers.update_one({"id": hid}, {"$set": {"status": "setup_complete", "start_date": body.start_date,
+                                                                    "service_records": records, "setup_by": who, "setup_at": now}})
+    await _event(h["group_id"], "operations_setup_complete", user, h["source_quote_id"], None, {"records": records})
+    return {"ok": True, "records": records}

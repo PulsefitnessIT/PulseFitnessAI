@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '@/App';
 import { useCRM } from '@/pages/CRM/CRMApp';
 import AftersalesApp from '@/pages/CRM/Aftersales/AftersalesApp';
-import { RateCardEditor } from '@/pages/CRM/CRMMODQuoteWizard';
 import { cmPermissions } from './cmNav';
 import WorkspaceRolesPanel from './WorkspaceRolesPanel';
 
@@ -37,16 +36,13 @@ function DefaultAreaToggle({ c }) {
 }
 
 function ModRateCardCard({ c }) {
-  const { API, headers, isDark } = useCRM();
-  const [open, setOpen] = useState(false);
   return (
     <Card title="MOD SOR rate card" c={c} testId="cm-settings-mod-rates">
-      <p className="text-sm mb-3" style={{ color: c.textMuted }}>Upload the contracted MOD price file and verify rates. Quotes using unverified rates cannot be sent.</p>
-      <button onClick={() => setOpen(true)} data-testid="cm-open-mod-rate-card"
-        className="px-4 py-2 rounded-full text-xs font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--pulse-black)' }}>
-        Open rate card
-      </button>
-      {open && <RateCardEditor API={API} headers={headers} c={c} isDark={isDark} rateCard={[]} onClose={() => setOpen(false)} />}
+      <p className="text-sm mb-3" style={{ color: c.textMuted }}>The MOD Schedule of Rates is maintained in MOD Operations → Quotations → Schedule of Rates (pricing administrators only).</p>
+      <a href="/bfpo?view=quotations" data-testid="cm-open-mod-rate-card"
+        className="inline-block px-4 py-2 rounded-full text-xs font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--pulse-black)' }}>
+        Open MOD Operations
+      </a>
     </Card>
   );
 }

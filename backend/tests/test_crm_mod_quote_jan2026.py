@@ -4,6 +4,8 @@ Covers rate card, MOD sites, equipment auto-mapping, quote generation
 (Type A/B/C), Type A contract provisioning, year overrides,
 AI-match and PDF endpoints.
 """
+import pytest
+pytestmark = pytest.mark.skip(reason="Legacy CRM MOD quote creation/rate-card writes retired 2026-11-25 (410). Replaced by tests/test_mod_ops_quotes.py and tests/test_mod_quotes_http.py; retirement asserted in test_legacy_mod_quote_creation_retired.")
 import os
 import pytest
 import requests

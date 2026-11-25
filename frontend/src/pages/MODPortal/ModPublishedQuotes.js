@@ -4,7 +4,8 @@ import { Download, Archive, CheckCircle2, Eye, Send } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
 const money = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(n) || 0);
-const TYPE = { A: ['Type A', 'Fully inclusive maintenance for 12 months'], B: ['Type B', 'One-off service or repair visit'], AB: ['Type A/B Mix', 'Cardio fully inclusive, strength one-off (as listed)'] };
+const TYPE = { A: ['Type A', 'Fully inclusive maintenance for 12 months'], B: ['Type B', 'One-off service or repair visit'], AB: ['Type A/B Mix', 'Some items fully inclusive, others one-off'] };
+const mixText = (q) => (q.mod_quote_type === 'AB' && q.coverage_summary ? `${q.coverage_summary.A} item(s) fully inclusive (Type A), ${q.coverage_summary.B} item(s) one-off (Type B)` : TYPE[q.mod_quote_type]?.[1]);
 const STATUS = {
   published: 'Ready to review', customer_review: 'Being reviewed', authorisation_submitted: 'Authorisation sent to Pulse Fitness',
   accepted: 'Accepted', handed_over: 'Accepted', not_selected: 'Not selected',
@@ -88,19 +89,19 @@ export default function ModPublishedQuotes({ API, headers, groups, onChanged }) 
               {g.quotes.map((q) => (
                 <div key={q.id} className={`rounded-lg border p-3 flex flex-col ${(g.authorisation?.status === 'submitted' && g.authorisation.quote_id === q.id) || g.accepted_quote_id === q.id ? 'border-sky-400' : 'border-white/10'}`} data-testid={`mod-quote-option-${q.mod_quote_type}`}>
                   <div className="text-white font-bold text-sm">{TYPE[q.mod_quote_type]?.[0]}</div>
-                  <div className="text-[11px] text-white/50 min-h-[30px]">{TYPE[q.mod_quote_type]?.[1]}</div>
+                  <div className="text-[11px] text-white/50 min-h-[30px]">{mixText(q)}</div>
                   <div className="mt-2 text-xs text-white/70 space-y-0.5">
                     <div className="flex justify-between"><span>Net</span><span>{money(q.subtotal)}</span></div>
                     <div className="flex justify-between"><span>VAT</span><span>{money(q.vat_amount)}</span></div>
                     <div className="flex justify-between text-white font-bold"><span>Total</span><span data-testid={`mod-quote-total-${q.mod_quote_type}`}>{money(q.total)}</span></div>
                   </div>
                   <div className="text-[10px] text-white/40 mt-1">{q.quote_number}{q.valid_until ? ` · valid until ${new Date(q.valid_until).toLocaleDateString('en-GB')}` : ''}</div>
-                  <div className="text-[10px] text-sky-300 mt-1">{g.authorisation?.status === 'submitted' && g.authorisation.quote_id === q.id ? 'Your chosen option — awaiting Pulse Fitness check' : g.accepted_quote_id === q.id ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={11} /> Selected option</span> : STATUS[q.status]}</div>
+                  <div className="text-[10px] text-sky-300 mt-1">{q.is_expired ? <span className="text-amber-300" data-testid={`mod-quote-expired-${q.mod_quote_type}`}>Expired — ask Pulse Fitness for a replacement</span> : g.authorisation?.status === 'submitted' && g.authorisation.quote_id === q.id ? 'Your chosen option — awaiting Pulse Fitness check' : g.accepted_quote_id === q.id ? <span className="inline-flex items-center gap-1"><CheckCircle2 size={11} /> Selected option</span> : STATUS[q.status]}</div>
                   <div className="mt-auto pt-3 flex flex-wrap gap-1.5">
                     <button type="button" onClick={() => view(q)} className="inline-flex items-center gap-1 rounded-full border border-white/20 text-white text-[11px] px-2.5 py-1" data-testid={`mod-quote-view-${q.mod_quote_type}`}><Eye size={12} /> View</button>
                     <button type="button" onClick={() => save(API, headers, `/mod/site/quotes/${q.id}/pdf`, `${q.quote_number}.pdf`).catch(() => notify.error('Download failed'))}
                       className="inline-flex items-center gap-1 rounded-full border border-white/20 text-white text-[11px] px-2.5 py-1" data-testid={`mod-quote-pdf-${q.mod_quote_type}`}><Download size={12} /> PDF</button>
-                    {!locked && <button type="button" onClick={() => setAuth(q)} className="inline-flex items-center gap-1 rounded-full bg-sky-400 text-black font-bold text-[11px] px-2.5 py-1" data-testid={`mod-quote-choose-${q.mod_quote_type}`}><Send size={12} /> Choose this option</button>}
+                    {!locked && !q.is_expired && <button type="button" onClick={() => setAuth(q)} className="inline-flex items-center gap-1 rounded-full bg-sky-400 text-black font-bold text-[11px] px-2.5 py-1" data-testid={`mod-quote-choose-${q.mod_quote_type}`}><Send size={12} /> Choose this option</button>}
                   </div>
                 </div>
               ))}

@@ -93,6 +93,54 @@ function Authorisations({ caps, onOpen }) {
   );
 }
 
+function Handovers({ caps, onOpen }) {
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(null);
+  const [start, setStart] = useState('');
+  const load = useCallback(() => mq.get('/handovers').then((r) => setItems(r.data.items)).catch((e) => notify.error(errText(e))), []);
+  useEffect(() => { load(); }, [load]);
+  const show = (id) => mq.get(`/handovers/${id}`).then((r) => { setOpen(r.data); setStart(r.data.start_date || ''); }).catch((e) => notify.error(errText(e)));
+  const setup = async () => {
+    if (!start) { notify.error('Enter the contract commencement date'); return; }
+    if (!window.confirm('Create the service records for this accepted quotation? The annual visit is proposed, not booked.')) return;
+    try { await mq.post(`/handovers/${open.id}/setup`, { start_date: start }); notify.success('Service records created'); show(open.id); load(); } catch (e) { notify.error(errText(e)); }
+  };
+  return (
+    <div className="grid lg:grid-cols-[1fr_1.4fr] gap-4" data-testid="mq-handovers">
+      <div className="rounded-xl overflow-hidden" style={card}>
+        {items.map((h) => (
+          <button key={h.id} type="button" onClick={() => show(h.id)} className="w-full text-left p-3 border-b transition-opacity hover:opacity-80" style={{ borderColor: 'var(--theme-border)' }} data-testid={`mq-handover-${h.id}`}>
+            <div className="font-semibold text-sm">{h.mod_site_name} — {TYPE_LABEL[h.quote_type]} {h.source_quote_number}</div>
+            <div className="text-xs" style={muted}>{h.status === 'setup_complete' ? 'Set up' : 'Awaiting Operations set-up'} · annual {gbp(h.annual_type_a_value)} · one-off {gbp(h.one_off_type_b_value)}</div>
+          </button>
+        ))}
+        {!items.length && <div className="p-8 text-center text-sm" style={muted}>No accepted quotations yet.</div>}
+      </div>
+      {open && (
+        <div className="rounded-xl p-4 space-y-3" style={card} data-testid="mq-handover-detail">
+          <div className="flex justify-between gap-2"><div className="font-semibold">{open.mod_site_name}</div>
+            <button type="button" className="text-xs" style={{ color: 'var(--color-brand-cyan)' }} onClick={() => onOpen(open.group_id)} data-testid="mq-handover-open-group">Open quotation</button></div>
+          <div className="text-sm">{TYPE_LABEL[open.quote_type]} · {open.source_quote_number} · PO {open.authorisation?.po_reference || '—'} · authorised by {open.authorisation?.authorising_officer || '—'}</div>
+          <div className="grid sm:grid-cols-2 gap-2 text-sm">
+            <div>Annual Type A value <b>{gbp(open.annual_type_a_value)}</b></div><div>One-off Type B value <b>{gbp(open.one_off_type_b_value)}</b></div>
+          </div>
+          <table className="w-full text-xs"><thead><tr style={muted} className="text-left"><th>Cover</th><th>Item</th><th>Qty</th><th className="text-right">Total</th></tr></thead>
+            <tbody>{open.coverage.map((c2, i) => <tr key={`${c2.item_code}-${i}`} className="border-t" style={{ borderColor: 'var(--theme-border)' }}><td>{c2.coverage}{c2.annual_obligation ? ' · annual' : ' · one-off'}</td><td>{c2.description}</td><td>{c2.qty}</td><td className="text-right">{c2.total.toFixed(2)}</td></tr>)}</tbody></table>
+          {open.outstanding.length > 0 && <div className="text-xs" style={{ color: 'var(--color-warning)' }} data-testid="mq-handover-outstanding">Outstanding: {open.outstanding.join('; ')}</div>}
+          {open.status === 'setup_complete' ? (
+            <div className="text-sm" data-testid="mq-handover-done">Set up by {open.setup_by}: {(open.service_records || []).map((r) => `Type ${r.contract_type} (${r.status.replace(/_/g, ' ')})`).join(', ')}</div>
+          ) : caps.manager ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm" style={muted}>Commencement <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="rounded px-2 py-1 ml-1" style={inputStyle} data-testid="mq-handover-start" /></label>
+              <button type="button" onClick={setup} className="px-4 py-1.5 rounded-full text-sm font-semibold" style={primaryBtn} data-testid="mq-handover-setup">Set up service records</button>
+            </div>
+          ) : <div className="text-xs" style={muted}>A MOD Sales Manager completes set-up.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Pricing() {
   const [preview, setPreview] = useState(null);
   const [lists, setLists] = useState([]);
@@ -149,7 +197,10 @@ function Pricing() {
 
 export default function ModQuotations() {
   const [tab, setTab] = useState('quotes');
-  const [mode, setMode] = useState({ view: 'list' });
+  const [mode, setMode] = useState(() => {
+    const gid = new URLSearchParams(window.location.search).get('quote_group');
+    return gid ? { view: 'group', id: gid } : { view: 'list' };
+  });
   const [caps, setCaps] = useState({ manager: false, pricing: false });
   useEffect(() => { mq.get('/me').then((r) => setCaps(r.data)).catch(() => {}); }, []);
 
@@ -161,7 +212,7 @@ export default function ModQuotations() {
     return <ModQuoteGroup key={mode.id} groupId={mode.id} caps={caps} onBack={() => setMode({ view: 'list' })}
       onEdit={() => mq.get(`/groups/${mode.id}`).then((r) => setMode({ view: 'wizard', group: r.data }))} />;
   }
-  const tabs = [['quotes', 'Quotations', ListChecks], ['auth', 'Customer authorisations', FileCheck2], ...(caps.pricing ? [['pricing', 'Schedule of Rates', Tags]] : [])];
+  const tabs = [['quotes', 'Quotations', ListChecks], ['auth', 'Customer authorisations', FileCheck2], ['handover', 'Service handover', ListChecks], ...(caps.pricing ? [['pricing', 'Schedule of Rates', Tags]] : [])];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="mod-quotations">
       <div className="flex flex-wrap gap-2 mb-5">
@@ -174,6 +225,7 @@ export default function ModQuotations() {
       </div>
       {tab === 'quotes' && <GroupList onOpen={(id) => setMode({ view: 'group', id })} onNew={() => setMode({ view: 'wizard' })} />}
       {tab === 'auth' && <Authorisations caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
+      {tab === 'handover' && <Handovers caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
       {tab === 'pricing' && <Pricing />}
     </div>
   );

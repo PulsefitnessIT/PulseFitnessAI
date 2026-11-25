@@ -163,3 +163,9 @@ backend/.env.test
 .env
 .env.*
 *.env
+
+# Commercially sensitive originals and local tooling — never commit (see memory/SECURITY_REPO_AUDIT.md)
+backend/tests/fixtures/mod_quotes/
+test_reports/mm_tmp/
+memory/test_credentials_bfpo.md
+.lintfix/

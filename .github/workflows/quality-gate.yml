@@ -59,7 +59,7 @@ jobs:
         working-directory: backend
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
+          bash scripts/ci_install_backend.sh
           # Pinned to match the local dev environment + the sister CI
           # workflow (.github/workflows/ci.yml). Drift between
           # bandit majors has caused mysterious CI failures before.

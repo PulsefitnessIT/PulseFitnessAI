@@ -16,8 +16,7 @@ from utils.auth import get_current_user
 from utils.database import db
 from utils.mod_quote_engine import build_quote, parse_schedule_b
 
-FIX = os.path.join(os.path.dirname(__file__), "fixtures", "mod_quotes")
-SOR = os.path.join(FIX, "schedule_b_sor.xlsx")
+from tests.mod_quote_fixtures import synthetic_sor_bytes
 RUN = uuid.uuid4().hex[:6]
 SITE_A, SITE_B, OP_ORG = f"t-modq-site-a-{RUN}", f"t-modq-site-b-{RUN}", f"t-modq-op-{RUN}"
 STAFF = {"id": f"t-staff-{RUN}", "email": "sales@example.test", "full_name": "Test MOD Sales", "organization_id": OP_ORG,
@@ -110,9 +109,19 @@ async def client():
     await db.mod_sor_price_lists.delete_many({"uploaded_by": STAFF["full_name"]})
 
 
-async def _import_rates(c):
-    with open(SOR, "rb") as fh:
-        r = await c.post("/api/mod-ops/quotes/rates/import-preview", files={"file": ("sor.xlsx", fh.read())})
+async def _import_rates(c, overrides=None, skip=None):
+    data = synthetic_sor_bytes(overrides)
+    if skip:
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(data))
+        ws = wb["Tender SOR"]
+        for r in range(ws.max_row, 5, -1):
+            if ws.cell(r, 1).value in skip:
+                ws.delete_rows(r)
+        buf = io.BytesIO()
+        wb.save(buf)
+        data = buf.getvalue()
+    r = await c.post("/api/mod-ops/quotes/rates/import-preview", files={"file": ("sor.xlsx", data)})
     assert r.status_code == 200, r.text
     body = r.json()
     kinds = {i["kind"] for i in body["issues"]}
@@ -127,7 +136,7 @@ def _customer():
 
 
 def test_schedule_b_parser_reads_actual_layout():
-    p = parse_schedule_b(open(SOR, "rb").read())
+    p = parse_schedule_b(synthetic_sor_bytes())
     by = {e["uid"]: e for e in p["entries"]}
     assert by["1B"]["price"] == 80 and by["2A"]["sage_code"] == "MOD-TREAD-A" and by["2A"]["tl_ref"] == "SER100135"
     assert by["28C"]["is_poa"] and by["26A"]["ambiguous_sage_code"] and by["27A"]["ambiguous_sage_code"]
@@ -231,3 +240,182 @@ async def test_full_workflow_isolation_and_handover(client):
     assert await db.mod_quote_handovers.count_documents({"group_id": gid}) == 1
     kinds = {e["kind"] async for e in db.mod_quote_events.find({"group_id": gid})}
     assert {"created", "approved", "published", "customer_downloaded", "revised", "authorisation_submitted", "accepted", "operations_handover"} <= kinds
+
+
+# ── Stabilisation sprint: pricing verification, expiry, consistency, recovery, handover, PDF ──
+async def _group_flow(c, rows=ROWS, options=("A", "B", "AB"), key=None):
+    body = {"customer": _customer(), "rows": rows, "options": list(options)}
+    if key:
+        body["idempotency_key"] = key
+    r = await c.post("/api/mod-ops/quotes/groups", json=body)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+async def test_type_b_does_not_inherit_type_a_approval(client):
+    await db.mod_sor_rate_card.update_one({"id": "sor-5"}, {"$unset": {"rate_b": "", "price_status_b": ""}, "$set": {"type_b_price": 7.0}})
+    await _import_rates(client, skip={"5B"})
+    r = await client.post("/api/mod-ops/quotes/preview", json={"customer": _customer(), "rows": ROWS, "options": ["A", "B"]})
+    o = r.json()["options"]
+    assert not [u for u in o["A"]["unverified_lines"] if u["item_code"] == "MOD-BENCH-A"]
+    assert [u for u in o["B"]["unverified_lines"] if u["item_code"] == "MOD-BENCH-B"], "Type B bench must stay unverified"
+
+
+async def test_unverified_callout_blocks_approval_without_structured_exception(client):
+    await db.mod_sor_rate_card.update_many({"kind": "call_out"}, {"$unset": {"rate_b": "", "price_status_b": ""}})
+    await _import_rates(client, skip={"1B"})
+    g = await _group_flow(client, options=("B",))
+    q = g["quotes"][0]
+    co = next(u for u in q["unverified_rate_lines"] if u["item_code"] == "MOD-CALLOUT")
+    await client.post(f"/api/mod-ops/quotes/groups/{g['id']}/submit")
+    assert (await client.post(f"/api/mod-ops/quotes/groups/{g['id']}/approve", json={})).status_code == 422
+    bad = {"quote_id": q["id"], "line_no": co["line_no"], "reason": "Agreed by commercial director", "original_rate": 80.0,
+           "proposed_rate": 70.0, "valid_until": "2099-01-01"}
+    assert (await client.post(f"/api/mod-ops/quotes/groups/{g['id']}/approve", json={"exceptions": [bad]})).status_code == 422
+    ok = {**bad, "proposed_rate": 80.0}
+    r = await client.post(f"/api/mod-ops/quotes/groups/{g['id']}/approve", json={"exceptions": [ok]})
+    assert r.status_code == 200, r.text
+    stored = await db.crm2_quotes.find_one({"id": q["id"]})
+    assert stored["commercial_exceptions"][0]["authorised_by"] == STAFF["full_name"]
+
+
+async def test_quantities_validated(client):
+    await _import_rates(client)
+    rows = [dict(r) for r in ROWS]
+    rows[0]["qty"] = -1
+    assert (await client.post("/api/mod-ops/quotes/preview", json={"customer": _customer(), "rows": rows, "options": ["A"]})).status_code == 422
+    rows[0]["qty"] = "abc"
+    assert (await client.post("/api/mod-ops/quotes/preview", json={"customer": _customer(), "rows": rows, "options": ["A"]})).status_code == 422
+    rows[0]["qty"] = 0
+    o = (await client.post("/api/mod-ops/quotes/preview", json={"customer": _customer(), "rows": rows, "options": ["A"]})).json()["options"]["A"]
+    assert o["excluded_rows"] == ["Benches"] and o["net"] == round(2178.42 - 87.06, 2)
+    rows[0]["qty"] = 2
+    rows[0]["rate_card_id"] = None
+    o = (await client.post("/api/mod-ops/quotes/preview", json={"customer": _customer(), "rows": rows, "options": ["A"]})).json()["options"]["A"]
+    assert any("not matched" in i for i in o["issues"])
+
+
+async def _publish_all(c, g):
+    gid = g["id"]
+    await c.post(f"/api/mod-ops/quotes/groups/{gid}/submit")
+    assert (await c.post(f"/api/mod-ops/quotes/groups/{gid}/approve", json={})).status_code == 200
+    r = await c.post(f"/api/mod-ops/quotes/groups/{gid}/publish", json={"quote_ids": [q["id"] for q in g["quotes"]]})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+async def test_expired_quote_cannot_be_authorised_or_accepted(client):
+    await _import_rates(client)
+    g = await _publish_all(client, await _group_flow(client, options=("A",)))
+    q = g["quotes"][0]
+    await db.crm2_quotes.update_one({"id": q["id"]}, {"$set": {"valid_until": "2020-01-01"}})
+    _who["user"] = CUST_A
+    lst = (await client.get("/api/mod/site/quotes")).json()["quotes"]
+    assert next(x for x in lst if x["id"] == q["id"])["is_expired"] is True
+    assert (await client.get(f"/api/mod/site/quotes/{q['id']}/pdf")).status_code == 200, "expired stays downloadable"
+    r = await client.post(f"/api/mod/site/quotes/{q['id']}/authorise", data={"authorising_officer": "T Officer", "authorisation_date": "2026-11-25"})
+    assert r.status_code == 409 and "expired" in r.text
+    _who["user"] = STAFF
+    await db.crm2_quotes.update_one({"id": q["id"]}, {"$set": {"valid_until": "2099-01-01"}})
+    _who["user"] = CUST_A
+    r = await client.post(f"/api/mod/site/quotes/{q['id']}/authorise", data={"authorising_officer": "T Officer", "authorisation_date": "2026-11-25"})
+    aid = r.json()["authorisation"]["id"]
+    _who["user"] = STAFF
+    await db.crm2_quotes.update_one({"id": q["id"]}, {"$set": {"valid_until": "2020-01-01"}})
+    assert (await client.post(f"/api/mod-ops/quotes/authorisations/{aid}/verify", json={"accept": True})).status_code == 409
+    assert await db.mod_quote_handovers.count_documents({"group_id": g["id"]}) == 0
+
+
+async def test_site_cannot_change_and_idempotent_create(client):
+    await _import_rates(client)
+    key = f"idem-{RUN}"
+    g1 = await _group_flow(client, options=("A",), key=key)
+    g2 = await _group_flow(client, options=("A",), key=key)
+    assert g1["id"] == g2["id"] and await db.mod_quote_groups.count_documents({"idempotency_key": key}) == 1
+    other = {**_customer(), "site_id": SITE_B, "name": "Other"}
+    r = await client.put(f"/api/mod-ops/quotes/groups/{g1['id']}", json={"customer": other, "rows": ROWS, "options": ["A"]})
+    assert r.status_code == 409
+    forged = {**_customer(), "crm_company_id": "forged-company"}
+    g3 = await _group_flow(client, options=("A",))
+    r = await client.put(f"/api/mod-ops/quotes/groups/{g3['id']}", json={"customer": forged, "rows": ROWS, "options": ["A"]})
+    assert r.status_code == 200 and r.json()["crm_company_id"] is None
+
+
+async def test_failed_creation_leaves_no_visible_quotes(client, monkeypatch):
+    await _import_rates(client)
+    import routes.mod_ops_quotes as m
+    coll_cls = type(m.db.mod_quote_groups)
+    orig = coll_cls.insert_one
+
+    async def boom(self, *a, **k):
+        if self.name == "mod_quote_groups":
+            raise RuntimeError("simulated outage")
+        return await orig(self, *a, **k)
+    monkeypatch.setattr(coll_cls, "insert_one", boom)
+    with pytest.raises(RuntimeError):
+        await client.post("/api/mod-ops/quotes/groups", json={"customer": _customer(), "rows": ROWS, "options": ["A", "B"]})
+    monkeypatch.setattr(coll_cls, "insert_one", orig)
+    stray = await db.crm2_quotes.count_documents({"mod_site_id": SITE_A, "status": {"$in": ["draft", "staging"]}, "mod_group_id": {"$exists": True},
+                                                  "created_at": {"$gte": "2000"}, "mod_group_id_missing": {"$exists": False}})
+    orphans = [q async for q in db.crm2_quotes.find({"mod_site_id": SITE_A, "status": {"$in": ["draft", "staging"]}}, {"mod_group_id": 1})
+               if not await db.mod_quote_groups.find_one({"id": q["mod_group_id"]})]
+    assert not orphans, f"orphaned visible quotes: {len(orphans)} of {stray}"
+
+
+async def test_published_pdf_immutable_and_handover_setup_idempotent(client):
+    await _import_rates(client)
+    g = await _publish_all(client, await _group_flow(client))
+    mix = next(q for q in g["quotes"] if q["mod_quote_type"] == "AB")
+    _who["user"] = CUST_A
+    pdf1 = (await client.get(f"/api/mod/site/quotes/{mix['id']}/pdf")).content
+    _who["user"] = STAFF
+    await _import_rates(client, overrides={"2A": 999.0})
+    _who["user"] = CUST_A
+    assert (await client.get(f"/api/mod/site/quotes/{mix['id']}/pdf")).content == pdf1, "new price list must not change published PDF"
+    r = await client.post(f"/api/mod/site/quotes/{mix['id']}/authorise", data={"po_reference": "PO-1", "authorising_officer": "T Officer", "authorisation_date": "2026-11-25"})
+    aid = r.json()["authorisation"]["id"]
+    _who["user"] = STAFF
+    r = await client.post(f"/api/mod-ops/quotes/authorisations/{aid}/verify", json={"accept": True})
+    hid = r.json()["handover_id"]
+    for _ in range(2):
+        r = await client.post(f"/api/mod-ops/quotes/handovers/{hid}/setup", json={"start_date": "2027-01-01"})
+        assert r.status_code == 200, r.text
+    recs = await db.mod_service_contracts.find({"source_handover_id": hid}, {"_id": 0}).to_list(10)
+    assert sorted(x["contract_type"] for x in recs) == ["A", "B"]
+    a = next(x for x in recs if x["contract_type"] == "A")
+    b = next(x for x in recs if x["contract_type"] == "B")
+    assert a["annual_value"] == 1586.24 and a["annual_visit"]["status"] == "pending_confirmation"
+    assert "annual_visit" not in b and b["annual_obligation"] is False
+    await db.mod_service_contracts.delete_many({"source_handover_id": hid})
+
+
+def test_long_pdf_paginates_without_overlap():
+    import fitz
+    from utils.mod_quote_pdf import render_mod_quote_pdf
+    lines = [{"line_no": i, "item_code": "MOD-TEST-A", "description": "SER100001 - A deliberately long synthetic equipment description that wraps onto several lines to test pagination " * 2,
+              "qty": 1, "unit": "Each", "unit_price": 1.0, "total": 1.0} for i in range(1, 61)]
+    pdf = render_mod_quote_pdf({"quote_number": "PFQ-TEST", "quote_date": "01/01/2027", "customer_name": "Synthetic Site",
+                                "address_lines": ["1 Test Road"], "lines": lines, "net": 60, "vat": 12, "gross": 72})
+    doc = fitz.open(stream=pdf, filetype="pdf")
+    assert len(doc) > 2
+    for page in doc:
+        words = page.get_text("words")
+        rows = [w for w in words if w[4] == "MOD-TEST-A"]
+        assert all(w[3] < 760 for w in rows), "rows must stay above the footer"
+    last = doc[-1].get_text()
+    assert "TOTAL GROSS" in last and "72.00" in last
+    assert sum(p.get_text().count("MOD-TEST-A") for p in doc) == 60
+
+
+async def test_legacy_mod_quote_creation_retired(client):
+    from routes.crm_auth import get_crm_user
+    app.dependency_overrides[get_crm_user] = _override
+    try:
+        _who["user"] = {**STAFF, "crm_permissions": ["quotes.mod", "pricing.manage"], "is_master_admin": True}
+        for method, path in (("post", "/api/crm/mod-quote/generate"), ("post", "/api/crm/mod-quote/rate-card/reseed"),
+                             ("put", "/api/crm/mod-quote/rate-card/sor-2")):
+            r = await getattr(client, method)(path, json={})
+            assert r.status_code == 410, (path, r.status_code, r.text)
+    finally:
+        app.dependency_overrides.pop(get_crm_user, None)
+        _who["user"] = STAFF

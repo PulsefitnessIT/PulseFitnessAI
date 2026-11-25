@@ -1,5 +1,7 @@
 """HTTP regression tests (public URL) for MOD Operations → Quotations + MODService customer quotes portal."""
 import os
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 import sys
 import uuid
 
@@ -43,6 +45,22 @@ def _login(email, pw, portal=None):
 
 @pytest.fixture(scope="module")
 def mgr():
+    s = _mgr_session()
+    from pymongo import MongoClient
+    coll = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]].mod_sor_rate_card
+    snapshot = list(coll.find({}, {"_id": 0}))
+    from tests.mod_quote_fixtures import synthetic_sor_bytes
+    r = s.post(f"{API}/mod-ops/quotes/rates/import-preview", files={"file": ("sor.xlsx", synthetic_sor_bytes())})
+    assert r.status_code == 200, r.text
+    r = s.post(f"{API}/mod-ops/quotes/rates/{r.json()['price_list_id']}/approve", json={"effective_from": "2026-01-01", "confirm": True})
+    assert r.status_code == 200, r.text
+    yield s
+
+    for e in snapshot:
+        coll.replace_one({"id": e["id"]}, e)
+
+
+def _mgr_session():
     return _login("modsales.manager@pulsedemo.test", "ModSales123!")
 
 
