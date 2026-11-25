@@ -360,6 +360,10 @@ async def get_group(gid: str, user=Depends(_sales)):
                                                 {"_id": 0, "id": 1, "quote_number": 1, "mod_quote_type": 1, "version": 1, "total": 1}).to_list(100)
     g["events"] = await db.mod_quote_events.find({"group_id": gid}, {"_id": 0}).sort("at", -1).to_list(200)
     g["authorisations"] = await db.mod_quote_authorisations.find({"group_id": gid}, {"_id": 0}).sort("submitted_at", -1).to_list(20)
+    labels = {e["id"]: e.get("label") async for e in db.mod_sor_rate_card.find(
+        {"id": {"$in": [r.get("rate_card_id") for r in g.get("rows") or []]}}, {"_id": 0, "id": 1, "label": 1})}
+    for r in g.get("rows") or []:
+        r["item_label"] = labels.get(r.get("rate_card_id")) or r.get("description") or "Item"
     return g
 
 
@@ -786,6 +790,7 @@ async def delete_group(gid: str, user=Depends(_sales)):
     await db.crm2_quotes.delete_many({"mod_group_id": gid})
     for coll in (db.mod_quote_followups, db.mod_quote_authorisations, db.mod_quote_events):
         await coll.delete_many({"group_id": gid})
+    await db.crm2_activities.delete_many({"mod_group_id": gid})
     await db.mod_quote_groups.delete_one({"id": gid})
     return {"ok": True, "deleted_quotes": len(quotes)}
 

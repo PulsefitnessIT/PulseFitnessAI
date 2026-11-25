@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the MOD quotation wizard feedback items and the owner-only delete. Backend: the new tests/test_mod_quotes_wizard_delete_iter322.py passes 10/10, and the iter318 + iter319 regression suites pass 25/25. Preview and groups accept rows with no description. Issue messages use the item label ('Unselected item' when no item is chosen). The Type B call-out line has item_code MOD-CALLOUT in the preview, the saved quote and the PDF, with no '1B' in the PDF, and its description ('SER100146 - Call Out Charge - Type B Only') does not start with '- '. Notes are appended in brackets ('(TEST_Note gym floor)') and also appear in the PDF. Changing qty changes the totals. DELETE /groups/{gid}: the manager and the rep get 403, accepted and handed_over groups get 409, and the owner gets 200 with deleted_quotes equal to the quote count. The group, crm2_quotes, followups, authorisations and events are removed, a mod_quote_deletions audit row is written, a second delete gets 404, and an unauthenticated call gets 401/403. /me returns owner false for the manager and the rep and true for the owner. UI (manager): the wizard has 3 steps. The table columns are Qty | Item Code | Notes | Location | A/B (A/B shows only while Mixed is on). There is no description input. The placeholder is '— choose item code —', none of the 32 entries start with a number (e.g. 'Treadmill (MOD-TREAD)'), and the Notes placeholder is 'Optional'. The A/B/AB tiles on the equipment step update live: 1 row gives A £306, qty 3 gives £918, adding a bench gives £970.24, and removing it goes back to £918. mq-callout-qty shows only while B is on. Next stays disabled with no site, no rows, an unmapped item code, or no options. The Review table shows MOD-CALLOUT and the Notes in brackets. Generate saves and opens the group. The manager does not see mq-delete. UI (TEST owner): mq-delete is hidden on an accepted group and shown on a draft. Cancelling the confirm keeps the group. Accepting it deletes the group, shows a 'Quotations deleted' toast and returns to the list without the row. One new UI bug was found, plus minor UX notes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "utils/mod_quote_engine.py _row_line", "issue": "The call-out code is MOD-CALLOUT only because the live rate card has sage_code_b='MOD-CALLOUT' for sor-1 (code_b is still '1B'). The 'MOD-CALLOUT' fallback only runs when sage_code_b is empty. A future Schedule B import whose call-out row carries a different Sage code (e.g. '1B') would bring '1B' back in the preview and the Review table. The PDF has its own '1B' -> MOD-CALLOUT override, but the preview does not. Consider forcing MOD-CALLOUT for kind == call_out in one place."},
+      {"endpoint": "DELETE /api/mod-ops/quotes/groups/{gid}", "issue": "The delete does not remove crm2_activities or crm2_opportunities rows with mod_group_id, or mod_quote_handovers. Handovers only exist for accepted groups, so that part is fine. The CRM activity rows become orphans that point to a deleted group. Low priority."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ModQuoteGroup.js line 169 'Shared equipment list'", "issue": "The wizard no longer collects a description, so this list renders r.description, which is empty for manual rows. A row then shows only '(TEST_Note UI)', or is completely blank when there are no notes. It should fall back to the catalogue item label or the line description.", "selector": "Shared equipment list li", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Wizard step 2 with Mixed (AB) on", "issue": "Next is enabled while rows have no A/B coverage chosen. A newly added row has coverage null. The AB tile shows £0.00 with an issues count, and Generate then fails with 422 'choose Type A or Type B coverage'. This matches the stated Next rule, but it lets the user reach a guaranteed error. Consider blocking Next, or defaulting coverage to the suggestion.", "affected_selectors": ["mq-wizard-next", "mq-row-cov-A", "mq-option-AB-gross"]}
+    ],
+    "design_issues": [
+      {"screen": "Wizard equipment step", "issues": ["The banner 'N row(s) need a confirmed item code' (mq-review-count) counts qty-0 rows with no item code and needs_review rows, but Next ignores those rows. The banner can say rows need fixing while Next is enabled.", "The Location input has no placeholder or aria-label.", "A preview request failure is swallowed (catch -> setPreview(null)), so the tiles and the Review stage go empty with no error message."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_quotes_wizard_delete_iter322.py", "/app/test_reports/pytest/iter322.xml"],
+  "action_items": [
+    "ModQuoteGroup.js Shared equipment list: show the catalogue label or item code when row.description is empty",
+    "Optional: block Next on step 2 (or default coverage) when AB is selected and any qty>0 row has no coverage",
+    "Optional: always use MOD-CALLOUT for call_out lines in _row_line, so a re-import cannot bring back another code",
+    "Optional: remove crm2_activities with mod_group_id on group delete"
+  ],
+  "critical_code_review_comments": [
+    "The _is_owner check (is_master_admin, is_pulse_admin or role == owner) is applied on the backend, and the UI gates mq-delete on caps.owner and the group status. Both are correct.",
+    "The delete uses window.confirm, which works but is not consistent with the shadcn dialogs used elsewhere.",
+    "ModQuoteWizard canNext does not check coverage for AB (see the integration issue)."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_quotes_wizard_delete_iter322.py"],
+  "success_rate": {"backend": "100% (10/10 new + 25/25 regression)", "frontend": "95% (all requested checks pass; 1 new medium display bug)"},
+  "seed_data_creation": "Temporary TEST owner users (test_modowner_<run>@example.test and test_modowner_ui322@example.test, role owner, Pulse org) were created and then deleted. The TEST quotation groups I created were deleted by id, including one forced to accepted in the DB and one deleted through the UI, and the audit row for my UI deletion was removed. No seed or real data was changed. No emails were sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Owner testing: insert a TEST user in org 3ece2d0c-57ea-4acd-a6b4-d748478ed117 with role=owner, module_overrides.mod_operations=true and mod_quote_role=pricing_admin_manager, then log in at /login (no MFA). The new test file creates and removes its own owner. Call-out sor-1 has sage_code_b=MOD-CALLOUT in the DB. Run with -p no:xdist."
+}

@@ -166,7 +166,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
         <div className="mq-card p-5">
           <div className="font-semibold mb-3">Shared equipment list ({g.rows.length})</div>
           <ul className="text-sm divide-y max-h-72 overflow-y-auto" style={{ borderColor: 'var(--theme-border)' }}>
-            {g.rows.map((r) => <li key={r.row_id} className="flex justify-between gap-2 py-1.5" style={{ borderColor: 'var(--theme-border)' }}><span>{r.description}{r.label ? ` (${r.label})` : ''}</span><span className="mq-muted whitespace-nowrap">×{r.qty}{r.coverage ? ` · Type ${r.coverage}` : ''}</span></li>)}
+            {g.rows.map((r) => <li key={r.row_id} className="flex justify-between gap-2 py-1.5" style={{ borderColor: 'var(--theme-border)' }}><span>{r.item_label || r.description}{r.label ? ` (${r.label})` : ''}</span><span className="mq-muted whitespace-nowrap">×{r.qty}{r.coverage ? ` · Type ${r.coverage}` : ''}</span></li>)}
           </ul>
           {g.superseded?.length > 0 && <div className="text-xs mt-3 mq-muted" data-testid="mq-superseded">{g.superseded.length} superseded quotation(s) retained for audit.</div>}
         </div>

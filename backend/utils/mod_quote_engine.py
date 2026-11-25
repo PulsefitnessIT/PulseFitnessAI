@@ -285,7 +285,7 @@ def _row_line(row: dict, entry: dict, t: str, on_date: str) -> tuple[dict | None
         desc = f"{desc} ({row['label']})"
     qty = int(row.get("qty") or 0)
     return {
-        "item_code": entry.get(f"sage_code_{key}") or ("MOD-CALLOUT" if entry.get("kind") == "call_out" else entry.get(f"code_{key}")),
+        "item_code": "MOD-CALLOUT" if entry.get("kind") == "call_out" else (entry.get(f"sage_code_{key}") or entry.get(f"code_{key}")),
         "description": desc, "qty": qty, "unit": entry.get("uom") or "Each",
         "unit_price": float(money(price)), "total": float(money(price) * qty),
         "coverage": t, "rate_card_id": entry["id"], "row_id": row.get("row_id"),

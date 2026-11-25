@@ -39519,3 +39519,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Prod: 32 rate-card entries are not on the Year 4 version, so quotes using them are blocked until they are priced.
 - Sales-department staff in prod who have no CRM module grant will no longer get sales_manager automatically. Review in System Access.
 - Maintenance Master reconciliation needs the 12 Nov 2026 workbook. Use Save to Github to commit.
+
+## MOD quotation wizard feedback (2026-11-25)
+- 3 steps. Equipment & options are merged, and the A/B/A&B tiles update live. The Description column is removed. "SOR category" is now "Item Code" with no numbers, and "Name on quote" is now "Notes".
+- Picking an item code fills in the suggested A/B coverage. In a mixed quote, Next is blocked until every item has A or B.
+- The call-out line always prints MOD-CALLOUT.
+- Owners and master admins can delete quote groups that are not accepted or handed over (DELETE /groups/{gid}). Each deletion is recorded in mod_quote_deletions. Tested in iteration_322.

@@ -103,7 +103,7 @@ function RowEditor({ row, catalogue, onChange, onRemove, showCoverage }) {
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-qty" />
       </td>
       <td className="p-2 min-w-[220px]">
-        <select value={row.rate_card_id || ''} onChange={(e) => onChange({ ...row, rate_card_id: e.target.value || null, needs_review: false })}
+        <select value={row.rate_card_id || ''} onChange={(e) => onChange({ ...row, rate_card_id: e.target.value || null, needs_review: false, coverage: row.coverage || (e.target.value ? suggestFrom({ rate_card_id: e.target.value }, catalogue) : null) })}
           className="w-full rounded px-2 py-1 text-sm" style={inputStyle} data-testid="mq-row-sor">
           <option value="">— choose item code —</option>
           {services.map((e) => <option key={e.id} value={e.id}>{`${e.label}${e.sage_code_a ? ` (${e.sage_code_a.replace(/-A$/, '')})` : ''}`}</option>)}
@@ -276,7 +276,8 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
   }, [payload, customer, rows.length, options.length]);
 
   const unmapped = rows.filter((r) => r.qty > 0 && !r.rate_card_id).length;
-  const canNext = [!!customer?.site_id, rows.some((r) => r.qty > 0) && !unmapped && options.length > 0, true][stage];
+  const noCoverage = options.includes('AB') && rows.some((r) => r.qty > 0 && !r.coverage);
+  const canNext = [!!customer?.site_id, rows.some((r) => r.qty > 0) && !unmapped && !noCoverage && options.length > 0, true][stage];
   const toggle = (t) => setOptions(options.includes(t) ? options.filter((o) => o !== t) : [...options, t]);
   const save = async () => {
     setSaving(true);
@@ -310,7 +311,7 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
         <Btn icon={ArrowLeft} disabled={stage === 0} onClick={() => setStage(stage - 1)} data-testid="mq-wizard-back">Back</Btn>
         <div className="text-xs mq-muted text-center flex-1 min-w-0 hidden sm:block" data-testid="mq-wizard-summary">
           {customer?.name || 'No site selected'} · {rows.length} item(s) · {options.map((o) => TYPE_LABEL[o]).join(', ') || 'no options'}
-          {stage < 2 && !canNext ? <span style={{ color: 'var(--color-warning)' }}> · {['Select a MOD site', !options.length ? 'Choose at least one quote type' : 'Add equipment and confirm every item code'][stage]}</span> : null}
+          {stage < 2 && !canNext ? <span style={{ color: 'var(--color-warning)' }}> · {['Select a MOD site', !options.length ? 'Choose at least one quote type' : noCoverage && !unmapped ? 'Choose Type A or B for each item in the mixed quote' : 'Add equipment and confirm every item code'][stage]}</span> : null}
         </div>
         {stage < 2 ? (
           <Btn variant="primary" disabled={!canNext} onClick={() => setStage(stage + 1)} data-testid="mq-wizard-next">Next <ArrowRight size={15} /></Btn>
