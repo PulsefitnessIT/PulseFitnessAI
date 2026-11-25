@@ -99,7 +99,9 @@ async def _quotes(gid: str, current_only=True) -> list[dict]:
     flt = {"mod_group_id": gid}
     if current_only:
         flt["status"] = {"$ne": "superseded"}
-    return await db.crm2_quotes.find(flt, {"_id": 0, "esign_token": 0}).sort([("version", 1), ("mod_quote_type", 1)]).to_list(50)
+    order = {"A": 0, "B": 1, "AB": 2}
+    qs = await db.crm2_quotes.find(flt, {"_id": 0, "esign_token": 0}).to_list(50)
+    return sorted(qs, key=lambda q: (q.get("version") or 0, order.get(q.get("mod_quote_type"), 3)))
 
 
 # ── customers & equipment ──────────────────────────────────────────────
@@ -317,6 +319,8 @@ async def revise_group(gid: str, body: GroupIn, user=Depends(_sales)):
                                      {"$set": {"status": "superseded", "customer_visible": False, "superseded_at": _now()}})
     if issued:
         await _event(gid, "superseded", user, version=g["revision"])
+        await db.mod_quote_authorisations.update_many({"group_id": gid, "status": "submitted"},
+                                                      {"$set": {"status": "superseded", "reviewed_at": _now()}})
     await db.mod_quote_groups.update_one({"id": gid}, {"$set": {
         "customer": newg["customer"], "rows": newg["rows"], "options": opts, "callout_qty": body.callout_qty,
         "notes": body.notes, "crm_company_id": newg["crm_company_id"], "status": "draft", "revision": version,
@@ -422,7 +426,7 @@ async def publish(gid: str, body: PublishIn, user=Depends(_sales)):
             "published_pdf_sha256": hashlib.sha256(pdf).hexdigest(), "valid_until": valid_until,
             "pricing_snapshot": {"lines": q["lines"], "net": q["subtotal"], "vat": q["vat_amount"], "gross": q["total"],
                                  "price_list_version": q.get("price_list_version")}}})
-        await _event(gid, "published", user, q["id"], q["version"])
+        await _event(gid, "published", user, q["id"], q["version"], {"option": TYPE_LABELS[q["mod_quote_type"]], "ref": q["quote_number"]})
     await db.crm2_quotes.update_many({"mod_group_id": gid, "status": "approved", "id": {"$nin": body.quote_ids}},
                                      {"$set": {"status": "approved_not_published"}})
     await db.mod_quote_groups.update_one({"id": gid}, {"$set": {"status": "published", "published_at": _now(), "updated_at": _now()}})

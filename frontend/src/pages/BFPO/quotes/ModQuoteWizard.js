@@ -276,7 +276,8 @@ export default function ModQuoteWizard({ group, onDone, onCancel }) {
     return () => clearTimeout(t);
   }, [payload, customer, rows.length, options.length]);
 
-  const canNext = [!!customer?.site_id, rows.some((r) => r.qty > 0), options.length > 0, true][stage];
+  const unmapped = rows.filter((r) => r.qty > 0 && !r.rate_card_id).length;
+  const canNext = [!!customer?.site_id, rows.some((r) => r.qty > 0) && !unmapped, options.length > 0, true][stage];
   const toggle = (t) => setOptions(options.includes(t) ? options.filter((o) => o !== t) : [...options, t]);
   const save = async () => {
     setSaving(true);

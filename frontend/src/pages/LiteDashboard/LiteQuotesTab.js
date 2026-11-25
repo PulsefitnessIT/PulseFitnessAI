@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import ModPublishedQuotes from '../MODPortal/ModPublishedQuotes';
 import { FileText, Loader2, PenLine, CheckCircle2, ChevronLeft, RotateCcw, ShieldCheck } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -45,6 +46,7 @@ function SignPad({ onChange }) {
 
 export default function LiteQuotesTab({ API, headers, onChanged }) {
   const [list, setList] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
   const [sig, setSig] = useState('');
@@ -56,7 +58,8 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
     setLoading(true);
     try {
       const r = await axios.get(`${API}/mod/site/quotes`, { headers });
-      setList(r.data.quotes || []);
+      setList((r.data.quotes || []).filter((q) => !q.mod_group_id));
+      setGroups(r.data.groups || []);
     } catch { notify.error('Could not load quotes'); }
     setLoading(false);
   }, [API]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -89,13 +92,18 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
   if (!active) {
     return (
       <div data-testid="lite-quotes-list">
-        {list.length === 0 ? (
+        {groups.length > 0 && (
+          <div className="rounded-2xl p-4 mb-4 bg-zinc-900 dark:bg-zinc-900" data-testid="lite-mod-quote-groups">
+            <ModPublishedQuotes API={API} groups={groups} onChanged={() => { load(); if (onChanged) onChanged(); }} />
+          </div>
+        )}
+        {list.length === 0 && groups.length === 0 ? (
           <div className="rounded-2xl border py-16 px-6 text-center" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="lite-quotes-empty">
             <FileText size={30} className="mx-auto text-slate-300" />
             <p className="mt-3 font-semibold" style={{ color: 'var(--theme-text)' }}>No quotes yet</p>
             <p className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>When Pulse Fitness sends you a quote, it will appear here to review and sign — no extra login needed.</p>
           </div>
-        ) : (
+        ) : list.length === 0 ? null : (
           <div className="space-y-3">
             {list.map(q => (
               <button key={q.id} onClick={() => openDetail(q.id)} data-testid={`lite-quote-row-${q.id}`}

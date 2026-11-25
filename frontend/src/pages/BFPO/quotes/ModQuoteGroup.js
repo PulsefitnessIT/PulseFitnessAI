@@ -58,7 +58,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
         )}
         {g.status === 'approved' && <Btn icon={Globe2} primary disabled={busy || !sel.length} data-testid="mq-publish"
           onClick={() => window.confirm(`Publish ${sel.length} quotation(s) to the MODService portal for ${c.name}?`) && act(() => mq.post(`/groups/${g.id}/publish`, { quote_ids: sel }), 'Published to MODService')}>Publish to MODService</Btn>}
-        {g.quotes.some((q) => q.customer_visible) && <Btn icon={Mail} disabled={busy} data-testid="mq-notify"
+        {g.quotes.some((q) => q.customer_visible) && !['accepted', 'handed_over', 'withdrawn'].includes(g.status) && <Btn icon={Mail} disabled={busy} data-testid="mq-notify"
           onClick={() => window.confirm(`Email ${c.contact_email || 'the customer'} that quotations are ready (PDFs attached)?`) && act(() => mq.post(`/groups/${g.id}/notify`, { resend: g.notified_revision === g.revision }), 'Customer notified')}>
           {g.notified_revision === g.revision ? 'Resend notification' : 'Notify customer'}</Btn>}
         <Btn icon={Archive} data-testid="mq-download-all" onClick={() => downloadBlob(`/groups/${g.id}/pdfs.zip`, `MOD-Quotations-${c.name}.zip`).catch((e) => notify.error(errText(e)))}>Download all PDFs</Btn>
@@ -110,7 +110,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
         <div className="rounded-xl p-4" style={card} data-testid="mq-history">
           <div className="font-semibold mb-2 flex items-center gap-2"><FileText size={14} /> History</div>
           <ul className="text-sm space-y-1.5 max-h-72 overflow-y-auto">
-            {g.events.map((e) => <li key={e.id}><span className="font-medium">{e.kind.replace(/_/g, ' ')}</span> <span style={muted}>· {e.user_name} · {new Date(e.at).toLocaleString('en-GB')}{e.version ? ` · v${e.version}` : ''}</span></li>)}
+            {g.events.map((e) => <li key={e.id}><span className="font-medium">{e.kind.replace(/_/g, ' ')}{e.detail?.option ? ` — ${e.detail.option} ${e.detail.ref}` : ''}</span> <span style={muted}>· {e.user_name} · {new Date(e.at).toLocaleString('en-GB')}{e.version ? ` · v${e.version}` : ''}</span></li>)}
           </ul>
         </div>
       </div>

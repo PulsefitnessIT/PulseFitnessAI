@@ -25,7 +25,8 @@ export async function downloadBlob(path, filename) {
   const url = URL.createObjectURL(r.data);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename;
+  const cd = r.headers['content-disposition'] || '';
+  a.download = (cd.match(/filename="([^"]+)"/) || [])[1] || filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
