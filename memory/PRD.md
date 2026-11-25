@@ -39502,3 +39502,7 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Chases: publish sets chase_schedule (+14/+28/+42 days, UTC). run_chases() runs inside the weekday 7am cm-daily-checks cron (5-cron limit) and via manager button. Each due chase: follow-up for the quote creator (mod_quote_followups), customer email WITH PDFs attached, internal reminder email to creator — emails only when MOD_QUOTE_NOTIFY_LIVE=true (dry-run in preview). Cancelled once authorised/accepted/withdrawn/expired. Follow-ups tab in MOD Operations → Quotations.
 - Notify email no longer assumes MODService; PDFs attached by default. Import previews can be discarded (DELETE /rates/{pid}).
 - Tests: backend/tests/test_mod_quote_chase.py (4), iteration_319 13/13 backend + all UI flows pass.
+
+## 2026-11-25 (late) — Year 4 Schedule B for live + provenance hidden from staff
+- Approved workbook stored in private object storage (`gymaxis-ai/restricted/mod-schedule-b/LSLDC0186-amdt3-year4.xlsx`, SHA-256 pinned). Boot step `ensure_year4_schedule_b()` (utils/mod_schedule_b_bootstrap.py, called from cm_integrity boot) applies it once in any environment with no genuine live list; never overrides a later manager approval; `MOD_SCHEDULE_B_BOOTSTRAP=off` disables. Verified in a fresh simulated DB: applied → 65 verified, customer_ready; second run already_applied.
+- Staff (non Master Admin) no longer see price source, approver, version, Schedule B refs or price-list history; `/rates/price-lists` is Master Admin only.

@@ -255,4 +255,12 @@ async def run_integrity_boot() -> dict:
     await _qi_indexes()
     return {"fabricated_sicon_refs_removed": fixed_sicon, "fabricated_sage_refs_removed": fixed_sage,
             "mod_rates_classified": classified, "mod_rates_marked_historical": hist.modified_count,
-            "mod_rates_marked_synthetic": test_marked}
+            "mod_rates_marked_synthetic": test_marked, "mod_schedule_b": await _bootstrap_schedule_b()}
+
+
+async def _bootstrap_schedule_b() -> str:
+    try:
+        from utils.mod_schedule_b_bootstrap import ensure_year4_schedule_b
+        return await ensure_year4_schedule_b()
+    except Exception as e:  # never block boot; retried on next start
+        return f"error: {e}"[:200]

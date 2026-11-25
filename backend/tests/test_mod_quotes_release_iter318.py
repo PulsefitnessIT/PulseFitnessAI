@@ -67,7 +67,10 @@ def test_rates_current_manager(mgr):
     d = r.json()
     assert isinstance(d["rows"], list) and len(d["rows"]) > 0
     assert isinstance(d["summary"], dict)
-    assert d["customer_ready"] is False
+    # The approved Year 4 Schedule B is live; staff never see where prices came from.
+    assert d["customer_ready"] is True
+    assert set(d["live_price_list"]) <= {"effective_from", "synthetic"}
+    assert all(f not in r[k] for r in d["rows"] for k in ("a", "b") for f in ("source", "approved_by", "code"))
     row = d["rows"][0]
     assert {"a", "b", "label", "item_no"} <= set(row)
     assert "status" in row["a"] and "price" in row["a"]
@@ -104,7 +107,11 @@ def test_live_card_unchanged_after_blocked_approve(mgr):
     r = mgr.get(f"{MQ}/rates/current")
     assert r.status_code == 200
     assert r.json()["rows"] == STATE["rates_before"]
-    assert r.json()["customer_ready"] is False
+    assert r.json()["customer_ready"] is True
+
+
+def test_price_list_history_master_admin_only(mgr):
+    assert mgr.get(f"{MQ}/rates/price-lists").status_code == 403
 
 
 def test_rep_cannot_import_rates(rep):
@@ -145,21 +152,19 @@ def test_pdf_and_zip(mgr):
     assert z.content[:2] == b"PK"
 
 
-def test_submit_and_approve_refused(mgr, rep):
+def test_submit_and_approve_with_approved_rates(mgr, rep):
     gid = STATE["gid"]
     r = mgr.post(f"{MQ}/groups/{gid}/submit")
     assert r.status_code == 200, r.text
     g = mgr.get(f"{MQ}/groups/{gid}").json()
     assert g["status"] == "pending_approval"
     unv = sum(len(q.get("unverified_rate_lines") or []) for q in g["quotes"])
-    assert unv > 0, "expected unverified lines (preview card is test data)"
+    assert unv == 0, "every line should use an approved Year 4 rate"
     rr = rep.post(f"{MQ}/groups/{gid}/approve", json={"approve": True, "exceptions": []})
     assert rr.status_code == 403, rr.text
     a = mgr.post(f"{MQ}/groups/{gid}/approve", json={"approve": True, "exceptions": []})
-    assert a.status_code in (400, 409, 422), a.text
-    assert "detail" in a.json()
-    print("approve refusal:", a.json()["detail"])
-    assert mgr.get(f"{MQ}/groups/{gid}").json()["status"] == "pending_approval"
+    assert a.status_code == 200, a.text
+    assert mgr.get(f"{MQ}/groups/{gid}").json()["status"] == "approved"
 
 
 def test_portal_hides_unpublished():

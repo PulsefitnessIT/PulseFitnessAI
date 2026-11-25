@@ -948,8 +948,13 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
         raise HTTPException(409, "Price list is not awaiting approval")
     if pl.get("synthetic") and not synthetic_rates_allowed():
         raise HTTPException(409, "This workbook is marked SYNTHETIC TEST DATA and cannot replace the live Schedule of Rates")
+    return await approve_price_list(pl, body.effective_from.isoformat(),
+                                    body.expires_on.isoformat() if body.expires_on else None, user)
+
+
+async def approve_price_list(pl: dict, eff: str, exp: str | None, user: dict) -> dict:
+    pid = pl["id"]
     card = list((await _card_by_id()).values())
-    eff, exp = body.effective_from.isoformat(), (body.expires_on.isoformat() if body.expires_on else None)
     version = f"SOR-{eff}-{pid[:6]}"
     created: dict[str, dict] = {}
     for e in pl["entries"]:
@@ -1002,7 +1007,9 @@ async def rates_discard(pid: str, user=Depends(require_operator_crm_user)):
 
 @router.get("/rates/price-lists")
 async def price_lists(user=Depends(require_operator_crm_user)):
-    _need(user, PERM_PRICING)
+    # Price-list provenance (source files, approvers, versions) is Master Admin only.
+    if not user.get("is_master_admin"):
+        raise HTTPException(403, "Price list history is available to Master Admin only")
     return {"items": await db.mod_sor_price_lists.find({}, {"_id": 0, "entries": 0}).sort("uploaded_at", -1).to_list(50)}
 
 
@@ -1045,8 +1052,16 @@ async def rates_current(user=Depends(require_operator_crm_user)):
         for k in ("a", "b"):
             if r[k]["price"] is not None or r[k]["status"] == "poa":
                 summary[r[k]["status"]] = summary.get(r[k]["status"], 0) + 1
-    return {"rows": rows, "live_price_list": live, "summary": summary,
-            "customer_ready": bool(live) and not live.get("synthetic") and set(summary) <= {"verified", "poa"}}
+    ready = bool(live) and not live.get("synthetic") and set(summary) <= {"verified", "poa"}
+    if not user.get("is_master_admin"):
+        # Staff see prices, item codes, status and dates — never where the prices came from.
+        for r in rows:
+            r.pop("price_list_version", None)
+            for k in ("a", "b"):
+                for f in ("source", "approved_by", "code"):
+                    r[k].pop(f, None)
+        live = {"effective_from": live.get("effective_from"), "synthetic": bool(live.get("synthetic"))} if live else None
+    return {"rows": rows, "live_price_list": live, "summary": summary, "customer_ready": ready}
 
 
 @router.get("/me")
@@ -1058,7 +1073,7 @@ async def my_capabilities(user=Depends(_sales)):
         except HTTPException:
             return False
     return {"sales": True, "manager": can(PERM_APPROVE), "pricing": can(PERM_PRICING),
-            "name": user.get("full_name") or user.get("email")}
+            "master": bool(user.get("is_master_admin")), "name": user.get("full_name") or user.get("email")}
 
 
 # ── MOD Service Operations handover queue ──────────────────────────────

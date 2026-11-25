@@ -280,35 +280,35 @@ function RateCell({ r }) {
   return (
     <td>
       <div className="mq-num font-semibold">{r.status === 'poa' ? 'POA' : r.price == null ? '—' : gbp(r.price)}</div>
-      <div className="text-xs mq-muted">{r.code || '—'}{r.sage_code ? ` · ${r.sage_code}` : ''}{r.ambiguous ? ' · shared code' : ''}</div>
+      <div className="text-xs mq-muted">{[r.sage_code, r.code].filter(Boolean).join(' · ') || '—'}</div>
       <div className="mt-1"><StatusChip status={r.status} label={RATE_LABEL[r.status]} /></div>
     </td>
   );
 }
 
-function CurrentRates({ data }) {
+function CurrentRates({ data, master }) {
   const live = data.live_price_list;
   const s = data.summary || {};
   return (
     <div className="space-y-3" data-testid="mq-sor-current">
       {data.customer_ready ? (
-        <Banner tone="ok" icon={ShieldCheck} testid="mq-sor-ready">Live Schedule of Rates <b>{live.version}</b> · effective {live.effective_from} · approved by {live.approved_by}.</Banner>
+        <Banner tone="ok" icon={ShieldCheck} testid="mq-sor-ready">Approved Schedule of Rates in use · effective {live.effective_from ? new Date(live.effective_from).toLocaleDateString('en-GB') : '—'}{master && live.version ? ` · ${live.version} · approved by ${live.approved_by}` : ''}.</Banner>
       ) : (
         <Banner tone="bad" icon={ShieldAlert} testid="mq-sor-not-approved">
-          <b>Not an approved live price list.</b> {live ? `Version ${live.version}${live.synthetic ? ' is synthetic test data' : ''}.` : 'No Schedule B price list is live.'}{' '}
+          <b>Not an approved live price list.</b> {live ? (live.synthetic ? 'The current list is test data.' : '') : 'No Schedule of Rates is live.'}{' '}
           {s.test_data ? `${s.test_data} rate(s) come from test data. ` : ''}{s.unverified ? `${s.unverified} rate(s) are not approved. ` : ''}{s.historical ? `${s.historical} rate(s) are historical only. ` : ''}
           Quotations can be drafted and compared internally, but publishing to customers is blocked until every line uses an approved rate or a manager-approved exception.
         </Banner>
       )}
       <div className="mq-card overflow-x-auto max-h-[32rem]">
         <table className="mq-table mq-table--dense">
-          <thead><tr><th>Item</th><th>Equipment</th><th>Type A</th><th>Type B</th><th>Effective</th><th>Source</th></tr></thead>
+          <thead><tr><th>Item</th><th>Equipment</th><th>Type A</th><th>Type B</th><th>Effective</th>{master && <th>Source</th>}</tr></thead>
           <tbody>{data.rows.map((r) => (
             <tr key={r.id} data-testid={`mq-sor-row-${r.item_no}`}>
               <td className="font-semibold">{r.item_no}</td><td>{r.label}{r.kind === 'call_out' ? <div className="text-xs mq-muted">Call-out</div> : null}</td>
               <RateCell r={r.a} /><RateCell r={r.b} />
-              <td className="text-xs whitespace-nowrap">{r.a.effective_from || r.b.effective_from || '—'}{(r.a.expires_on || r.b.expires_on) ? <div className="mq-muted">to {r.a.expires_on || r.b.expires_on}</div> : null}</td>
-              <td className="text-xs mq-muted max-w-[16rem]">{r.a.source || r.b.source || '—'}{r.price_list_version ? <div>{r.price_list_version}</div> : null}</td>
+              <td className="text-xs whitespace-nowrap">{fmtDate(r.a.effective_from || r.b.effective_from)}{(r.a.expires_on || r.b.expires_on) ? <div className="mq-muted">to {fmtDate(r.a.expires_on || r.b.expires_on)}</div> : null}</td>
+              {master && <td className="text-xs mq-muted max-w-[16rem]">{r.a.source || r.b.source || '—'}{r.price_list_version ? <div>{r.price_list_version}</div> : null}</td>}
             </tr>))}</tbody>
         </table>
       </div>
@@ -316,16 +316,16 @@ function CurrentRates({ data }) {
   );
 }
 
-function Pricing() {
+function Pricing({ master }) {
   const [preview, setPreview] = useState(null);
   const [lists, setLists] = useState([]);
   const [current, setCurrent] = useState(null);
   const [busy, setBusy] = useState(false);
   const [eff, setEff] = useState(new Date().toISOString().slice(0, 10));
   const reload = useCallback(() => {
-    mq.get('/rates/price-lists').then((r) => setLists(r.data.items)).catch(() => {});
+    if (master) mq.get('/rates/price-lists').then((r) => setLists(r.data.items)).catch(() => {});
     mq.get('/rates/current').then((r) => setCurrent(r.data)).catch((e) => notify.error(errText(e)));
-  }, []);
+  }, [master]);
   useEffect(() => { reload(); }, [reload]);
   const upload = async (f) => {
     if (!f) return;
@@ -344,7 +344,7 @@ function Pricing() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><div className="font-semibold">Current Schedule of Rates</div><div className="text-sm mq-muted">Type A and Type B are approved separately. Only approved rates can reach customers.</div></div>
         <label className="mq-btn cursor-pointer" data-testid="mq-sor-upload-label">
-          {busy ? <span className="mq-spin" aria-hidden /> : <Upload size={15} aria-hidden />} Import Schedule B workbook
+          {busy ? <span className="mq-spin" aria-hidden /> : <Upload size={15} aria-hidden />} Import price list workbook
           <input type="file" accept=".xlsx" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} data-testid="mq-sor-upload" />
         </label>
       </div>
@@ -357,10 +357,10 @@ function Pricing() {
           )}
           <div className="overflow-x-auto max-h-96">
             <table className="mq-table mq-table--dense text-xs">
-              <thead><tr><th>ID</th><th>Item</th><th>Sage code</th><th>Schedule B ref</th><th>Updates</th><th className="mq-num">Current</th><th className="mq-num">New</th><th>Change</th></tr></thead>
+              <thead><tr>{master && <th>ID</th>}<th>Item</th><th>Sage code</th>{master && <th>Schedule B ref</th>}<th>Updates</th><th className="mq-num">Current</th><th className="mq-num">New</th><th>Change</th></tr></thead>
               <tbody>{preview.rows.map((r) => (
                 <tr key={r.uid}>
-                  <td>{r.uid}</td><td>{r.name}{r.extended_description ? <div className="mq-muted">{r.extended_description}</div> : null}</td><td>{r.sage_code}{r.ambiguous_sage_code ? ' (shared)' : ''}</td><td>{r.tl_ref}</td><td className="mq-muted">{(r.matched || []).join(', ') || 'New rate-card entry'}</td>
+                  {master && <td>{r.uid}</td>}<td>{r.name}{r.extended_description ? <div className="mq-muted">{r.extended_description}</div> : null}</td><td>{r.sage_code}{r.ambiguous_sage_code ? ' (shared)' : ''}</td>{master && <td>{r.tl_ref}</td>}<td className="mq-muted">{(r.matched || []).join(', ') || 'New rate-card entry'}</td>
                   <td className="mq-num">{r.current_price ?? '—'}</td><td className="mq-num">{r.is_poa ? 'POA' : r.price}</td>
                   <td><StatusChip status={r.change === 'changed' ? 'pending_approval' : r.change === 'new' ? 'approved' : 'draft'} label={r.change} /></td>
                 </tr>))}</tbody>
@@ -374,8 +374,8 @@ function Pricing() {
           </div>
         </div>
       )}
-      {current ? <CurrentRates data={current} /> : <Skeleton rows={5} />}
-      <div className="mq-card p-5" data-testid="mq-sor-history">
+      {current ? <CurrentRates data={current} master={master} /> : <Skeleton rows={5} />}
+      {master && <div className="mq-card p-5" data-testid="mq-sor-history">
         <div className="font-semibold mb-3">Price list history</div>
         <ul className="text-sm divide-y" style={{ borderColor: 'var(--theme-border)' }}>
           {lists.map((l) => (
@@ -387,7 +387,7 @@ function Pricing() {
           ))}
           {!lists.length && <li className="py-2 mq-muted">No Schedule B imports yet.</li>}
         </ul>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -397,7 +397,7 @@ const SECTIONS = {
   auth: ['Customer authorisations', FileCheck2, 'Customer purchase-order authorisations awaiting manager verification.'],
   followups: ['Follow-ups', PhoneCall, 'Each published quotation is chased 2, 4 and 6 weeks after publication: the customer is emailed the quotation PDFs and the quote owner gets a reminder here.'],
   handover: ['Service handover', Truck, 'Accepted quotations passed to MOD Service Operations for contract set-up.'],
-  pricing: ['Schedule of Rates', Tags, 'The Schedule B price list used for every MOD quotation.'],
+  pricing: ['Schedule of Rates', Tags, 'The approved price list used for every MOD quotation.'],
 };
 
 export default function ModQuotations() {
@@ -436,7 +436,7 @@ export default function ModQuotations() {
         {tab === 'followups' && <Followups caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
         {tab === 'auth' && <Authorisations caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
         {tab === 'handover' && <Handovers caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
-        {tab === 'pricing' && <Pricing />}
+        {tab === 'pricing' && <Pricing master={caps.master} />}
       </>
     );
   }
