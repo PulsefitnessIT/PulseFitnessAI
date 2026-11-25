@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="26" time="29.168" timestamp="2026-11-25T14:25:39.193456+00:00" hostname="agent-env-5f3a6e50-70cd-47b2-8f5d-2dbbd87be14c"><testcase classname="tests.test_system_access_iter321" name="test_title_never_grants[sales_manager-manager]" time="5.180" /><testcase classname="tests.test_system_access_iter321" name="test_title_never_grants[service_aftersales_manager-manager]" time="0.009" /><testcase classname="tests.test_system_access_iter321" name="test_title_never_grants[sales_coordinator-staff]" time="0.008" /><testcase classname="tests.test_system_access_iter321" name="test_title_never_grants[manager-manager]" time="0.011" /><testcase classname="tests.test_system_access_iter321" name="test_department_never_grants[Sales]" time="0.008"><failure message="AssertionError: HR department 'Sales' granted a Contracts role&#10;assert 'sales_manager' == 'none'&#10;  &#10;  - none&#10;  + sales_manager">dept = 'Sales'
+
+    @pytest.mark.parametrize("dept", ["Sales", "sales", "Sales Admin"])
+    def test_department_never_grants(dept):
+        async def go():
+            u = await _mk("administrator", dept=dept)
+            try:
+                return await resolve_workspace_role(await db.users.find_one({"id": u["id"]}, {"_id": 0}))
+            finally:
+                await _rm(u["id"])
+&gt;       assert run(go()) == "none", f"HR department {dept!r} granted a Contracts role"
+E       AssertionError: HR department 'Sales' granted a Contracts role
+E       assert 'sales_manager' == 'none'
+E         
+E         - none
+E         + sales_manager
+
+tests/test_system_access_iter321.py:117: AssertionError</failure></testcase><testcase classname="tests.test_system_access_iter321" name="test_department_never_grants[sales]" time="0.008"><failure message="AssertionError: HR department 'sales' granted a Contracts role&#10;assert 'sales_manager' == 'none'&#10;  &#10;  - none&#10;  + sales_manager">dept = 'sales'
+
+    @pytest.mark.parametrize("dept", ["Sales", "sales", "Sales Admin"])
+    def test_department_never_grants(dept):
+        async def go():
+            u = await _mk("administrator", dept=dept)
+            try:
+                return await resolve_workspace_role(await db.users.find_one({"id": u["id"]}, {"_id": 0}))
+            finally:
+                await _rm(u["id"])
+&gt;       assert run(go()) == "none", f"HR department {dept!r} granted a Contracts role"
+E       AssertionError: HR department 'sales' granted a Contracts role
+E       assert 'sales_manager' == 'none'
+E         
+E         - none
+E         + sales_manager
+
+tests/test_system_access_iter321.py:117: AssertionError</failure></testcase><testcase classname="tests.test_system_access_iter321" name="test_department_never_grants[Sales Admin]" time="0.008"><failure message="AssertionError: HR department 'Sales Admin' granted a Contracts role&#10;assert 'sales_manager' == 'none'&#10;  &#10;  - none&#10;  + sales_manager">dept = 'Sales Admin'
+
+    @pytest.mark.parametrize("dept", ["Sales", "sales", "Sales Admin"])
+    def test_department_never_grants(dept):
+        async def go():
+            u = await _mk("administrator", dept=dept)
+            try:
+                return await resolve_workspace_role(await db.users.find_one({"id": u["id"]}, {"_id": 0}))
+            finally:
+                await _rm(u["id"])
+&gt;       assert run(go()) == "none", f"HR department {dept!r} granted a Contracts role"
+E       AssertionError: HR department 'Sales Admin' granted a Contracts role
+E       assert 'sales_manager' == 'none'
+E         
+E         - none
+E         + sales_manager
+
+tests/test_system_access_iter321.py:117: AssertionError</failure></testcase><testcase classname="tests.test_system_access_iter321" name="test_vc_driver_workspace_me" time="4.903" /><testcase classname="tests.test_system_access_iter321" name="test_sales_manager_enables_crm_fresh" time="0.009" /><testcase classname="tests.test_system_access_iter321" name="test_coordinator_to_sales_manager_keeps_crm" time="0.009"><failure message="AssertionError: CRM was switched OFF when moving coordinator -&gt; sales_manager&#10;assert False is True">def test_coordinator_to_sales_manager_keeps_crm():
+        async def go():
+            u = await _mk("administrator")
+            try:
+                await set_explicit_role(await db.users.find_one({"id": u["id"]}, {"_id": 0}), "contract_coordinator", actor="TEST")
+                await set_explicit_role(await db.users.find_one({"id": u["id"]}, {"_id": 0}), "sales_manager", actor="TEST")
+                return await db.users.find_one({"id": u["id"]}, {"_id": 0})
+            finally:
+                await _rm(u["id"])
+        after = run(go())
+        assert after["crm_workspace_role"] == "sales_manager"
+&gt;       assert after["module_overrides"]["crm"] is True, "CRM was switched OFF when moving coordinator -&gt; sales_manager"
+E       AssertionError: CRM was switched OFF when moving coordinator -&gt; sales_manager
+E       assert False is True
+
+tests/test_system_access_iter321.py:160: AssertionError</failure></testcase><testcase classname="tests.test_system_access_iter321" name="test_http_sales_manager_opens_crm" time="2.516" /><testcase classname="tests.test_system_access_iter321" name="test_untick_mod_ops_clears_quote_role" time="0.514" /><testcase classname="tests.test_system_access_iter321" name="test_extra_permissions_not_list[finance.post]" time="0.145" /><testcase classname="tests.test_system_access_iter321" name="test_extra_permissions_not_list[bad1]" time="0.103" /><testcase classname="tests.test_system_access_iter321" name="test_extra_permissions_not_list[5]" time="0.097" /><testcase classname="tests.test_system_access_iter321" name="test_access_changed_at_not_written" time="0.248" /><testcase classname="tests.test_system_access_iter321" name="test_offboarding_by_email_revokes" time="3.977" /><testcase classname="tests.test_system_access_iter321" name="test_master_admin_row" time="0.156" /><testcase classname="tests.test_system_access_iter321" name="test_can[admin-True]" time="1.206" /><testcase classname="tests.test_system_access_iter321" name="test_can[owner-True]" time="1.218" /><testcase classname="tests.test_system_access_iter321" name="test_can[vc-False]" time="1.278" /><testcase classname="tests.test_system_access_iter321" name="test_can[craig-False]" time="1.270" /><testcase classname="tests.test_system_access_iter321" name="test_can[modmgr-False]" time="1.270" /><testcase classname="tests.test_system_access_iter321" name="test_can[coord-False]" time="1.185" /><testcase classname="tests.test_system_access_iter321" name="test_can_unauthenticated" time="0.122" /><testcase classname="tests.test_system_access_iter321" name="test_regression_coordinator_and_noaccess" time="3.282" /></testsuite></testsuites>

@@ -591,6 +591,7 @@ export default function CRMApp({ workspace = 'crm' } = {}) {
   // surfaced as a badge on the Documents tab so staff notice without opening it.
   const [expiringDocs, setExpiringDocs] = useState(0);
   useEffect(() => {
+    if (!localStorage.getItem('crm_token')) return;
     axios.get(`${API}/crm/v2/documents-expiring-count`, { headers: headers() })
       .then((r) => setExpiringDocs(r.data?.expiring_soon || 0))
       .catch(() => {});

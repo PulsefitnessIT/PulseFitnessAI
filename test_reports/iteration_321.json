@@ -1,0 +1,74 @@
+{
+  "summary": "Retest of the iteration_320 fixes. Backend: the new tests/test_system_access_iter321.py has 28 tests: 24 pass, 4 fail. The iter319 and iter320 regression suites pass 43/43. Confirmed fixed: (1) a job title alone no longer grants a role. sales_manager, service_aftersales_manager, sales_coordinator and manager titles all resolve to 'none'. (2) Assigning sales_manager to a user with no CRM role turns CRM on. Checked over HTTP: cm.noaccess -> /crm/workspace/me gives role sales_manager, workspaces crm:true and contract_management:false. Reverting clears CRM again. (3) Unticking MOD Operations clears mod_quote_role, and the 'MOD role but no MOD ops' issue goes away. (4) extra_permissions that is a string, a dict or an int is rejected with 400. access_changed_at is no longer written. (5) Offboarding by email: the synthetic staff record had no user_id and an upper-case email. The login was found and set to active:false with tokens_revoked_before. A token minted earlier now gets 401 on /auth/me. access_revoked is true, and mod_operations, mod_quote_role and crm_workspace_role are all cleared. (6) The Master Admin staff row shows 'Configured correctly' with no 'No login account linked', and its controls are disabled. (7) /system-access/can returns true for the master admin and for the owner portal@. It returns false for vc.driver, craig.henshall (manager), modsales.manager and cm.coordinator, and GET /system-access returns 403 for them. Unauthenticated calls get 401. Regression checks pass: the coordinator gets CM only, noaccess is denied, modsales.rep and cm.finance get 403 on approve and on pricing approve, Year 4 rates are live (Treadmill A 255 / B 24, Radiant Trainer and Freedom Trainer each 145.12), and no version or source is shown. Frontend: the owner sees hr-system-access-btn and the panel loads (23 rows, summary shown, no errors). (8) The audit drawer list has max-height 192px with overflow-y:auto (70 items, scrollHeight 1396, clientHeight 192), so it scrolls and does not overflow. The non-admin manager craig sees the HR tab but no System Access button, and no system-access 4xx requests were made. (9) ModCommitments calls /crm/workspace/mod-commitments with the crm_token, gets 200 with items=[], and renders nothing. With no crm_token it makes no request and logs no 401. Two NEW bugs were found (see critical).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "utils/crm_workspace.py derive_role / resolve_workspace_role",
+        "issue": "The HR department still grants a Contracts/CRM role. derive_role returns sales_manager when dept is in ('sales','sales admin'), and resolve_workspace_role fills dept from the linked staff_members.department. So any staff member whose HR department is 'Sales' or 'Sales Admin' gets sales_manager (workspace.crm, quotes, renewals.approve, pricing.commercial) with no explicit assignment. This breaks the requirement 'never from HR job titles or departments'. Reproduced: test_department_never_grants[Sales|sales|Sales Admin] fails ('sales_manager' != 'none'). No current Pulse user is affected (the only default sales_manager is cm.sales, through module_overrides.crm), but the hole is live for any new staff record. Fix: remove the dept branch, and consider whether the _SALES_PLATFORM_ROLES / module_overrides.crm defaults should also need an explicit role.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "utils/crm_workspace.py set_explicit_role (PUT /api/staffing/system-access/{id} contracts_role)",
+        "issue": "Changing a user from a CM role (for example contract_coordinator) to sales_manager turns CRM OFF. The CM role had set module_overrides.crm=True with crm_override_from_workspace=True. On the switch, the first branch is skipped because crm is already True, and the elif branch (role not in CM_ROLES and granted_by_ws) then sets module_overrides.crm=False. The user ends up as sales_manager with no CRM module, which is the same failure item 2 was meant to fix. Reproduced: test_coordinator_to_sales_manager_keeps_crm. Fix: change the elif to `elif role not in CM_ROLES and role != 'sales_manager' and granted_by_ws`, or define a CRM_GRANTING_ROLES set and use it in both branches.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "PUT /api/staffing/system-access/{id} mod_operations:false",
+        "issue": "mod_quote_role is only cleared when mod_operations actually changes (`on != has_mod_operations`). A user who already has a stale mod_quote_role but MOD ops off cannot have it cleared by sending mod_operations:false. Clear mod_quote_role whenever on is False."
+      },
+      {
+        "endpoint": "users collection",
+        "issue": "Two user docs still have a stale access_changed_at left over from iter320 (for example cm-test-none). It is harmless and no longer written."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Contract Management first load as cm.coordinator",
+        "issue": "There is still one console 401 on first load: GET /api/crm/v2/documents-expiring-count, called by CRMApp.js line 594. It probably fires before the crm_token is in place (race). It does not come from ModCommitments. Guard the call so it only runs once the token exists.",
+        "affected_selectors": []
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "System Access panel",
+        "issues": [
+          "The Master Admin row's role select shows 'Not assigned (Administrator)' even though the access comes from the platform admin. A read-only 'Administrator (platform admin)' label would be clearer.",
+          "ModCommitments returns null when there are no items, so no explicit empty-state message is shown (acceptable, just noting it)."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_system_access_iter321.py",
+    "/app/test_reports/pytest/iter321_system_access.xml"
+  ],
+  "action_items": [
+    "Remove the HR-department fallback (dept in 'sales'/'sales admin') from derive_role so a department never grants sales_manager",
+    "Fix set_explicit_role so moving from a CM role to sales_manager keeps module_overrides.crm=True",
+    "Optional: always clear mod_quote_role when mod_operations:false is sent",
+    "Optional: guard CRMApp documents-expiring-count until the crm_token exists to remove the first-load 401"
+  ],
+  "critical_code_review_comments": [
+    "set_explicit_role: the CRM-grant condition (CM_ROLES or sales_manager) and the revoke condition (not in CM_ROLES) are asymmetric. Use one CRM_GRANTING_ROLES set.",
+    "derive_role still has implicit defaults: platform role sales/sales_rep/sales_user, module_overrides.crm True, and HR department. Only the department one clearly breaks the stated rule.",
+    "staff_access.set_access still takes a raw dict body. A Pydantic model would validate types for every field, not only extra_permissions.",
+    "complete_offboarding calls assert_staff_visible twice and has the docstring placed after the code (cosmetic)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_system_access_iter321.py"
+  ],
+  "success_rate": {
+    "backend": "86% (24/28 new tests; 43/43 iter319+iter320 regression)",
+    "frontend": "100% of the requested UI checks (owner button and panel, non-admin hidden, audit scroll, ModCommitments without 401)"
+  },
+  "seed_data_creation": "Only synthetic TEST_i321_* users, staff records and offboarding cases were created in-process. All were deleted (count 0 verified). cm-test-none and cm-test-fin were changed through System Access and restored. A snapshot diff shows only the crm_workspace_role_updated_at timestamp changed. Real-person records were not touched. No customer email was sent.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_system_access_iter321.py tests/test_system_access_iter320.py tests/test_staff_access_inprocess_iter320.py tests/test_system_access_sales_probe_iter320.py tests/test_mod_quote_chase_iter319.py -p no:xdist. The expected failures until fixed are test_department_never_grants x3 and test_coordinator_to_sales_manager_keeps_crm. The module fixture restores cm-test-none and cm-test-fin. The owner portal@pulsefitness.ltd lands on /pulse; open Staffing -> staffing-tab-people -> staffing-subtab-hr -> hr-system-access-btn. The master admin gets a token directly from /api/auth/login (MFA not enforced at login).",
+  "rca of the issue": "Department bug: resolve_workspace_role copies staff_members.department onto the user before calling derive_role, and derive_role has `dept in ('sales','sales admin') -> sales_manager`. CRM-off bug: in set_explicit_role, when crm is already True (granted by the workspace for a CM role) the grant branch is skipped, and the revoke branch only checks `role not in CM_ROLES`, so sales_manager hits the revoke branch."
+}

@@ -39506,3 +39506,16 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 ## 2026-11-25 (late) — Year 4 Schedule B for live + provenance hidden from staff
 - Approved workbook stored in private object storage (`gymaxis-ai/restricted/mod-schedule-b/LSLDC0186-amdt3-year4.xlsx`, SHA-256 pinned). Boot step `ensure_year4_schedule_b()` (utils/mod_schedule_b_bootstrap.py, called from cm_integrity boot) applies it once in any environment with no genuine live list; never overrides a later manager approval; `MOD_SCHEDULE_B_BOOTSTRAP=off` disables. Verified in a fresh simulated DB: applied → 65 verified, customer_ready; second run already_applied.
 - Staff (non Master Admin) no longer see price source, approver, version, Schedule B refs or price-list history; `/rates/price-lists` is Master Admin only.
+
+## Final Operations Release Sprint (2026-06)
+- Contracts role derivation is least-privilege. Job title and department never grant a role. Only an explicit role, an explicit CRM module grant, a sales login role or platform admin does.
+- New Staffing → HR → System Access panel (routes/staff_access.py, SystemAccessPanel.js), owner/admin only (/staffing/system-access/can). It shows login, modules, the Contracts role, the MOD role and any issues, and every change is audited.
+- Offboarding now disables the login matched by email, and clears CRM/MOD access.
+- Year 4 Schedule B is approved in preview and in production (prod: SOR-2026-11-25-af73ec; 19 of 51 production card entries are on the live version).
+- MOD follow-ups at 2, 4 and 6 weeks go to the quote creator. Customer email is a DRY RUN (MOD_QUOTE_NOTIFY_LIVE is not set in prod).
+- Tests: iteration_320 and 321, plus tests/test_system_access_iter321.py (28 tests).
+### Open
+- Prod: Claire Johnson and Mandy Gosnell have coordinator grants but no user accounts yet. Becky Hassell's grant is applied.
+- Prod: 32 rate-card entries are not on the Year 4 version, so quotes using them are blocked until they are priced.
+- Sales-department staff in prod who have no CRM module grant will no longer get sales_manager automatically. Review in System Access.
+- Maintenance Master reconciliation needs the 12 Nov 2026 workbook. Use Save to Github to commit.

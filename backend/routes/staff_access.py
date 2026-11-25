@@ -206,6 +206,8 @@ async def set_access(user_id: str, data: dict, user=Depends(_admin)):
             changes.append("mod_quote_role")
     if "mod_operations" in data:
         on = bool(data["mod_operations"])
+        if not on and (target.get("mod_quote_role") or data.get("mod_quote_role")):
+            await db.users.update_one({"id": user_id}, {"$set": {"mod_quote_role": None}})
         if on != has_mod_operations(target):
             upd = {"module_overrides.mod_operations": on} | ({} if on else {"mod_quote_role": None})
             await db.users.update_one({"id": user_id}, {"$set": upd})

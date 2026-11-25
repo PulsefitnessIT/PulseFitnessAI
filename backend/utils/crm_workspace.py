@@ -100,12 +100,11 @@ def derive_role(platform_user: dict) -> str:
     # Only genuine sales staff keep the historical CRM sales access by default.
     # Everyone else (service admin, coordinators, managers by job title …) needs an
     # explicit workspace role — a job title or "manager" login never grants it.
-    dept = str(platform_user.get("department") or "").lower()
     mo = platform_user.get("module_overrides") if isinstance(platform_user.get("module_overrides"), dict) else {}
     crm_granted = mo.get("crm") is True and not platform_user.get("crm_override_from_workspace")
     # Default CRM sales access only follows an explicit CRM module grant, a sales login role or
-    # membership of the Sales departments — never a job title.
-    if crm_granted or role in _SALES_PLATFORM_ROLES or dept in ("sales", "sales admin"):
+    # — never a job title or department.
+    if crm_granted or role in _SALES_PLATFORM_ROLES:
         return "sales_manager"
     return NO_ROLE
 
@@ -140,7 +139,7 @@ async def set_explicit_role(platform_user: dict, role: Optional[str], actor: str
         updates["module_overrides.crm"] = True
         updates["crm_override_from_workspace"] = True
         granted_by_ws = True
-    elif role not in CM_ROLES and granted_by_ws:
+    elif role not in CM_ROLES and role != "sales_manager" and granted_by_ws:
         # Undo a CRM grant that only existed because of a CM role.
         updates["module_overrides.crm"] = False
         updates["crm_override_from_workspace"] = False
