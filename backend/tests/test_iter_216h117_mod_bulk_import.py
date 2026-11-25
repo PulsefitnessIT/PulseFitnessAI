@@ -110,7 +110,7 @@ def test_bulk_import_requires_master_admin() -> None:
     """A non master admin must not be able to spin up new MOD orgs."""
     tok_master = _master_token()
     _seed_demo(tok_master)
-    parent = _find_org("mod_org", "British Army")
+    parent = _find_org("mod_org", "Demo Army HQ")
     assert parent
 
     import uuid as _uuid
@@ -139,7 +139,7 @@ def test_bulk_import_requires_master_admin() -> None:
 def test_bulk_import_creates_sites_and_returns_credentials(monkeypatch=None) -> None:
     tok = _master_token()
     _seed_demo(tok)
-    parent = _find_org("mod_org", "British Army")
+    parent = _find_org("mod_org", "Demo Army HQ")
     assert parent
 
     # Two rows — one under Demo Garrison branch, one under a NEW branch ID
@@ -217,7 +217,7 @@ def test_bulk_import_creates_sites_and_returns_credentials(monkeypatch=None) -> 
 
 def test_bulk_import_rejects_missing_site_name() -> None:
     tok = _master_token()
-    parent = _find_org("mod_org", "British Army")
+    parent = _find_org("mod_org", "Demo Army HQ")
     csv_blob = "wrong_col\nfoo\n"
     files = {"file": ("bad.csv", csv_blob.encode(), "text/csv")}
     r = requests.post(

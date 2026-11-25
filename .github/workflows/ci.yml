@@ -66,7 +66,11 @@ jobs:
 
       - name: Install frontend deps
         working-directory: frontend
-        run: yarn install --frozen-lockfile
+        run: |
+          yarn install --frozen-lockfile || {
+            echo "::warning file=frontend/yarn.lock::yarn.lock is out of date with package.json; installing without --frozen-lockfile. Commit the refreshed lockfile."
+            yarn install --non-interactive
+          }
 
       # Each gate runs as a separate step so a CI failure tells you EXACTLY
       # which check broke instead of one giant "pre-commit failed" log.

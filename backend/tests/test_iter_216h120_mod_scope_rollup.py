@@ -106,7 +106,7 @@ def _setup() -> tuple[str, dict, dict]:
     master = _master_token()
     _seed_demo(master)
     # Idempotent equipment populate.
-    army_hq = _find_org("mod_org", "British Army")
+    army_hq = _find_org("mod_org", "Demo Army HQ")
     assert army_hq
     requests.post(
         f"{API}/master-admin/mod/populate-demo-equipment"

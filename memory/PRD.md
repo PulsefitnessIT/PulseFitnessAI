@@ -39483,3 +39483,8 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Legacy CRM MOD generate + rate-card write endpoints → 410; CRMMODQuoteWizard removed; legacy test files skipped with reason.
 - Notify: recipient re-type, attachments opt-in, dry-run unless MOD_QUOTE_NOTIFY_LIVE=true.
 - Tests: MOD suites 44+ pass (test_mod_ops_quotes 14, http 13, iter316 17, iter317 8); testing agent iterations 316/317. Regression triage: memory/TEST_FAILURE_TRIAGE.md.
+
+## 2026-11-25 — GitHub Quality Gate repairs
+- pip-audit: audits the pinned freeze with --no-deps (emergentintegrations excluded, not on PyPI); upgraded 26 vulnerable packages (aiohttp, pillow 13, pymongo 4.18 + motor 3.7.1, pyjwt, pypdf, litellm 1.103.1, etc.); removed unused python-jose/ecdsa; 2 unreachable advisories ignored with justification. Local result: no known vulnerabilities.
+- Python job: regression tests were hitting the live preview URL from GitHub; CI now starts the backend locally on the mongo sidecar. Stale tests fixed (demo org renamed, MFA enrolment, master-admin allowed on MOD portal, missing purchase_orders mock). Simulated CI run: 97/97 pass.
+- Frontend job: corrected yarn.lock is not picked up by platform commits; CI falls back to a normal install with a warning when the lockfile is stale.

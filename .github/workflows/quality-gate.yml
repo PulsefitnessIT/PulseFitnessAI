@@ -88,11 +88,35 @@ jobs:
         working-directory: backend
         run: bandit -r routes utils models scripts -ll -q
 
+      - name: Start backend for API-level tests
+        # Regression tests call the HTTP API. Run the app locally against the mongo sidecar
+        # so tests never touch the live preview environment.
+        working-directory: backend
+        env:
+          MONGO_URL: mongodb://localhost:27017
+          DB_NAME: gymaxis_ci_regression
+          JWT_ALGORITHM: HS256
+          CORS_ORIGINS: "*"
+          LOGIN_RATE_LIMIT_MAX: "500"
+          LOGIN_RATE_LIMIT_WINDOW: "60"
+        run: |
+          export JWT_SECRET="ci-$(openssl rand -hex 24)"
+          export RATE_LIMIT_BYPASS_SECRET="ci-bypass-${{ github.run_id }}"
+          nohup python -m uvicorn server:app --host 127.0.0.1 --port 8001 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8001/api/health >/dev/null && echo "backend up" && exit 0
+            sleep 2
+          done
+          tail -n 80 /tmp/backend.log
+          exit 1
+
       - name: Pytest — security + smoke suite (fast, no LLM)
         working-directory: backend
         env:
           MONGO_URL: mongodb://localhost:27017
           DB_NAME: gymaxis_ci
+          TEST_API_URL: http://127.0.0.1:8001
+          RATE_LIMIT_BYPASS_SECRET: ci-bypass-${{ github.run_id }}
           LOGIN_RATE_LIMIT_MAX: "500"
           LOGIN_RATE_LIMIT_WINDOW: "60"
         run: |
@@ -119,9 +143,15 @@ jobs:
         env:
           MONGO_URL: mongodb://localhost:27017
           DB_NAME: gymaxis_ci_regression
+          TEST_API_URL: http://127.0.0.1:8001
+          RATE_LIMIT_BYPASS_SECRET: ci-bypass-${{ github.run_id }}
           LOGIN_RATE_LIMIT_MAX: "500"
           LOGIN_RATE_LIMIT_WINDOW: "60"
         run: pytest tests/regression -q --tb=short --maxfail=10
+
+      - name: Backend log (on failure)
+        if: failure()
+        run: tail -n 200 /tmp/backend.log || true
 
   # ────────────────────────────────────────────────────────────
   # Secret scanner — catches accidental API-key / private-key commits.
@@ -163,7 +193,11 @@ jobs:
 
       - name: Install frontend deps
         working-directory: frontend
-        run: yarn install --frozen-lockfile
+        run: |
+          yarn install --frozen-lockfile || {
+            echo "::warning file=frontend/yarn.lock::yarn.lock is out of date with package.json; installing without --frozen-lockfile. Commit the refreshed lockfile."
+            yarn install --non-interactive
+          }
 
       - name: ESLint
         working-directory: frontend
@@ -211,11 +245,19 @@ jobs:
       - name: Scan backend/requirements.txt
         working-directory: backend
         run: |
-          # Ignore the known-accepted residual litellm pin (tracked upstream
-          # via emergentintegrations). All other CVEs should block.
+          # requirements.txt is a fully pinned freeze, so audit it as-is (--no-deps --disable-pip).
+          # emergentintegrations is not on PyPI (installed from Emergent's index) and is excluded.
+          # Ignored, not reachable in our code:
+          #   GHSA-69x8-hrgq-fjj8, CVE-2026-35029, CVE-2026-35030 — litellm residuals via emergentintegrations
+          #   PYSEC-2026-4146 — pyjwt options-dict mutation; we never pass/reuse an options dict
+          #   GHSA-g75f-g53v-794x — bleach linkify(parse_email=True); we never call linkify
+          grep -v '^emergentintegrations==' requirements.txt > /tmp/requirements-audit.txt
           pip-audit \
-            --requirement requirements.txt \
+            --requirement /tmp/requirements-audit.txt \
+            --no-deps --disable-pip \
             --ignore-vuln GHSA-69x8-hrgq-fjj8 \
             --ignore-vuln CVE-2026-35029 \
             --ignore-vuln CVE-2026-35030 \
+            --ignore-vuln PYSEC-2026-4146 \
+            --ignore-vuln GHSA-g75f-g53v-794x \
             --strict

@@ -189,9 +189,11 @@ def _patch_requests_with_ratelimit_bypass():
     test suites with 429s. We read the secret directly from the running
     backend's .env file so there's no separate env plumbing needed.
     """
-    secret = ""
+    secret = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "")
     env_path = "/app/backend/.env"
     try:
+        if secret:
+            raise OSError
         with open(env_path, encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()

@@ -106,6 +106,8 @@ def _build_fake_db(*, equipment=None, contract_assets=None, contracts=None):
     fake_db.crm2_contract_assets.find = MagicMock(return_value=_async_find(contract_assets))
     fake_db.crm2_contracts = MagicMock()
     fake_db.crm2_contracts.find = MagicMock(return_value=_async_find(contracts))
+    fake_db.purchase_orders = MagicMock()
+    fake_db.purchase_orders.find_one = AsyncMock(return_value=None)
     return fake_db
 
 
