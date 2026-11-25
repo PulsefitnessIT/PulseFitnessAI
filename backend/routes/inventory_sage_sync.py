@@ -321,7 +321,8 @@ async def _do_run(user: dict, trigger: str, feed: List[dict]) -> dict:
             elif outcome == "updated":
                 run["updated"] += 1
             elif outcome == "skipped":
-                run["skipped"] += 1; run["duplicates_prevented"] += 1
+                run["skipped"] += 1
+                run["duplicates_prevented"] += 1
             elif outcome == "needs_mapping":
                 run["needs_mapping"] += 1
             elif outcome == "conflict":

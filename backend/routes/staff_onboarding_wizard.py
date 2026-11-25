@@ -472,7 +472,9 @@ async def _ensure_seed(org: str, user: dict):
 # ═════════════════════════ HR ENDPOINTS ═════════════════════════
 @router.get("/staff-onboarding/settings")
 async def get_settings(user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     s = await db.staff_onboarding_settings.find_one({"organization_id": org})
     s = dict(s or {})
     s.setdefault("email_pack_on_activation", True)
@@ -487,7 +489,9 @@ class SettingsPatch(BaseModel):
 
 @router.put("/staff-onboarding/settings")
 async def update_settings(body: SettingsPatch, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     upd = {"updated_at": _now()}
     if body.email_pack_on_activation is not None:
         upd["email_pack_on_activation"] = body.email_pack_on_activation
@@ -501,12 +505,15 @@ async def update_settings(body: SettingsPatch, user: dict = Depends(get_current_
 
 @router.get("/staff-onboarding/packages")
 async def get_packages(user: dict = Depends(get_current_user)):
-    _require_hr(user); return {"packages": PACKAGES}
+    _require_hr(user)
+    return {"packages": PACKAGES}
 
 
 @router.get("/staff-onboarding/templates")
 async def get_templates(user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     return {
         "offer": [_strip(t) for t in await db.staff_offer_templates.find({"organization_id": org}).to_list(100)],
         "contract": [_strip(t) for t in await db.staff_contract_templates.find({"organization_id": org}).to_list(100)],
@@ -590,7 +597,9 @@ def _doc_coll(kind: str):
 
 @router.post("/staff-onboarding/policies")
 async def create_policy(body: PolicyBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     key = _slugify(body.title)
     doc = {"id": str(uuid.uuid4()), "organization_id": org, "key": key, "title": body.title,
            "version": 1, "effective_date": _now(), "acknowledgement_required": body.acknowledgement_required,
@@ -601,28 +610,35 @@ async def create_policy(body: PolicyBody, user: dict = Depends(get_current_user)
 
 @router.put("/staff-onboarding/policies/{key}")
 async def update_policy(key: str, body: PolicyPatch, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     pol = await db.staff_policy_versions.find_one({"organization_id": org, "key": key})
     if not pol:
         raise HTTPException(404, "Policy not found")
     upd = {"updated_at": _now(), "is_sample": False}
-    if body.title is not None: upd["title"] = body.title
-    if body.body is not None: upd["body"] = body.body
-    if body.acknowledgement_required is not None: upd["acknowledgement_required"] = body.acknowledgement_required
+    if body.title is not None:
+        upd["title"] = body.title
+    if body.body is not None:
+        upd["body"] = body.body
+    if body.acknowledgement_required is not None:
+        upd["acknowledgement_required"] = body.acknowledgement_required
     await db.staff_policy_versions.update_one({"id": pol["id"]}, {"$set": upd})
     return _strip(await db.staff_policy_versions.find_one({"id": pol["id"]}))
 
 
 @router.delete("/staff-onboarding/policies/{key}")
 async def delete_policy(key: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     r = await db.staff_policy_versions.delete_one({"organization_id": org, "key": key})
     return {"ok": True, "deleted": r.deleted_count}
 
 
 @router.post("/staff-onboarding/agreements")
 async def create_agreement(body: AgreementBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     key = _slugify(body.title)
     doc = {"id": str(uuid.uuid4()), "organization_id": org, "key": key, "title": body.title,
            "version": 1, "effective_date": _now(), "requires_signature": body.requires_signature,
@@ -633,21 +649,26 @@ async def create_agreement(body: AgreementBody, user: dict = Depends(get_current
 
 @router.put("/staff-onboarding/agreements/{key}")
 async def update_agreement(key: str, body: AgreementPatch, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     ag = await db.staff_agreement_versions.find_one({"organization_id": org, "key": key})
     if not ag:
         raise HTTPException(404, "Agreement not found")
     upd = {"updated_at": _now(), "is_sample": False}
-    if body.title is not None: upd["title"] = body.title
-    if body.body is not None: upd["body"] = body.body
-    if body.requires_signature is not None: upd["requires_signature"] = body.requires_signature
+    if body.title is not None:
+        upd["title"] = body.title
+    if body.body is not None:
+        upd["body"] = body.body
+    if body.requires_signature is not None:
+        upd["requires_signature"] = body.requires_signature
     await db.staff_agreement_versions.update_one({"id": ag["id"]}, {"$set": upd})
     return _strip(await db.staff_agreement_versions.find_one({"id": ag["id"]}))
 
 
 @router.delete("/staff-onboarding/agreements/{key}")
 async def delete_agreement(key: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     r = await db.staff_agreement_versions.delete_one({"organization_id": org, "key": key})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -655,7 +676,8 @@ async def delete_agreement(key: str, user: dict = Depends(get_current_user)):
 @router.post("/staff-onboarding/cases/{case_id}/upload")
 async def hr_upload(case_id: str, file: UploadFile = File(...), document_type: str = Form("other"),
                     user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -667,7 +689,9 @@ async def upload_company_doc(kind: str, key: str, file: UploadFile = File(...),
                              user: dict = Depends(get_current_user)):
     """Upload a company's own policy/agreement PDF. Extracts the text so recruits can
     read it, then runs AI to detect where signatures/initials/dates are required."""
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     coll, flag = _doc_coll(kind)
     doc = await coll.find_one({"organization_id": org, "key": key})
     if not doc:
@@ -751,7 +775,8 @@ async def merge_fields(user: dict = Depends(get_current_user)):
 
 @router.post("/staff-onboarding/templates/preview")
 async def preview_template(body: TemplatePreview, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     if body.case_id:
         c = await db.staff_onboarding_cases.find_one({"id": body.case_id, "organization_id": org})
         staff = await db.staff_members.find_one({"id": c.get("staff_id")}) if c else None
@@ -766,7 +791,9 @@ async def reset_default_templates(user: dict = Depends(get_current_user)):
     """Re-seed the Pulse offer & contract templates to the latest built-in UK
     placeholder wording (only touches the built-in seed keys, leaves any custom
     or already-edited templates untouched)."""
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     reset = 0
     for tid, name, roles in SEED_OFFER_TEMPLATES:
         r = await db.staff_offer_templates.update_one(
@@ -785,7 +812,9 @@ async def reset_default_templates(user: dict = Depends(get_current_user)):
 
 @router.post("/staff-onboarding/templates/{kind}")
 async def create_template(kind: str, body: TemplateCreate, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     coll = _tmpl_coll(kind)
     key = "custom_" + uuid.uuid4().hex[:8]
     doc = {
@@ -799,7 +828,8 @@ async def create_template(kind: str, body: TemplateCreate, user: dict = Depends(
 
 @router.put("/staff-onboarding/templates/{kind}/{template_id}")
 async def update_template(kind: str, template_id: str, body: TemplateUpdate, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     coll = _tmpl_coll(kind)
     tmpl = await coll.find_one({"id": template_id, "organization_id": org})
     if not tmpl:
@@ -825,7 +855,8 @@ async def update_template(kind: str, template_id: str, body: TemplateUpdate, use
 
 @router.get("/staff-onboarding/templates/{kind}/{template_id}/versions")
 async def template_versions(kind: str, template_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     vers = await db.staff_template_versions.find(
         {"organization_id": org, "template_kind": kind, "template_id": template_id}
     ).sort("version", -1).to_list(100)
@@ -837,7 +868,8 @@ async def template_versions(kind: str, template_id: str, user: dict = Depends(ge
 
 @router.post("/staff-onboarding/cases/duplicate-check")
 async def duplicate_check(body: DupCheck, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     ors = []
     for em in filter(None, [body.personal_email, body.work_email]):
         ors.append({"email": em.lower()})
@@ -858,7 +890,9 @@ async def duplicate_check(body: DupCheck, user: dict = Depends(get_current_user)
 
 @router.post("/staff-onboarding/cases")
 async def create_case(body: CaseCreate, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user); await _ensure_seed(org, user)
+    _require_hr(user)
+    org = _org(user)
+    await _ensure_seed(org, user)
     staff_id = body.link_staff_id
     if staff_id:
         staff = await db.staff_members.find_one({"id": staff_id, "organization_id": org})
@@ -900,7 +934,8 @@ async def create_case(body: CaseCreate, user: dict = Depends(get_current_user)):
 
 @router.get("/staff-onboarding/cases")
 async def list_cases(user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     out = []
     for c in await db.staff_onboarding_cases.find({"organization_id": org}).sort("created_at", -1).to_list(500):
         staff = await db.staff_members.find_one({"id": c.get("staff_id")}) or {}
@@ -913,9 +948,11 @@ async def list_cases(user: dict = Depends(get_current_user)):
 
 @router.get("/staff-onboarding/dashboard")
 async def dashboard(user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     cases = await db.staff_onboarding_cases.find({"organization_id": org}).to_list(1000)
-    def count(pred): return sum(1 for c in cases if pred(c))
+    def count(pred):
+        return sum(1 for c in cases if pred(c))
     cards = {
         "paperwork_awaiting_review": count(lambda c: c.get("status") in ("submitted", "awaiting_hr_review")),
         "ready_for_offer": count(lambda c: c.get("status") == "awaiting_offer"),
@@ -933,7 +970,8 @@ async def dashboard(user: dict = Depends(get_current_user)):
 
 @router.get("/staff-onboarding/cases/{case_id}")
 async def get_case(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -955,7 +993,8 @@ async def get_case(case_id: str, user: dict = Depends(get_current_user)):
 
 @router.patch("/staff-onboarding/cases/{case_id}")
 async def patch_case(case_id: str, body: CasePatch, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -975,7 +1014,8 @@ async def patch_case(case_id: str, body: CasePatch, user: dict = Depends(get_cur
 
 @router.post("/staff-onboarding/cases/{case_id}/invite")
 async def create_invite(case_id: str, body: InviteBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1032,7 +1072,8 @@ async def _paperwork_state(case: dict) -> dict:
 
 @router.get("/staff-onboarding/cases/{case_id}/paperwork-state")
 async def paperwork_state(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1042,7 +1083,8 @@ async def paperwork_state(case_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/staff-onboarding/cases/{case_id}/paperwork-complete")
 async def paperwork_complete(case_id: str, body: ApproveBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1059,7 +1101,8 @@ async def paperwork_complete(case_id: str, body: ApproveBody, user: dict = Depen
 # ───────────────────────── offer ─────────────────────────
 @router.post("/staff-onboarding/cases/{case_id}/offer")
 async def create_offer(case_id: str, body: OfferCreate, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1087,7 +1130,8 @@ async def create_offer(case_id: str, body: OfferCreate, user: dict = Depends(get
 
 @router.post("/staff-onboarding/cases/{case_id}/offer/approve")
 async def approve_offer(case_id: str, body: ApproveBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("offer"):
         raise HTTPException(404, "Offer not found")
@@ -1102,7 +1146,8 @@ async def approve_offer(case_id: str, body: ApproveBody, user: dict = Depends(ge
 
 @router.post("/staff-onboarding/cases/{case_id}/offer/issue")
 async def issue_offer(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("offer"):
         raise HTTPException(404, "Offer not found")
@@ -1138,7 +1183,8 @@ def _offer_terms(offer: dict) -> dict:
 
 @router.post("/staff-onboarding/cases/{case_id}/contract")
 async def create_contract(case_id: str, body: ContractCreate, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1174,7 +1220,8 @@ async def create_contract(case_id: str, body: ContractCreate, user: dict = Depen
 
 @router.get("/staff-onboarding/cases/{case_id}/consistency")
 async def consistency(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("contract"):
         raise HTTPException(404, "Contract not found")
@@ -1183,7 +1230,8 @@ async def consistency(case_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/staff-onboarding/cases/{case_id}/contract/approve")
 async def approve_contract(case_id: str, body: ApproveBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("contract"):
         raise HTTPException(404, "Contract not found")
@@ -1198,7 +1246,8 @@ async def approve_contract(case_id: str, body: ApproveBody, user: dict = Depends
 
 @router.post("/staff-onboarding/cases/{case_id}/contract/issue")
 async def issue_contract(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("contract"):
         raise HTTPException(404, "Contract not found")
@@ -1248,7 +1297,8 @@ async def _sign_and_cert(org, case, doc_kind, signer_name, signer_role, method, 
 
 @router.post("/staff-onboarding/cases/{case_id}/contract/countersign")
 async def countersign_contract(case_id: str, body: SignBody, request: Request, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("contract"):
         raise HTTPException(404, "Contract not found")
@@ -1280,11 +1330,13 @@ async def countersign_contract(case_id: str, body: SignBody, request: Request, u
 # ───────────────────────── activation ─────────────────────────
 @router.get("/staff-onboarding/cases/{case_id}/activation-state")
 async def activation_state(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
-    offer = c.get("offer") or {}; con = c.get("contract") or {}
+    offer = c.get("offer") or {}
+    con = c.get("contract") or {}
     rtw = await db.staff_right_to_work_checks.find_one({"onboarding_case_id": case_id})
     checks = {
         "offer_accepted": offer.get("status") == "accepted",
@@ -1300,7 +1352,8 @@ async def activation_state(case_id: str, user: dict = Depends(get_current_user))
 
 @router.post("/staff-onboarding/cases/{case_id}/activate")
 async def activate(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1391,7 +1444,8 @@ async def _email_pack_on_activation(org: str, case: dict, staff: dict, user: dic
 
 @router.get("/staff-onboarding/cases/{case_id}/audit")
 async def case_audit(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     evs = await db.staff_onboarding_audit_events.find(
         {"organization_id": org, "onboarding_case_id": case_id}).sort("at", -1).to_list(500)
     return {"events": [_strip(e) for e in evs]}
@@ -1613,7 +1667,8 @@ async def recruit_me(user: dict = Depends(get_current_user_portal)):
             "agreements": [], "agreement_state": {},
             "offer": None, "contract": None, "no_onboarding_case": True,
         }
-    org = case["organization_id"]; cid = case["id"]
+    org = case["organization_id"]
+    cid = case["id"]
     activated = bool(staff.get("active"))
     forms = {f["form_key"]: _strip(f) for f in await db.staff_form_submissions.find({"onboarding_case_id": cid}).to_list(50)}
     # Unify: canonical personal fields live on staff_members. Overlay them onto
@@ -1666,7 +1721,8 @@ async def save_form(body: FormSave, user: dict = Depends(get_current_user)):
     if existing:
         await db.staff_form_submissions.update_one({"id": existing["id"]}, {"$set": payload})
     else:
-        payload["id"] = str(uuid.uuid4()); payload["created_at"] = _now()
+        payload["id"] = str(uuid.uuid4())
+        payload["created_at"] = _now()
         await db.staff_form_submissions.insert_one(payload)
     await _audit(case["organization_id"], case["id"], "form_submitted", user, document=body.form_key)
     # Unify: mirror personal fields into the canonical staff_members record so
@@ -1731,7 +1787,8 @@ async def offer_respond(body: OfferRespond, request: Request, user: dict = Depen
     if offer.get("status") not in ("issued",):
         raise HTTPException(400, "No offer awaiting response")
     if body.action == "decline":
-        offer["status"] = "declined"; offer["declined_reason"] = body.reason
+        offer["status"] = "declined"
+        offer["declined_reason"] = body.reason
         offer["history"].append({"status": "declined", "at": _now()})
         await db.staff_onboarding_cases.update_one({"id": case["id"]}, {"$set": {"offer": offer, "status": "offer_declined", "updated_at": _now()}})
         await _audit(case["organization_id"], case["id"], "offer_declined", user, reason=body.reason)
@@ -1747,8 +1804,10 @@ async def offer_respond(body: OfferRespond, request: Request, user: dict = Depen
         raise HTTPException(400, "Signature name required to accept")
     ev, cert = await _sign_and_cert(case["organization_id"], case, "offer", body.signature_name,
                                     "employee", "typed", None, request, offer["rendered"])
-    offer["status"] = "accepted"; offer["locked"] = True
-    offer["accepted_at"] = _now(); offer["acceptance"] = {"signature": ev, "intended_start_date": body.intended_start_date}
+    offer["status"] = "accepted"
+    offer["locked"] = True
+    offer["accepted_at"] = _now()
+    offer["acceptance"] = {"signature": ev, "intended_start_date": body.intended_start_date}
     offer["history"].append({"status": "accepted", "at": _now()})
     await db.staff_onboarding_cases.update_one({"id": case["id"]},
         {"$set": {"offer": offer, "status": "offer_accepted", "updated_at": _now()}})
@@ -1882,7 +1941,8 @@ async def check_options(user: dict = Depends(get_current_user)):
 
 @router.get("/staff-onboarding/cases/{case_id}/checks")
 async def get_checks(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1895,7 +1955,8 @@ async def get_checks(case_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/staff-onboarding/cases/{case_id}/right-to-work")
 async def set_rtw(case_id: str, body: RTWBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1913,7 +1974,8 @@ async def set_rtw(case_id: str, body: RTWBody, user: dict = Depends(get_current_
 
 @router.post("/staff-onboarding/cases/{case_id}/dbs")
 async def set_dbs(case_id: str, body: DBSBody, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -1931,7 +1993,8 @@ async def set_dbs(case_id: str, body: DBSBody, user: dict = Depends(get_current_
 
 @router.post("/staff-onboarding/cases/{case_id}/dbs-required")
 async def set_dbs_required(case_id: str, required: bool = True, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -2030,7 +2093,8 @@ def _pdf_response(data: bytes, filename: str) -> FileResponse:
 
 @router.get("/staff-onboarding/cases/{case_id}/offer.pdf")
 async def hr_offer_pdf(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("offer"):
         raise HTTPException(404, "Offer not found")
@@ -2041,7 +2105,8 @@ async def hr_offer_pdf(case_id: str, user: dict = Depends(get_current_user)):
 
 @router.get("/staff-onboarding/cases/{case_id}/contract.pdf")
 async def hr_contract_pdf(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c or not c.get("contract"):
         raise HTTPException(404, "Contract not found")
@@ -2064,7 +2129,8 @@ async def _gather_pack_data(case: dict) -> dict:
 
 @router.get("/staff-onboarding/cases/{case_id}/forms.pdf")
 async def hr_forms_pdf(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -2076,7 +2142,8 @@ async def hr_forms_pdf(case_id: str, user: dict = Depends(get_current_user)):
 
 @router.get("/staff-onboarding/cases/{case_id}/pack.pdf")
 async def hr_pack_pdf(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -2149,7 +2216,8 @@ def _ai_json(text: str):
 
 @router.post("/staff-onboarding/cases/{case_id}/ai/duplicate-scan")
 async def ai_duplicate_scan(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -2188,7 +2256,8 @@ async def ai_duplicate_scan(case_id: str, user: dict = Depends(get_current_user)
 
 @router.post("/staff-onboarding/cases/{case_id}/ai/consistency")
 async def ai_consistency(case_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
     if not c:
         raise HTTPException(404, "Case not found")
@@ -2222,7 +2291,8 @@ async def ai_consistency(case_id: str, user: dict = Depends(get_current_user)):
 # ───────────────────────── notifications ─────────────────────────
 @router.get("/staff-onboarding/notifications")
 async def hr_notifications(user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     items = await db.staff_onboarding_notifications.find(
         {"organization_id": org, "audience": "hr"}).sort("created_at", -1).to_list(100)
     unread = sum(1 for n in items if not n.get("read"))
@@ -2231,7 +2301,8 @@ async def hr_notifications(user: dict = Depends(get_current_user)):
 
 @router.post("/staff-onboarding/notifications/read")
 async def hr_notifications_read(user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     await db.staff_onboarding_notifications.update_many(
         {"organization_id": org, "audience": "hr", "read": False}, {"$set": {"read": True}})
     return {"ok": True}

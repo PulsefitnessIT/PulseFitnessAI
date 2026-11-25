@@ -236,7 +236,7 @@ export default function EngineerHomeV2() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
   // Iter 220e6 — Install global JS error reporter once the Engineer

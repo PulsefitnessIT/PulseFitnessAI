@@ -163,8 +163,11 @@ def test_import_template_contacts(s):
 
 
 def _build_csv(rows, headers):
-    buf = io.StringIO(); w = csv.writer(buf); w.writerow(headers)
-    for r in rows: w.writerow(r)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(headers)
+    for r in rows:
+        w.writerow(r)
     return buf.getvalue().encode("utf-8")
 
 

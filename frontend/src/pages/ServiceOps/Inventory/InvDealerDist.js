@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Truck, FileText, PackageCheck, ScanLine, AlertTriangle, Plus, ArrowRightLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, FileText, PackageCheck, ScanLine, Plus, ArrowRightLeft, CheckCircle2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
-import { invApi, fmtDate, statusLabel, money } from './api';
+import { invApi, fmtDate, statusLabel } from './api';
 import { Card, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
 
 const SHIP_STATUSES = ['booked', 'collected', 'in_transit', 'customs_hold', 'customs_cleared', 'out_for_delivery', 'delivered', 'delivery_discrepancy', 'returned', 'cancelled'];
@@ -17,10 +17,10 @@ function ShipmentDetail({ shipmentId, onBack }) {
   const [customs, setCustoms] = useState({});
   const [receipt, setReceipt] = useState({ confirmed: {}, damaged: {} });
 
-  const load = useCallback(() => { invApi.shipment(shipmentId).then((d) => { setData(d); setCustoms(d.shipment.customs || {}); }).catch(() => notify.error(t('inv.common.load_failed', 'Load failed'))); }, [shipmentId]);
+  const load = useCallback(() => { invApi.shipment(shipmentId).then((d) => { setData(d); setCustoms(d.shipment.customs || {}); }).catch(() => notify.error(t('inv.common.load_failed', 'Load failed'))); }, [shipmentId, t]);
   useEffect(() => { load(); }, [load]);
   if (!data) return <Spinner />;
-  const { shipment: sh, packages, units, receipt: existingReceipt, documents } = data;
+  const { shipment: sh, packages: _packages, units, receipt: existingReceipt, documents } = data;
 
   const act = async (fn, key) => { setBusy(key); try { await fn(); load(); } catch (e) { const d = e?.response?.data?.detail; notify.error(typeof d === 'object' ? d.message : (d || t('inv.common.failed', 'Failed'))); } finally { setBusy(''); } };
 

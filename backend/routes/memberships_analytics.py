@@ -125,7 +125,6 @@ async def analytics_overview(
     sf = build_site_filter(site_id)
     member_q: dict = {"organization_id": org_id, **sf}
     mm_q: dict = {"organization_id": org_id, **sf}
-    booking_q: dict = {"organization_id": org_id, **sf}
     # payment_transactions are NOT site-stamped — keep org-scoped so a
     # per-site view doesn't zero-out revenue.
     pay_q: dict = {"organization_id": org_id}

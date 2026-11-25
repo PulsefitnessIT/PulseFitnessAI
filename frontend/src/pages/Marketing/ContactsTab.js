@@ -55,7 +55,7 @@ export default function ContactsTab() {
       notifyApiError(notify, e, t('mkt.ct_load_err', 'Could not load contacts'));
     }
     setLoading(false);
-  }, [API, headers, search, page]);
+  }, [API, headers, search, page, t]);
 
   useEffect(() => { load(); }, [load]);
 

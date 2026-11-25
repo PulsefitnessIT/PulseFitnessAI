@@ -148,7 +148,7 @@ def _draw_logo_badge(img, x: int, y: int, h: int, brand: dict, logo_path: Option
     domain is intentionally NOT rendered (Iter 223 — brand wants clean,
     URL-free cards). Mutates and returns ``img`` (RGBA)."""
     from PIL import Image, ImageDraw  # type: ignore
-    sub_font = _font(int(h * 0.026), bold=False)
+    _font(int(h * 0.026), bold=False)
     if logo_path and os.path.exists(logo_path):
         try:
             logo = Image.open(logo_path).convert("RGBA")

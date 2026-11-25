@@ -40,7 +40,7 @@ const EmailVolumePanel = ({ API, headers, onClose }) => {
       notify.error(t('mkt.evp_load_err', 'Could not load email packs'), e.response?.data?.detail);
     }
     setLoading(false);
-  }, [API, headers]);
+  }, [API, headers, t]);
 
   useEffect(() => { load(); }, [load]);
 

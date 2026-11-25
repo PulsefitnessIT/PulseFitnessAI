@@ -101,6 +101,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated, initial }) {
       }
     })();
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'initial; pre-existing as of iter 216h226-polish-5.
   }, []);
 
   // ── Customer → sites

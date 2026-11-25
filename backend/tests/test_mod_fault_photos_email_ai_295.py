@@ -1,8 +1,14 @@
 # Iter 295: MOD fault photo back-fill, scoped photo serve, MOD email ".ai" sanitiser,
 # delivery-status parallel lookups / array_filters / supplier 'pending'. NO real emails (resend mocked).
 # Requires: python tests/_seed_fault_photos_295.py seed ; run with -p no:xdist
-import os, sys, json, time, asyncio, threading
-import pytest, requests
+import os
+import sys
+import json
+import time
+import asyncio
+import threading
+import pytest
+import requests
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -99,7 +105,7 @@ class TestServe:
 
     def test_bad_paths_400(self, site_tok):
         assert self._serve(site_tok, "gymaxis-ai/other/x.webp").status_code == 400
-        assert self._serve(site_tok, f"gymaxis-ai/mod-attachments/TEST_295_modorg/../TEST_295_otherorg/x.webp").status_code == 400
+        assert self._serve(site_tok, "gymaxis-ai/mod-attachments/TEST_295_modorg/../TEST_295_otherorg/x.webp").status_code == 400
 
     def test_bad_token_401(self):
         assert self._serve("garbage", PATHS[0]).status_code == 401

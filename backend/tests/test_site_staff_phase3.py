@@ -285,7 +285,8 @@ class TestReporterPropagation:
 class TestSupplierReporter:
     def test_resolve_reporter_contact_unit(self):
         """Direct unit test of _resolve_reporter_contact for shared-login fault."""
-        import asyncio, sys
+        import asyncio
+        import sys
         sys.path.insert(0, "/app/backend")
         from routes.supplier_portal import _resolve_reporter_contact
 

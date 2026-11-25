@@ -149,7 +149,7 @@ class TestEmailTemplates:
         assert r.status_code == 200
         d = r.json()
         ids = {t["id"] for t in d.get("templates", [])}
-        assert self.EXPECTED <= ids, f"missing template ids: {self.EXPECTED - ids}"
+        assert ids >= self.EXPECTED, f"missing template ids: {self.EXPECTED - ids}"
         assert len(d["templates"]) == 8
 
     def test_render_welcome(self, admin, test_project):

@@ -3,11 +3,10 @@
  * Engagement scoring, inactive detection, best-send-time, benchmarking and
  * the Deliverability Centre. All themed with platform tokens.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import {
-  TrendingUp, Clock, Award, ShieldCheck, AlertTriangle, CheckCircle2, Users, Building2, Flame,
+import { Clock, Award, ShieldCheck, AlertTriangle, CheckCircle2, Users, Building2, Flame,
 } from 'lucide-react';
 
 const apiRoot = (API) => (API || process.env.REACT_APP_BACKEND_URL || '').replace(/\/api\/?$/, '');

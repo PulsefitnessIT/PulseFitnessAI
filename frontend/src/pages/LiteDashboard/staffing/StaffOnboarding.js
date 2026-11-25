@@ -129,7 +129,7 @@ export default function StaffOnboarding({ headers }) {
             <Settings size={16} /> {t('staffing.onb_settings', 'Settings')}
           </button>
           <button onClick={() => setShowWizard(true)} data-testid="new-onboarding-case-btn"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-slate-900"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-slate-900 dark:text-zinc-100"
             style={{ background: 'var(--color-brand-cyan, #19CDFF)' }}>
             <UserPlus size={16} /> {t('staffing.onb_create_case', 'Create Onboarding Case')}
           </button>
@@ -316,7 +316,7 @@ function CaseWizard({ headers, onClose, onCreated }) {
           )}
           <div className="flex justify-end">
             <button onClick={checkDup} disabled={busy} data-testid="wizard-next-1"
-              className="px-4 py-2 rounded-lg text-slate-900 font-semibold" style={{ background: 'var(--color-brand-cyan,#19CDFF)' }}>
+              className="px-4 py-2 rounded-lg text-slate-900 font-semibold dark:text-zinc-100" style={{ background: 'var(--color-brand-cyan,#19CDFF)' }}>
               {busy ? '…' : t('staffing.onb_next', 'Next')}
             </button>
           </div>
@@ -341,7 +341,7 @@ function CaseWizard({ headers, onClose, onCreated }) {
           </div>
           <div className="flex justify-between">
             <button onClick={() => setStep(1)} className="px-4 py-2 rounded-lg border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>{t('staffing.onb_back', 'Back')}</button>
-            <button onClick={() => setStep(3)} data-testid="wizard-next-2" className="px-4 py-2 rounded-lg text-slate-900 font-semibold" style={{ background: 'var(--color-brand-cyan,#19CDFF)' }}>{t('staffing.onb_next', 'Next')}</button>
+            <button onClick={() => setStep(3)} data-testid="wizard-next-2" className="px-4 py-2 rounded-lg text-slate-900 font-semibold dark:text-zinc-100" style={{ background: 'var(--color-brand-cyan,#19CDFF)' }}>{t('staffing.onb_next', 'Next')}</button>
           </div>
         </div>
       )}
@@ -360,7 +360,7 @@ function CaseWizard({ headers, onClose, onCreated }) {
           <div className="flex justify-between">
             <button onClick={() => setStep(2)} className="px-4 py-2 rounded-lg border" style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>{t('staffing.onb_back', 'Back')}</button>
             <button onClick={create} disabled={busy} data-testid="wizard-create-case"
-              className="px-4 py-2 rounded-lg text-slate-900 font-semibold" style={{ background: 'var(--color-brand-cyan,#19CDFF)' }}>
+              className="px-4 py-2 rounded-lg text-slate-900 font-semibold dark:text-zinc-100" style={{ background: 'var(--color-brand-cyan,#19CDFF)' }}>
               {busy ? t('staffing.onb_creating', 'Creating…') : t('staffing.onb_create_case_btn', 'Create case')}
             </button>
           </div>
@@ -1082,7 +1082,7 @@ function Row({ k, v }) {
 }
 function Btn({ children, onClick, busy, testId, primary, disabled }) {
   return <button onClick={onClick} disabled={busy || disabled} data-testid={testId}
-    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 ${primary ? 'text-slate-900' : 'border'}`}
+    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 ${primary ? 'text-slate-900 dark:text-zinc-100' : 'border'}`}
     style={primary ? { background: 'var(--color-brand-cyan,#19CDFF)' } : { color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}>
     {busy ? <Loader2 size={14} className="animate-spin" /> : children}</button>;
 }

@@ -169,7 +169,7 @@ def compute_readiness(doc: dict) -> dict:
         if key == "site_details_complete":
             return _field_filled(data, "site_details", "site_name")
         if key == "site_contact_confirmed":
-            return len((data.get("site_contacts") or [])) > 0
+            return len(data.get("site_contacts") or []) > 0
         if key == "access_route_confirmed":
             return _field_filled(data, "access", "delivery_entrance")
         if key == "room_measurements_complete":

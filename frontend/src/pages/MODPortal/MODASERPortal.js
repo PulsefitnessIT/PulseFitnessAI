@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
-  X, Plus, Search, ShieldAlert, AlertTriangle, Loader2, Upload, Trash2,
+  X, Plus, Search, AlertTriangle, Loader2, Upload, Trash2,
   PoundSterling, Wrench, CheckCircle2, ArrowLeft, ClipboardList, Ban, Link2,
   BarChart3, LayoutList, Download, FileText, FileSpreadsheet, Mail, Send, Sparkles,
 } from 'lucide-react';
@@ -464,6 +464,7 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
   const [equipment, setEquipment] = useState([]);
   const [eqQuery, setEqQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   const sites = config?.sites || [];
 
   // default site if only one
@@ -701,7 +702,7 @@ function Field({ label, children }) {
 }
 
 // ── Detail view ─────────────────────────────────────────────────────
-function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailEvidence }) {
+function DetailView({ entryId, config, API, headers, onBack: _onBack, onChanged, onEmailEvidence }) {
   const [entry, setEntry] = useState(null);
   const [busy, setBusy] = useState(false);
   const [aiText, setAiText] = useState('');

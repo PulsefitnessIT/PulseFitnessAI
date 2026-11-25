@@ -20,10 +20,10 @@ function ManagerReceiptThumb({ claimId, receiptId, headers }) {
       .catch(() => setBad(true));
     return () => { active = false; if (obj) URL.revokeObjectURL(obj); };
   }, [claimId, receiptId, headers]);
-  if (bad || !url) return <div className="w-14 h-14 rounded-md border border-slate-200 flex items-center justify-center text-slate-300" title="Receipt"><Paperclip size={16} /></div>;
+  if (bad || !url) return <div className="w-14 h-14 rounded-md border border-slate-200 flex items-center justify-center text-slate-300 dark:border-zinc-800" title="Receipt"><Paperclip size={16} /></div>;
   return (
     <a href={url} target="_blank" rel="noreferrer" title="Open receipt" data-testid={`exp-review-thumb-${receiptId}`}>
-      <img src={url} alt="receipt" onError={() => setBad(true)} className="w-14 h-14 rounded-md object-cover border border-slate-200 hover:ring-2 hover:ring-cyan-400" />
+      <img src={url} alt="receipt" onError={() => setBad(true)} className="w-14 h-14 rounded-md object-cover border border-slate-200 hover:ring-2 hover:ring-cyan-400 dark:border-zinc-800" />
     </a>
   );
 }
@@ -151,7 +151,7 @@ export default function StaffExpenseReview({ headers }) {
       <p className="text-sm text-slate-500 mb-4">Approve staff and engineer claims, and export approved claims for payroll.</p>
 
       {/* Payroll export bar */}
-      <div className="p-4 rounded-xl border border-slate-200 bg-white mb-5" data-testid="exp-payroll-export">
+      <div className="p-4 rounded-xl border border-slate-200 bg-white mb-5 dark:bg-zinc-900 dark:border-zinc-800" data-testid="exp-payroll-export">
         <p className="font-semibold text-slate-800 mb-2 flex items-center gap-2"><BadgePoundSterling size={16} className="text-cyan-600" /> Payroll export</p>
         <div className="flex flex-wrap items-center gap-3">
           <select value={month} onChange={(e) => setMonth(e.target.value)} data-testid="exp-export-month"
@@ -205,10 +205,10 @@ export default function StaffExpenseReview({ headers }) {
               const active = filter === ch.id;
               return (
                 <button key={ch.id} onClick={() => setFilter(ch.id)} data-testid={`exp-filter-${ch.id}`}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-300'}`}>
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-300 dark:bg-zinc-900'}`}>
                   {ch.id !== 'all' && ch.id !== 'attention' && <FLAG_META_ICON id={ch.id} />}
                   {ch.label}
-                  <span className={`ml-0.5 px-1.5 rounded-full text-[10px] ${active ? 'bg-white/20' : 'bg-slate-100'}`}>{n}</span>
+                  <span className={`ml-0.5 px-1.5 rounded-full text-[10px] ${active ? 'bg-white/20 dark:bg-zinc-900' : 'bg-slate-100 dark:bg-zinc-800'}`}>{n}</span>
                 </button>
               );
             })}
@@ -221,9 +221,9 @@ export default function StaffExpenseReview({ headers }) {
           : filter === 'attention' ? claims.filter((c) => (c.flags || []).length > 0)
           : claims.filter((c) => (c.flags || []).includes(filter));
         return claims.length === 0 ? (
-          <div className="p-6 text-center rounded-xl border border-slate-200 text-slate-500 text-sm" data-testid="exp-review-empty">No claims awaiting review.</div>
+          <div className="p-6 text-center rounded-xl border border-slate-200 text-slate-500 text-sm dark:border-zinc-800" data-testid="exp-review-empty">No claims awaiting review.</div>
         ) : shown.length === 0 ? (
-          <div className="p-6 text-center rounded-xl border border-slate-200 text-slate-500 text-sm" data-testid="exp-review-filter-empty">No claims match this filter. 🎉</div>
+          <div className="p-6 text-center rounded-xl border border-slate-200 text-slate-500 text-sm dark:border-zinc-800" data-testid="exp-review-filter-empty">No claims match this filter. 🎉</div>
         ) : (
           <div className="space-y-2">
             {shown.map((c) => {
@@ -232,7 +232,7 @@ export default function StaffExpenseReview({ headers }) {
             const receiptLines = lines.filter((l) => l.receipt_id);
             const isOpen = !!expanded[c.id];
             return (
-              <div key={c.id} className="rounded-xl border border-slate-200 bg-white" data-testid={`exp-review-${c.id}`}>
+              <div key={c.id} className="rounded-xl border border-slate-200 bg-white dark:bg-zinc-900 dark:border-zinc-800" data-testid={`exp-review-${c.id}`}>
                 <div className="p-4 flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     <div className="font-semibold text-slate-800">{c.staff_name} · {c.claim_month}</div>
@@ -282,7 +282,7 @@ export default function StaffExpenseReview({ headers }) {
                   </div>
                 </div>
                 {isOpen && (
-                  <div className="px-4 pb-4 border-t border-slate-100 pt-3" data-testid={`exp-review-detail-${c.id}`}>
+                  <div className="px-4 pb-4 border-t border-slate-100 pt-3 dark:border-zinc-800" data-testid={`exp-review-detail-${c.id}`}>
                     <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                       <p className="text-xs font-semibold text-slate-600">Expense lines & receipts</p>
                       <div className="flex items-center gap-2">
@@ -303,10 +303,10 @@ export default function StaffExpenseReview({ headers }) {
                     ) : (
                       <div className="space-y-2">
                         {lines.map((l, i) => (
-                          <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50" data-testid={`exp-review-line-${c.id}-${i}`}>
+                          <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-zinc-900" data-testid={`exp-review-line-${c.id}-${i}`}>
                             {l.receipt_id
                               ? <ManagerReceiptThumb claimId={c.id} receiptId={l.receipt_id} headers={headers} />
-                              : <div className="w-14 h-14 rounded-md border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-[10px] text-center">No receipt</div>}
+                              : <div className="w-14 h-14 rounded-md border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-[10px] text-center dark:border-zinc-800">No receipt</div>}
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium text-slate-800 truncate">{l.description || '—'}</div>
                               <div className="text-xs text-slate-500">{l.date || 'no date'} · {l.nominal || '—'}</div>

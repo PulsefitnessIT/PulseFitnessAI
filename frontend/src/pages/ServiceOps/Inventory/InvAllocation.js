@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import { UserPlus, MapPin, Wrench, CheckCircle2, ScanLine, ShieldCheck, Building2, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Clock, List, ClipboardList, FileText, Layers, AlertTriangle, Download, HardHat, RefreshCw, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { UserPlus, MapPin, Wrench, CheckCircle2, ScanLine, Building2, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Clock, List, ClipboardList, FileText, Layers, AlertTriangle, Download, HardHat, RefreshCw, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { invApi, fmtDate, statusLabel } from './api';
 import { Card, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
@@ -227,7 +227,7 @@ function ScheduleModal({ alloc, onClose, onDone }) {
 const RISK_COLOR = { Low: 'bg-emerald-50 text-emerald-700 ring-emerald-200', Medium: 'bg-amber-50 text-amber-700 ring-amber-200', High: 'bg-orange-50 text-orange-700 ring-orange-200', Critical: 'bg-red-50 text-red-700 ring-red-200' };
 const YN = (v) => (v === true ? 'Yes' : v === false ? 'No' : '—');
 
-function PulseLinkRow({ companyId, companyName }) {
+function PulseLinkRow({ companyId, companyName: _companyName }) {
   const { t } = useTranslation();
   const [linked, setLinked] = useState(undefined);
   const [open, setOpen] = useState(false);
@@ -276,7 +276,7 @@ export function InstallPackModal({ alloc, onClose, onChanged, readOnly = false, 
   const load = useCallback(() => {
     setLoading(true);
     fetchPack(alloc.id).then(setPack).catch(() => notify.error(t('inv.inst.pack_load_error', 'Could not load install pack'))).finally(() => setLoading(false));
-  }, [alloc.id, fetchPack]);
+  }, [alloc.id, fetchPack, t]);
   useEffect(() => { load(); }, [load]);
 
   const openAuthed = async (relUrl) => {

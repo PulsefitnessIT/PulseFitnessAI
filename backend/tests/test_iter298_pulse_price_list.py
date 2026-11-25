@@ -103,7 +103,8 @@ class TestPriceListImport:
         assert "CV Parts" in r.json()["categories"]
 
     def test_seed_is_idempotent(self):
-        import asyncio, sys
+        import asyncio
+        import sys
         sys.path.insert(0, "/app/backend")
         from tests.conftest import drive_async
         from utils.parts_price_list import seed_pulse_price_list

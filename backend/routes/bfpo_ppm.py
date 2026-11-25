@@ -410,7 +410,8 @@ def _build_certificate_pdf(svc: dict, inspections: list, user: dict) -> bytes:
     c.setFont("Helvetica", 9)
     for i in inspections:
         if y < 25 * mm:
-            c.showPage(); y = h - 25 * mm
+            c.showPage()
+            y = h - 25 * mm
         c.setFillColor(ink)
         c.drawString(18 * mm, y, str(i.get("equipment_name") or "")[:52])
         c.drawString(120 * mm, y, str(i.get("serial") or "")[:18])
@@ -426,7 +427,8 @@ def _build_certificate_pdf(svc: dict, inspections: list, user: dict) -> bytes:
         y -= 4 * mm
         y = draw_report_canvas(c, 18 * mm, y, w - 36 * mm, svc["engineer_report"])
     if y < 60 * mm:
-        c.showPage(); y = h - 25 * mm
+        c.showPage()
+        y = h - 25 * mm
     y -= 6 * mm
     c.setFillColor(ink)
     draw_signoff_canvas(c, 18 * mm, y, svc.get("_signoff"))

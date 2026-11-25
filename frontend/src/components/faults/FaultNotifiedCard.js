@@ -49,6 +49,7 @@ export default function FaultNotifiedCard({ issue, API }) {
       .then((res) => { if (!cancelled && Array.isArray(res.data?.recipients)) setRecipients(res.data.recipients); })
       .catch(() => { /* keep the fallback list */ });
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'issue'; pre-existing as of iter 216h226-polish-5.
   }, [issue?.id, API]);
 
   if (!hasAny) return null;

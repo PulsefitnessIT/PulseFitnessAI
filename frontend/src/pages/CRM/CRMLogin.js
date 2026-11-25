@@ -59,8 +59,8 @@ export default function CRMLogin({ onLogin }) {
   // domain so a Pulse Fitness operator never sees "Pulse Fitness CRM" on the
   // login screen, and vice versa.
   const isPulseHost = typeof window !== 'undefined' && /pulsefitness|pulse-fitness|pulse\.local/i.test(window.location.hostname || '');
-  const brandLabel = isPulseHost ? 'Pulse Fitness CRM' : 'Pulse Fitness CRM';
-  const brandInitial = isPulseHost ? 'P' : 'G';
+  const _brandLabel = isPulseHost ? 'Pulse Fitness CRM' : 'Pulse Fitness CRM';
+  const _brandInitial = isPulseHost ? 'P' : 'G';
 
   const plan = PLANS[selectedPlan];
   const monthlyTotal = plan ? (plan.base + plan.perUser * teamSize).toFixed(2) : '0.00';

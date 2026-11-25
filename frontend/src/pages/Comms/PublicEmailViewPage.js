@@ -45,7 +45,7 @@ export default function PublicEmailViewPage() {
       <div className="text-center py-3 text-xs text-slate-500 bg-white border-b border-slate-200">
         Viewing in browser · {data.subject}
       </div>
-      {/* eslint-disable-next-line react/no-danger */}
+      { }
       <div dangerouslySetInnerHTML={{ __html: data.html }} />
     </div>
   );

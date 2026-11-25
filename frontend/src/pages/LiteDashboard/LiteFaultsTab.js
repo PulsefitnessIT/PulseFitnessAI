@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, AlertTriangle, Calendar, CalendarClock, Copy, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package, ShieldAlert } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, CalendarClock, Copy, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import { useAuth } from '@/App';
@@ -28,7 +28,7 @@ const LiteFaultsTab = ({
   onLogFault, onFilterStatus, onFilterSeverity,
   onUpdateIssueStatus, suppliers = [],
   getSeverityStyle, getSeverityLabel, getStatusColor,
-  showReportIncident = false, onReportIncident, onQueueSynced,
+  showReportIncident: _showReportIncident = false, onReportIncident: _onReportIncident, onQueueSynced,
 }) => {
   const [faultView, setFaultView] = useState('reactive');
   // Iter 216d — multi-machine fault jobs collapse into a single

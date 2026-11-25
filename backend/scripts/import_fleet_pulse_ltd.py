@@ -9,6 +9,7 @@ Run:  cd /app/backend && set -a && . ./.env && set +a && python3 scripts/import_
 import asyncio
 import os
 import sys
+import tempfile
 import uuid
 from datetime import datetime, timezone
 
@@ -137,5 +138,5 @@ async def main(path):
 
 
 if __name__ == "__main__":
-    p = sys.argv[1] if len(sys.argv) > 1 else "/tmp/fleet.xlsx"
+    p = sys.argv[1] if len(sys.argv) > 1 else os.path.join(tempfile.gettempdir(), "fleet.xlsx")
     asyncio.run(main(p))

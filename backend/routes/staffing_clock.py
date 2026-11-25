@@ -1024,13 +1024,18 @@ def _ts_xlsx(sheets: list[dict], brand: dict | None = None) -> bytes:
         ws = wb.create_sheet(_safe_sheet_title(sh.get("sheet_title") or sh["name"], used))
         o = xlsx_brand_band(ws, brand)
         ws.cell(1 + o, 1, "Weekly Timesheet").font = title_font
-        ws.cell(2 + o, 1, "Employee:").font = label_font; ws.cell(2 + o, 2, sh["name"])
-        ws.cell(3 + o, 1, "Role:").font = label_font; ws.cell(3 + o, 2, ts.get("primary_role") or "")
+        ws.cell(2 + o, 1, "Employee:").font = label_font
+        ws.cell(2 + o, 2, sh["name"])
+        ws.cell(3 + o, 1, "Role:").font = label_font
+        ws.cell(3 + o, 2, ts.get("primary_role") or "")
         ws.cell(4 + o, 1, "Week:").font = label_font
         ws.cell(4 + o, 2, f"{ts.get('week_start')} → {ts.get('week_end')}")
-        ws.cell(2 + o, 4, "Status:").font = label_font; ws.cell(2 + o, 5, (ts.get("approval_status") or "").title())
-        ws.cell(3 + o, 4, "Approved by:").font = label_font; ws.cell(3 + o, 5, ts.get("approved_by") or "")
-        ws.cell(4 + o, 4, "Approved at:").font = label_font; ws.cell(4 + o, 5, (ts.get("approved_at") or "")[:16].replace("T", " "))
+        ws.cell(2 + o, 4, "Status:").font = label_font
+        ws.cell(2 + o, 5, (ts.get("approval_status") or "").title())
+        ws.cell(3 + o, 4, "Approved by:").font = label_font
+        ws.cell(3 + o, 5, ts.get("approved_by") or "")
+        ws.cell(4 + o, 4, "Approved at:").font = label_font
+        ws.cell(4 + o, 5, (ts.get("approved_at") or "")[:16].replace("T", " "))
 
         is_eng = bool(ts.get("is_engineer"))
         cols = ["Day", "Date", "Start", "Finish", "Break (mins)", "PT classes", "Hours"]
@@ -1043,7 +1048,9 @@ def _ts_xlsx(sheets: list[dict], brand: dict | None = None) -> bytes:
         hrow = 6 + o
         for c, col in enumerate(cols, start=1):
             cell = ws.cell(row=hrow, column=c, value=col)
-            cell.fill = head_fill; cell.font = head_font; cell.border = border
+            cell.fill = head_fill
+            cell.font = head_font
+            cell.border = border
             cell.alignment = Alignment(horizontal="center", vertical="center")
         r = hrow + 1
         for row in _paper_rows(ts):
@@ -1328,7 +1335,8 @@ async def payroll_pack(
             fname = f"{base}"
             n = 2
             while fname in used_names:
-                fname = f"{base}_{n}"; n += 1
+                fname = f"{base}_{n}"
+                n += 1
             used_names.add(fname)
             zf.writestr(f"{fname}-{mon0.isoformat()}_to_{date_to}.xlsx", _ts_xlsx(sheets, brand))
             added += 1

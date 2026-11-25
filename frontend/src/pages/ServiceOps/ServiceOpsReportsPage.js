@@ -171,7 +171,7 @@ export default function ServiceOpsReportsPage() {
     } catch (e) {
       notify.error(t('service.rep_load_failed', 'Failed to load reports'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [fromIso, range.days]);
+  }, [fromIso, range.days, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -610,7 +610,7 @@ function DigestSettingsModal({ onClose }) {
     } catch (e) {
       notify.error(t('service.rep_dg_load_failed', 'Failed to load digest settings'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
   useEffect(() => { load(); }, [load]);
 
   const save = async () => {

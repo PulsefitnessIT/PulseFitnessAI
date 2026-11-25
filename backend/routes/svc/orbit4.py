@@ -100,7 +100,7 @@ async def update_connection(request: Request, body: dict,
     """Update connection fields. Secrets are encrypted at rest; omit a secret
     to leave it unchanged, send empty string to clear it."""
     org_id = user.get("organization_id") or user.get("service_org_id")
-    conn = await _get_or_create_connection(org_id, user)
+    await _get_or_create_connection(org_id, user)
 
     allowed = ("enabled", "api_token", "webhook_secret", "base_url", "web_base_url")
     update = {k: v for k, v in body.items() if k in allowed}

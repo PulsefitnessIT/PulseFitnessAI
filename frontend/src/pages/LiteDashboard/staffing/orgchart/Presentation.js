@@ -17,7 +17,7 @@ function PCard({ n }) {
   );
 }
 
-export default function Presentation({ nodes, byId, onClose }) {
+export default function Presentation({ nodes, byId: _byId, onClose }) {
   const { t } = useTranslation();
   const [i, setI] = useState(0);
 

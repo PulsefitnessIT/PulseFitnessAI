@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Card, Spinner, Empty, Badge } from '../ui';
 import { ClipboardCheck, ChevronRight, ChevronLeft } from 'lucide-react';

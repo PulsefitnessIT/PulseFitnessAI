@@ -27,7 +27,7 @@ export default function PulseMarketingShell({ children }) {
 
   return (
     <div
-      className="min-h-screen bg-white antialiased"
+      className="min-h-screen bg-white antialiased dark:bg-zinc-900"
       style={{ fontFamily: "'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: 'var(--color-surface-dark-panel-alt)' }}
       data-theme="light"
       data-testid="pulse-marketing-shell"

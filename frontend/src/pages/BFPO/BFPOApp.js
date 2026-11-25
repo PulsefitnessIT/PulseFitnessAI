@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/App';
-import { bfpo } from './bfpoApi';
+import { bfpo, outboxCount, setOutboxOwner, flushOutbox } from './bfpoApi';
 import { Spinner, Btn, PULSE_LOGO } from './ui';
 import Navbar from '@/components/shared/Navbar';
 import PillTabBar from '@/components/shared/PillTabBar';
@@ -15,7 +15,6 @@ import Equipment from './engineer/Equipment';
 import History from './engineer/History';
 import WelcomeKit from './engineer/WelcomeKit';
 import { UrgentAlertBanner, OfflineSyncBar } from './AlertBanner';
-import { outboxCount, setOutboxOwner, flushOutbox } from './bfpoApi';
 import { clearOfflineData } from '../../utils/clearOfflineData';
 import StaffDashboard from './staff/StaffDashboard';
 import StaffSites from './staff/StaffSites';
@@ -26,10 +25,12 @@ import StaffEngineers from './staff/StaffEngineers';
 import PPMEngineerList from './ppm/PPMEngineerList';
 import PPMServiceDetail from './ppm/PPMServiceDetail';
 import PPMStaff from './ppm/PPMStaff';
+import ModQuotations from './quotes/ModQuotations';
 import PPMReports from './ppm/PPMReports';
 import {
   Home, ClipboardList, MapPin, Package, History as HistoryIcon, Globe2,
-  LayoutGrid, LogOut, Wifi, WifiOff, ClipboardCheck, BarChart3, Users,
+  LayoutGrid, ClipboardCheck, BarChart3, Users,
+  FileText,
 } from 'lucide-react';
 
 export default function BFPOApp() {
@@ -130,6 +131,7 @@ export default function BFPOApp() {
     { key: 'servicing', label: 'Servicing', icon: ClipboardCheck },
     { key: 'reports', label: 'Reports', icon: BarChart3 },
     { key: 'engineers', label: 'Engineers', icon: Users },
+    { key: 'quotations', label: 'Quotations', icon: FileText },
   ];
 
   const Header = role === 'staff' ? (
@@ -187,6 +189,7 @@ export default function BFPOApp() {
             {view === 'jobs' && <StaffJobs initialFilter={staffFilter} onOpenJob={openStaffJob} />}
             {view === 'visiting' && <StaffVisiting />}
             {view === 'engineers' && <StaffEngineers />}
+            {view === 'quotations' && <ModQuotations />}
             {view === 'servicing' && <PPMStaff onOpen={openPpm} />}
             {view === 'reports' && <PPMReports />}
             {view === 'staffjob' && <StaffJobDetail jobId={jobId} onBack={() => setView('jobs')} />}

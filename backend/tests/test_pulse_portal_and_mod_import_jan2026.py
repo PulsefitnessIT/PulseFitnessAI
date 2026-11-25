@@ -116,7 +116,8 @@ class TestModEstateTemplates:
         if ext == "csv":
             assert r.text.splitlines()[0].startswith("Sicon Customer Ref"), r.text[:200]
         else:
-            import io, openpyxl
+            import io
+            import openpyxl
             ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
             assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force" and ws.cell(1, 30).value == "MOD Code"
 
@@ -127,7 +128,8 @@ class TestModEstateTemplates:
         if ext == "csv":
             assert r.text.splitlines()[0].startswith("Sicon Customer Ref"), r.text[:200]
         else:
-            import io, openpyxl
+            import io
+            import openpyxl
             ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
             assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force" and ws.cell(1, 30).value == "MOD Code"
 

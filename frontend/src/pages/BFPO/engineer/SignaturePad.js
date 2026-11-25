@@ -1,5 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Btn } from '../ui';
+import { useRef, useState, useEffect } from 'react';
 import { Eraser } from 'lucide-react';
 
 export default function SignaturePad({ onChange }) {

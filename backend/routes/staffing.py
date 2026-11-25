@@ -1150,9 +1150,7 @@ async def compliance_overview(user: dict = Depends(get_current_user)):
         # DBS
         expiry = (s.get("dbs_expiry_date") or "").strip() if isinstance(s.get("dbs_expiry_date"), str) else s.get("dbs_expiry_date")
         days = _compliance_days_until(expiry)
-        if not s.get("dbs_number") and not expiry:
-            dbs_status = "missing"
-        elif days is None:
+        if not s.get("dbs_number") and not expiry or days is None:
             dbs_status = "missing"
         elif days < 0:
             dbs_status = "expired"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useCRM } from './CRMApp';
 import { GitCompareArrows, TrendingUp, TrendingDown, Minus, ArrowLeft } from 'lucide-react';

@@ -58,7 +58,7 @@ export default function EngineersAdminPage() {
       toast.error(t('service.eng_load_failed', 'Could not load engineers'));
     }
     setLoading(false);
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -208,7 +208,7 @@ export default function EngineersAdminPage() {
     >
       <Plus size={14} /> {t('service.eng_add', 'Add engineer')}
     </button>
-  ), []);
+  ), [t]);
 
   return (
     <ServiceOpsShell

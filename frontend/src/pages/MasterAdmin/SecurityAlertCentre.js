@@ -271,7 +271,7 @@ export default function SecurityAlertCentre() {
         ) : (
           <div className="max-h-[560px] overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-[#0f1218] text-xs uppercase tracking-wide text-white/40">
+              <thead className="sticky top-0 bg-[#0f1419] text-xs uppercase tracking-wide text-white/40">
                 <tr>
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">Event</th>

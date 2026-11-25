@@ -1,6 +1,7 @@
 # Iter 293 UI seed/cleanup for supplier delivered/undelivered badge. Usage: python _seed_supplier_badge_ui_293.py seed|clean
 # No emails are sent: rows are inserted directly in the DB.
-import os, sys
+import os
+import sys
 from datetime import datetime, timezone
 from pymongo import MongoClient
 from dotenv import load_dotenv

@@ -103,7 +103,8 @@ def test_sample_pdf_uses_tenant_bank(owner_token):
     assert r.headers.get("content-type", "").startswith("application/pdf")
     body = r.content
     assert body[:4] == b"%PDF", "Not a PDF"
-    import io, pypdf
+    import io
+    import pypdf
     reader = pypdf.PdfReader(io.BytesIO(body))
     text = "\n".join((p.extract_text() or "") for p in reader.pages)
     assert "87654321" in text, f"Tenant bank number missing. Extracted:\n{text[:2000]}"

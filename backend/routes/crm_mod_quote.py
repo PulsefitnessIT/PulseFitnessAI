@@ -388,11 +388,11 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
         "site_id": site_id,
         "contract_type": ct,
         "year": year,
-        "matched_count": sum(1 for l in lines if l["matched"]),
-        "mod_code_matched_count": sum(1 for l in lines if l["source"] == "mod_code"),
-        "unmatched_count": sum(1 for l in lines if not l["matched"]),
-        "per_machine_type_count": sum(1 for l in lines if l["contract_type_source"] == "equipment"),
-        "mixed_contract_types": len({l["contract_type"] for l in lines}) > 1,
+        "matched_count": sum(1 for line_item in lines if line_item["matched"]),
+        "mod_code_matched_count": sum(1 for line_item in lines if line_item["source"] == "mod_code"),
+        "unmatched_count": sum(1 for line_item in lines if not line_item["matched"]),
+        "per_machine_type_count": sum(1 for line_item in lines if line_item["contract_type_source"] == "equipment"),
+        "mixed_contract_types": len({line_item["contract_type"] for line_item in lines}) > 1,
         "lines": lines,
     }
 
@@ -622,8 +622,8 @@ async def import_spreadsheet(
         "year": year,
         "source_rows": len(rows),
         "recognised_count": len(lines),
-        "matched_count": sum(1 for l in lines if l["matched"]),
-        "needs_review_count": sum(1 for l in lines if l["needs_review"]),
+        "matched_count": sum(1 for line_item in lines if line_item["matched"]),
+        "needs_review_count": sum(1 for line_item in lines if line_item["needs_review"]),
         "note": recognised.get("note", ""),
         "lines": lines,
     }
@@ -712,8 +712,8 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quo
             })
 
     subtotal = round(sum(
-        float(l["quantity"]) * float(l["unit_price"]) * (1 - float(l.get("discount", 0) or 0) / 100)
-        for l in lines
+        float(line_item["quantity"]) * float(line_item["unit_price"]) * (1 - float(line_item.get("discount", 0) or 0) / 100)
+        for line_item in lines
     ), 2)
     vat_rate = float(data.get("vat_rate", 20) or 0)
     vat_amount = round(subtotal * vat_rate / 100, 2)
@@ -733,7 +733,7 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quo
         "opportunity_id": data.get("opportunity_id"),
         "status": "draft",
         "lines": lines,
-        "unverified_rate_lines": sum(1 for l in lines if l.get("contracted") and l.get("rate_status") != "verified"),
+        "unverified_rate_lines": sum(1 for line_item in lines if line_item.get("contracted") and line_item.get("rate_status") != "verified"),
         "subtotal": subtotal,
         "vat_rate": vat_rate, "vat_amount": vat_amount,
         "tax_rate": vat_rate, "tax_amount": vat_amount, "tax_label": "VAT",
@@ -888,7 +888,7 @@ async def send_quote_for_esign(quote_id: str, data: dict, user=Depends(require_o
         ct = quote.get("mod_contract_type")
         eyebrow = f"Quote {quote.get('quote_number', '')}"
         body = (
-            et.paragraph(f'Hi,')
+            et.paragraph('Hi,')
             + et.paragraph(
                 f'{et.esc(brand["org_name"])} has sent you a quote'
                 + (f' for a MOD Contract Type {ct}' if ct else '')
@@ -939,9 +939,9 @@ def _public_quote_view(quote: dict, brand: dict) -> dict:
         "company_name": quote.get("company_name"),
         "currency": quote.get("currency", "GBP"),
         "lines": [
-            {k: l.get(k) for k in ("description", "product_name", "quantity",
+            {k: line_item.get(k) for k in ("description", "product_name", "quantity",
                                     "unit_price", "discount", "sku", "service_type")}
-            for l in (quote.get("lines") or [])
+            for line_item in (quote.get("lines") or [])
         ],
         "subtotal": quote.get("subtotal"),
         "vat_rate": quote.get("vat_rate", quote.get("tax_rate", 20)),

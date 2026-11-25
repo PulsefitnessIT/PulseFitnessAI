@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Check, Image as ImageIcon } from 'lucide-react';
 import SignatureCanvas from './SignatureCanvas';
 

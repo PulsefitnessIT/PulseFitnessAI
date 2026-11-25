@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, X, CloudOff, RefreshCw } from 'lucide-react';
 import { bfpo, outboxCount, onOutboxChange, flushOutbox, outboxError } from './bfpoApi';
 

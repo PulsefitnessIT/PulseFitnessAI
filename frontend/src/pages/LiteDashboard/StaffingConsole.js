@@ -19,12 +19,12 @@ import axios from 'axios';
 import {
   Users, Calendar, UserPlus, Plane, ShoppingBag, BarChart3, PoundSterling,
   Eye, Shield, Megaphone, Sparkles, Trash2,
-  ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
-  LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
+  ChevronLeft, ChevronRight, Clock, AlertTriangle, RefreshCw,
+  LayoutDashboard, Layers, MessageSquare, ClipboardList,
   IdCard, Wand2, ArrowRightLeft, Wallet, Network, CalendarDays,
   // Iter 216h264 — staff portal preview + credentials issuance
   ExternalLink, KeyRound, Loader2, Copy, Check, X,
-  Truck, Plus, ShieldAlert, FileDown, Link2, ShieldCheck,
+  Truck, ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
@@ -1077,24 +1077,24 @@ function LeaveTab({ headers, isManager }) {
 
       {clashConfirm && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4" onClick={() => setClashConfirm(null)} data-testid="leave-clash-modal">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-zinc-900" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start gap-3">
               <span className="rounded-lg bg-amber-100 p-2 text-amber-700"><AlertTriangle size={18} /></span>
               <div className="flex-1">
-                <h3 className="font-bold text-slate-900">{t('staffing.sc_clash_title', 'Overlapping team leave')}</h3>
+                <h3 className="font-bold text-slate-900 dark:text-zinc-100">{t('staffing.sc_clash_title', 'Overlapping team leave')}</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {t('staffing.sc_clash_sub', 'Approving')} {clashConfirm.staff_name || 'this request'} ({clashConfirm.start_date} → {clashConfirm.end_date}) {t('staffing.sc_clash_sub2', 'overlaps booked leave in the same team:')}
                 </p>
                 <ul className="mt-3 space-y-1.5">
                   {(clashConfirm.clashes || []).map((c, i) => (
-                    <li key={i} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
+                    <li key={i} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm dark:bg-zinc-900 dark:border-zinc-800">
                       <span className="font-semibold text-slate-800">{c.staff_name || 'Teammate'}</span>
                       <span className="text-xs text-slate-500">{c.start_date} → {c.end_date}{c.status === 'pending' ? ' · pending' : ''}</span>
                     </li>
                   ))}
                 </ul>
                 <div className="mt-4 flex justify-end gap-2">
-                  <button onClick={() => setClashConfirm(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200" data-testid="leave-clash-cancel">{t('staffing.sc_cancel', 'Cancel')}</button>
+                  <button onClick={() => setClashConfirm(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200 dark:border-zinc-800" data-testid="leave-clash-cancel">{t('staffing.sc_cancel', 'Cancel')}</button>
                   <button onClick={() => patch(clashConfirm.id, 'approved')} className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-bold" data-testid="leave-clash-approve-anyway">{t('staffing.sc_approve_anyway', 'Approve anyway')}</button>
                 </div>
               </div>
@@ -1198,31 +1198,6 @@ function PerformanceTab({ headers }) {
         </tbody>
       </table>
       </div>
-    </Card>
-  );
-}
-
-// ─── Payroll (export only) ───
-function PayrollTab({ headers }) {
-  const { t } = useTranslation();
-  const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10); });
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0,10));
-  const download = async () => {
-    const token = headers.Authorization?.split(' ')[1];
-    const r = await fetch(`${API}/staffing/payroll/export?date_from=${from}&date_to=${to}`, { headers: { Authorization: `Bearer ${token}` } });
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob); const a = document.createElement('a');
-    a.href = url; a.download = `payroll-${from}-to-${to}.csv`; a.click(); URL.revokeObjectURL(url);
-  };
-  return (
-    <Card testId="payroll-card">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.sc_export_payroll', 'Export payroll CSV')}</div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="payroll-from" />
-        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="payroll-to" />
-        <button type="button" onClick={download} className="text-xs font-semibold rounded-full inline-flex items-center gap-1 justify-center" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="payroll-download"><Download size={12} /> {t('staffing.sc_download_csv', 'Download CSV')}</button>
-      </div>
-      <p className="text-[11px] mt-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_payroll_note', "Non-cancelled shifts only. Hours multiply by each staff's hourly cost.")}</p>
     </Card>
   );
 }

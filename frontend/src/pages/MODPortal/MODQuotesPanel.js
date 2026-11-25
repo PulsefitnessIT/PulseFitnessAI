@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { X, FileText, Loader2, PenLine, CheckCircle2, ChevronLeft, RotateCcw, ShieldCheck } from 'lucide-react';
 import { notify } from '@/components/notifications';
+import ModPublishedQuotes from './ModPublishedQuotes';
 
 const money = (n, cur = 'GBP') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(Number(n) || 0);
 
@@ -45,6 +46,7 @@ function SignPad({ onChange }) {
 
 export default function MODQuotesPanel({ API, onClose, onSigned }) {
   const [list, setList] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null); // detail quote
   const [sig, setSig] = useState('');
@@ -56,9 +58,11 @@ export default function MODQuotesPanel({ API, onClose, onSigned }) {
     setLoading(true);
     try {
       const r = await axios.get(`${API}/mod/site/quotes`, { headers });
-      setList(r.data.quotes || []);
+      setList((r.data.quotes || []).filter((q) => !q.mod_group_id));
+      setGroups(r.data.groups || []);
     } catch (e) { notify.error('Could not load quotes'); }
     setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'headers'; pre-existing as of iter 216h226-polish-5.
   }, [API]);
   useEffect(() => { load(); }, [load]);
 
@@ -84,7 +88,7 @@ export default function MODQuotesPanel({ API, onClose, onSigned }) {
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#1B1C1D] max-h-[90vh] overflow-hidden flex flex-col"
+      <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-[#1B1C1D] max-h-[90vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()} data-testid="mod-quotes-panel">
         {/* header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
@@ -93,7 +97,7 @@ export default function MODQuotesPanel({ API, onClose, onSigned }) {
             <FileText size={18} className="text-sky-300" />
             <div>
               <h2 className="text-white text-base font-extrabold">{active ? active.quote_number : 'Quotes'}</h2>
-              <p className="text-[11px] text-white/50">{active ? (active.title || '') : 'Review & sign quotes for your site'}</p>
+              <p className="text-[11px] text-white/50">{active ? (active.title || '') : 'Review, compare and download quotations for your site'}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-white/60 hover:text-white" data-testid="mod-quotes-close"><X size={18} /></button>
@@ -103,10 +107,11 @@ export default function MODQuotesPanel({ API, onClose, onSigned }) {
           {/* LIST */}
           {!active && (loading ? (
             <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-white/50" size={24} /></div>
-          ) : list.length === 0 ? (
+          ) : list.length === 0 && groups.length === 0 ? (
             <div className="py-12 text-center text-white/50 text-sm" data-testid="mod-quotes-empty">No quotes yet. When Pulse Fitness sends you a quote it will appear here to review and sign.</div>
           ) : (
             <div className="space-y-2">
+              <ModPublishedQuotes API={API} groups={groups} onChanged={() => { load(); if (onSigned) onSigned(); }} />
               {list.map(q => (
                 <button key={q.id} onClick={() => openDetail(q.id)} data-testid={`mod-quote-row-${q.id}`}
                   className="w-full text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-3.5 flex items-center justify-between transition-colors">

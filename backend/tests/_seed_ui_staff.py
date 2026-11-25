@@ -1,5 +1,8 @@
 """Seed a staff account for frontend UI testing. Prints creds+reset token."""
-import os, uuid, requests, sys
+import os
+import uuid
+import requests
+import sys
 from pymongo import MongoClient
 from dotenv import load_dotenv
 load_dotenv("/app/backend/.env")

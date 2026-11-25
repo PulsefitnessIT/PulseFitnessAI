@@ -21,9 +21,12 @@ import re
 
 router = APIRouter(prefix="/crm/v2", tags=["Contracts"])
 
-def _id(): return str(uuid.uuid4())
-def _now(): return datetime.now(timezone.utc).isoformat()
-def _of(user): return {"organization_id": user.get("organization_id")} if user.get("organization_id") else {"organization_id": "__none__"}
+def _id():
+    return str(uuid.uuid4())
+def _now():
+    return datetime.now(timezone.utc).isoformat()
+def _of(user):
+    return {"organization_id": user.get("organization_id")} if user.get("organization_id") else {"organization_id": "__none__"}
 
 CONTRACT_TIERS = [
     {"id": "warranty", "name": "Warranty", "color": "#6E7476"},
@@ -2052,7 +2055,8 @@ def _calc_calibration(speed_rows, incline_rows, cfg):
 
     def grade(target, measured, is_incline):
         try:
-            t = float(target); m = float(measured)
+            t = float(target)
+            m = float(measured)
         except (TypeError, ValueError):
             return {"target": target, "measured": measured, "variance": None,
                     "variance_pct": None, "result": "incomplete"}
@@ -3257,7 +3261,7 @@ async def blue_light_upload_logo(contract_id: str, file: UploadFile = File(...),
         cfg["customer_logo_path"] = path
         cfg["customer_logo_content_type"] = content_type
         cfg["customer_logo_url"] = f"/api/crm/v2/contracts/{contract_id}/blue-light/logo?v={_id()[:8]}"
-    except Exception as exc:  # object store unavailable — inline as data URL
+    except Exception:  # object store unavailable — inline as data URL
         cfg["customer_logo_path"] = None
         cfg["customer_logo_url"] = f"data:{content_type};base64," + _b64.b64encode(compressed).decode("ascii")
     await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {"blue_light": cfg}})

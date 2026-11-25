@@ -22,7 +22,8 @@ from utils.database import db, APP_NAME, put_object
 from routes.equipment import _public_photo_url
 
 # ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
-import os as _sg_os, sys as _sg_sys
+import os as _sg_os
+import sys as _sg_sys
 _sg_sys.path.insert(0, _sg_os.path.dirname(_sg_os.path.dirname(_sg_os.path.abspath(__file__))))
 from utils.seed_guard import assert_seeding_allowed  # noqa: E402
 assert_seeding_allowed(__file__)

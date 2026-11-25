@@ -321,9 +321,12 @@ def _build_crash_pdf(pack: dict, insurance: dict, photos: list, org_company=None
         make_pulse_doc, PULSE_NAVY, PULSE_BORDER, PULSE_LIGHT,
     )
 
-    s = pulse_styles(); body = s["body"]
+    s = pulse_styles()
+    body = s["body"]
     data = pack.get("data") or {}
-    yd = data.get("your_details") or {}; ac = data.get("accident") or {}; po = data.get("police") or {}
+    yd = data.get("your_details") or {}
+    ac = data.get("accident") or {}
+    po = data.get("police") or {}
     gps = ac.get("gps") or {}
     buf = _io.BytesIO()
     doc = make_pulse_doc(buf, f"Fleet Incident Report {pack.get('reg_no', '')}", company=org_company)
@@ -476,7 +479,8 @@ async def manager_pdf(pack_id: str, user: dict = Depends(get_current_user)):
     reg = (pack.get("reg_no") or "vehicle").replace(" ", "")
     driver = (pack.get("reporter_name") or "Driver")
     when = (pack.get("submitted_at") or "")[:10]
-    safe = lambda t: "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
+    def safe(t):
+        return "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
     fname = " ".join(f"Crash Pack - {safe(driver)} - {safe(reg)} - {when}.pdf".split())
     from fastapi import Response
     return Response(content=pdf, media_type="application/pdf",

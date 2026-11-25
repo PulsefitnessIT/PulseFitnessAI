@@ -97,7 +97,8 @@ def _build_large_invoice_pdf(target_bytes: int = 3 * 1024 * 1024) -> bytes:
     p0.insert_text((50, 60), text, fontsize=11)
 
     # Build a large incompressible JPEG (random-ish noise) once and re-insert.
-    import struct, random
+    import struct
+    import random
     random.seed(42)
     pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 1200, 1600), 0)
     samples = bytearray()

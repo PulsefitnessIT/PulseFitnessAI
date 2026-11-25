@@ -35,7 +35,7 @@ export default function QrPrintInline({ onClose }) {
       } finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
-  }, [headers]);
+  }, [headers, t]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();

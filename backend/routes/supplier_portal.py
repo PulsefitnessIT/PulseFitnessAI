@@ -1603,7 +1603,8 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
         for r in (case.get("notify_emails") or []):
             e = (r.get("email") or "").strip()
             if e and "@" in e and e.lower() not in seen:
-                seen.add(e.lower()); recips.append(e)
+                seen.add(e.lower())
+                recips.append(e)
         if not recips and (case.get("supplier_email") or "").strip():
             recips = [case["supplier_email"].strip()]
         to_list = recips

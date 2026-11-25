@@ -3,7 +3,7 @@
  * Saved + dynamic segments across contacts and members, using the shared
  * rule engine. Live preview count as you build.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Plus, Trash2, X, Users, Filter, RefreshCw, Pencil, Wand2, Loader2 } from 'lucide-react';

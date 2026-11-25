@@ -1,4 +1,3 @@
-import React from 'react';
 import { PULSE_LOGO, ROLE_LABEL, PRIORITY } from '../ui';
 import { MapPin, Globe2, ClipboardList, ArrowRight, PartyPopper } from 'lucide-react';
 

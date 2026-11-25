@@ -2418,7 +2418,7 @@ def compute_quote_totals(lines: list[dict], vat_rate: float) -> dict:
         _normalize_quote_line(ln)
 
     def _cat(t: str) -> float:
-        return round(sum(l.get("net_subtotal", 0) for l in (lines or []) if l.get("line_type") == t), 2)
+        return round(sum(line_item.get("net_subtotal", 0) for line_item in (lines or []) if line_item.get("line_type") == t), 2)
 
     equipment_subtotal = _cat("sale")
     parts_subtotal = _cat("spare_part")
@@ -2426,8 +2426,8 @@ def compute_quote_totals(lines: list[dict], vat_rate: float) -> dict:
     trade_in_total = _cat("trade_in")  # negative or zero
     subtotal = round(equipment_subtotal + parts_subtotal + contract_subtotal + trade_in_total, 2)
     cost_total = round(sum(
-        float(l.get("cost_price", 0) or 0) * float(l.get("quantity", 0) or 0)
-        for l in (lines or []) if l.get("line_type") != "trade_in"
+        float(line_item.get("cost_price", 0) or 0) * float(line_item.get("quantity", 0) or 0)
+        for line_item in (lines or []) if line_item.get("line_type") != "trade_in"
     ), 2)
     gross_profit = round(subtotal - cost_total, 2)
     gross_margin_percent = round(gross_profit / subtotal * 100, 2) if subtotal > 0 else None

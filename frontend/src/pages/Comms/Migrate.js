@@ -3,7 +3,7 @@
  * Upload any ESP export (Mailchimp/Klaviyo/generic), auto-map columns,
  * import contacts and carry over unsubscribe status to the suppression list.
  */
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Upload, FileSpreadsheet, ArrowRight, CheckCircle2, Loader2, ShieldOff, UserPlus, RefreshCw, SkipForward } from 'lucide-react';

@@ -454,7 +454,7 @@ function OffboardingSection({ staffId, headers, staffName, onUpdated }) {
   if (kase && kase.status === 'complete') {
     return wrap(
       <div className="flex items-center gap-2 flex-wrap text-sm" data-testid="offboarding-complete">
-        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Left the company</span>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600">Left the company</span>
         <span style={{ color: 'var(--theme-text-muted)' }}>Last working day: <b style={{ color: 'var(--theme-text)' }}>{kase.last_working_day || '—'}</b></span>
         {kase.reason && <span style={{ color: 'var(--theme-text-muted)' }}>· {kase.reason}</span>}
         {kase.access_revoked && <span className="text-xs text-emerald-600 font-semibold">· Login revoked ✓</span>}
@@ -1515,7 +1515,7 @@ function DetailChangeRequestsPanel({ headers, isManager }) {
             </div>
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {Object.entries(r.changes || {}).map(([k, c]) => (
-                <div key={k} className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs">
+                <div key={k} className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs dark:bg-zinc-900 dark:border-zinc-800">
                   <div className="text-[10px] uppercase tracking-wide text-slate-400">{c.label}</div>
                   <div className="text-slate-500 line-through">{c.old || '—'}</div>
                   <div className="text-slate-800 font-semibold">{c.new}</div>

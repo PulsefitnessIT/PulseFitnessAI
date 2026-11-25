@@ -1,6 +1,9 @@
 # Iter 295 seed/cleanup: MOD fault-wizard photo back-fill (attachment_urls -> attachments)
 # Usage: python _seed_fault_photos_295.py seed|clean   (no emails sent; DB rows + 2 stored TEST_ objects)
-import os, sys, io, json
+import os
+import sys
+import io
+import json
 from datetime import datetime, timezone
 from pymongo import MongoClient
 from dotenv import load_dotenv

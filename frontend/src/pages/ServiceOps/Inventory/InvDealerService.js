@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Headphones, Building2, Wrench, AlertTriangle, ArrowUpRight, Route, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Headphones, Building2, Wrench, ArrowUpRight, Route, ExternalLink } from 'lucide-react';
 import { notify } from '@/components/notifications';
-import { invApi, fmtDate, statusLabel } from './api';
+import { invApi, statusLabel } from './api';
 import { Card, StatCard, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
 
 // ───────────── Create desk wizard (condensed single card, dealer picker) ─────────────
@@ -66,7 +66,7 @@ function CreateDeskModal({ onClose, onCreated }) {
 }
 
 // ───────────── Desk detail (overview + log fault + escalate) ─────────────
-function LogFaultModal({ desk, assets, onClose, onDone }) {
+function LogFaultModal({ desk: _desk, assets, onClose, onDone }) {
   const { t } = useTranslation();
   const [serial, setSerial] = useState(assets[0]?.serial_number || '');
   const [title, setTitle] = useState('');
@@ -101,7 +101,7 @@ function DeskDetail({ deskId, onBack }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [logging, setLogging] = useState(false);
-  const load = useCallback(() => invApi.desk(deskId).then(setData).catch(() => notify.error(t('inv.common.load_failed', 'Load failed'))), [deskId]);
+  const load = useCallback(() => invApi.desk(deskId).then(setData).catch(() => notify.error(t('inv.common.load_failed', 'Load failed'))), [deskId, t]);
   useEffect(() => { load(); }, [load]);
   if (!data) return <Spinner />;
   const { desk, customers, assets, faults, stats } = data;

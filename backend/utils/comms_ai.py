@@ -216,7 +216,7 @@ async def suggest_segment(description: str, catalogue: dict):
     """Turn a plain-English audience description into a rule tree, strictly
     using the provided field catalogue. Returns {name, source, rules}."""
     system = (
-        _BRAND + " You build audience segments. Return ONLY JSON: "
+        _BRAND + " You build audience segments. Return ONLY JSON: "  # nosec B608 - LLM prompt text, not SQL
         "{\"name\": str, \"source\": \"contacts\"|\"members\", "
         "\"rules\": {\"op\": \"and\"|\"or\", \"conditions\": "
         "[{\"field\": str, \"op\": str, \"value\": any}]}}. "

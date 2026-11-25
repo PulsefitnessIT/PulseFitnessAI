@@ -9,7 +9,7 @@
 import {
   AlertTriangle, ClipboardCheck, Dumbbell, ArrowRight, Truck,
   LayoutDashboard, BarChart3, EyeOff, ShieldCheck, Zap, Wrench, ClipboardList,
-  Boxes, Users, FileCheck,
+  Boxes,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';

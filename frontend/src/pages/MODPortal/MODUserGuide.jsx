@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import {
   Printer, ShieldCheck, LogIn, LayoutDashboard, Dumbbell, AlertTriangle,
-  ClipboardList, FileText, Truck, CalendarClock, ShieldAlert, WifiOff,
-  Users, LifeBuoy, ChevronRight, CheckCircle2, MapPin,
+  ClipboardList, FileText, Truck, ShieldAlert, WifiOff, LifeBuoy, ChevronRight, CheckCircle2,
 } from 'lucide-react';
 
 /**

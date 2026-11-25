@@ -5,7 +5,7 @@
  * Communications view. Pass a fixed `module` to scope it to that context;
  * all three read the SAME `/api/comms/campaigns` records.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

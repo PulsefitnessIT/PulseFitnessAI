@@ -33,13 +33,13 @@ function CustomerForm({ initial, busy, onSave, onCancel, testid }) {
           <div key={k} className={k === 'notes' ? 'sm:col-span-2' : ''}>
             <label className="block text-xs font-medium text-zinc-600 mb-1">{label}</label>
             <input value={form[k] || ''} onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 dark:border-zinc-800"
               data-testid={`pc-form-${k}`} />
           </div>
         ))}
       </div>
       <div className="flex gap-2">
-        <button onClick={onCancel} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900">Cancel</button>
+        <button onClick={onCancel} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-100">Cancel</button>
         <button onClick={() => onSave(form)} disabled={busy || !form.name?.trim()}
           className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg"
           data-testid="pc-form-save">
@@ -51,7 +51,7 @@ function CustomerForm({ initial, busy, onSave, onCancel, testid }) {
 }
 
 const STATUS_TONES = {
-  closed: 'bg-zinc-100 text-zinc-600', invoiced: 'bg-emerald-50 text-emerald-700',
+  closed: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', invoiced: 'bg-emerald-50 text-emerald-700',
 };
 
 const PRIORITIES = [
@@ -114,7 +114,7 @@ function NewCaseForm({ API, customer, onCreated, onCancel }) {
   if (created) {
     return (
       <Card className="p-6 space-y-3 border-emerald-200 bg-emerald-50/30" data-testid="pc-dispatch-form">
-        <div className="text-sm font-semibold text-zinc-900">
+        <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           <span className="font-mono text-emerald-700">{created.reference}</span> raised — dispatch an engineer?
         </div>
         {engineers.length === 0 ? (
@@ -123,7 +123,7 @@ function NewCaseForm({ API, customer, onCreated, onCancel }) {
           </div>
         ) : (
           <select value={engineerId} onChange={(e) => setEngineerId(e.target.value)}
-            className="w-full sm:w-72 px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white"
+            className="w-full sm:w-72 px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white dark:bg-zinc-900 dark:border-zinc-800"
             data-testid="pc-dispatch-engineer">
             <option value="">Choose an engineer…</option>
             {engineers.map((e) => (
@@ -132,7 +132,7 @@ function NewCaseForm({ API, customer, onCreated, onCancel }) {
           </select>
         )}
         <div className="flex gap-2 justify-end">
-          <button onClick={onCreated} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900"
+          <button onClick={onCreated} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-100"
             data-testid="pc-dispatch-later">
             Assign later
           </button>
@@ -151,27 +151,27 @@ function NewCaseForm({ API, customer, onCreated, onCancel }) {
   // ── Stage 1: raise ────────────────────────────────────────────
   return (
     <Card className="p-6 space-y-3 border-orange-200 bg-orange-50/30" data-testid="pc-new-case-form">
-      <div className="text-sm font-semibold text-zinc-900">
+      <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         New case for {customer.name}
         <span className="ml-2 text-xs font-normal text-zinc-500">
           {[customer.site_name, customer.postcode].filter(Boolean).join(' · ') || 'no site on record'}
         </span>
       </div>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's the fault? *"
-        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white dark:bg-zinc-900 dark:border-zinc-800"
         data-testid="pc-case-title" />
       <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
         placeholder="Details (what the caller said, machine, symptoms…)"
-        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+        className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 bg-white dark:bg-zinc-900 dark:border-zinc-800"
         data-testid="pc-case-description" />
       <div className="flex items-center gap-3 flex-wrap">
         <select value={priority} onChange={(e) => setPriority(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white"
+          className="px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white dark:bg-zinc-900 dark:border-zinc-800"
           data-testid="pc-case-priority">
           {PRIORITIES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
         </select>
         <div className="flex gap-2 ml-auto">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900">Cancel</button>
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-100">Cancel</button>
           <button onClick={submit} disabled={busy || !title.trim()}
             className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg"
             data-testid="pc-case-submit">
@@ -259,14 +259,14 @@ export default function DeskProviderCustomers({ API }) {
     return (
       <div className="space-y-5 max-w-3xl" data-testid="pc-detail">
         <button onClick={() => setDetail(null)}
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-900"
+          className="inline-flex items-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100"
           data-testid="pc-back">
           <ArrowLeft size={14} /> All customers
         </button>
         <Card className="p-6 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold text-zinc-900" data-testid="pc-detail-name">{c.name}</h2>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" data-testid="pc-detail-name">{c.name}</h2>
               <div className="text-sm text-zinc-500 mt-0.5">
                 {[c.email, c.phone].filter(Boolean).join(' · ') || 'No contact details'}
               </div>
@@ -279,7 +279,7 @@ export default function DeskProviderCustomers({ API }) {
                   <PhoneCall size={12} /> New case
                 </button>
                 <button onClick={() => setEditing(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-700"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-zinc-700"
                   data-testid="pc-edit">
                   <Pencil size={12} /> Edit
                 </button>
@@ -317,7 +317,7 @@ export default function DeskProviderCustomers({ API }) {
         <Card className="p-6" data-testid="pc-cases">
           <div className="flex items-center gap-2 mb-3">
             <ClipboardList size={15} className="text-zinc-500" />
-            <div className="text-sm font-medium text-zinc-900">
+            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               Cases <span className="text-zinc-400">({detail.case_count})</span>
             </div>
           </div>
@@ -347,7 +347,7 @@ export default function DeskProviderCustomers({ API }) {
     <div className="space-y-5" data-testid="pc-list">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Customers</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Customers</h1>
           <p className="text-sm text-zinc-500 mt-1">
             Your customer book — shared with the Engineer App and the import wizard.
           </p>
@@ -361,7 +361,7 @@ export default function DeskProviderCustomers({ API }) {
 
       {adding && (
         <Card className="p-6">
-          <div className="text-sm font-semibold text-zinc-900 mb-3">New customer</div>
+          <div className="text-sm font-semibold text-zinc-900 mb-3 dark:text-zinc-100">New customer</div>
           <CustomerForm busy={busy} onSave={create} onCancel={() => setAdding(false)} testid="pc-add-form" />
         </Card>
       )}
@@ -371,7 +371,7 @@ export default function DeskProviderCustomers({ API }) {
         <input value={q}
           onChange={(e) => { setQ(e.target.value); load(e.target.value); }}
           placeholder="Search name, email, site, postcode…"
-          className="w-full pl-8 pr-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500"
+          className="w-full pl-8 pr-3 py-2 rounded-lg border border-zinc-200 text-sm outline-none focus:ring-2 focus:ring-orange-500 dark:border-zinc-800"
           data-testid="pc-search" />
       </div>
 
@@ -389,12 +389,12 @@ export default function DeskProviderCustomers({ API }) {
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <div className="px-4 py-2 text-[11px] text-zinc-400 border-b border-zinc-100" data-testid="pc-total">
+          <div className="px-4 py-2 text-[11px] text-zinc-400 border-b border-zinc-100 dark:border-zinc-800" data-testid="pc-total">
             {total.toLocaleString()} customer{total === 1 ? '' : 's'}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-zinc-500 text-xs">
+              <thead className="bg-zinc-50 text-zinc-500 text-xs dark:bg-zinc-900">
                 <tr>
                   {['Name', 'Contact', 'Site', 'Postcode', 'Added'].map((h) => (
                     <th key={h} className="text-left px-4 py-2 font-semibold whitespace-nowrap">{h}</th>
@@ -406,7 +406,7 @@ export default function DeskProviderCustomers({ API }) {
                   <tr key={c.id} onClick={() => openDetail(c.id)}
                     className="hover:bg-orange-50/40 cursor-pointer transition-colors"
                     data-testid={`pc-row-${c.id}`}>
-                    <td className="px-4 py-2.5 font-medium text-zinc-900 whitespace-nowrap">{c.name}</td>
+                    <td className="px-4 py-2.5 font-medium text-zinc-900 dark:text-zinc-100 whitespace-nowrap">{c.name}</td>
                     <td className="px-4 py-2.5 text-zinc-600 whitespace-nowrap">{c.email || c.phone || '—'}</td>
                     <td className="px-4 py-2.5 text-zinc-600 whitespace-nowrap">{c.site_name || '—'}</td>
                     <td className="px-4 py-2.5 text-zinc-600 whitespace-nowrap">{c.postcode || '—'}</td>

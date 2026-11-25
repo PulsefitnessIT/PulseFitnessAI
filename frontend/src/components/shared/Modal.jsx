@@ -21,7 +21,7 @@
  * Renders through a portal so it escapes any transformed ancestor and the
  * fixed backdrop is measured against the viewport (not a tall <main>).
  */
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 

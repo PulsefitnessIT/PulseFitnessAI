@@ -211,7 +211,7 @@ def parse_import(content=None, filename=None, text=None, default_station="", col
     column_map = column_map or {}
     frames = _frames(content=content, filename=filename, text=text)
     all_headers = _all_headers(frames)
-    sheets_named = any(str(s).strip() for s in frames.keys())
+    sheets_named = any(str(s).strip() for s in frames)
 
     # Effective field per header: manual override wins, else auto-detect.
     def _eff_field(header):
@@ -256,7 +256,7 @@ def parse_import(content=None, filename=None, text=None, default_station="", col
         missing_required.append("equipment")
 
     meta = {
-        "sheets": [str(s) for s in frames.keys()],
+        "sheets": [str(s) for s in frames],
         "recognised_columns": recognised,
         "columns": columns,
         "mapping": {h: f for h, f in effective.items() if f},

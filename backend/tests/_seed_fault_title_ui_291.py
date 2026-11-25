@@ -1,5 +1,6 @@
 # Iter 291 UI seed/cleanup for fault-title checks. Usage: python _seed_fault_title_ui_291.py seed|clean
-import os, sys
+import os
+import sys
 from datetime import datetime, timezone
 from pymongo import MongoClient
 from dotenv import load_dotenv

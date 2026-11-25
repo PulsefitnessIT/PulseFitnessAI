@@ -12,12 +12,11 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight, Wrench, Users, Calendar, Megaphone,
-  ClipboardCheck, Sparkles, Zap, CheckCircle2, HardHat, Star,
+  ClipboardCheck, Sparkles, Zap, CheckCircle2,
   Wallet, AlertTriangle, ListChecks, UserCog,
   Building2, GitBranch, LineChart,
   CalendarClock, Receipt, Smartphone, BookOpen,
   Image as ImageIcon, MailPlus, Heart,
-  MapPin, PoundSterling, Headset,
 } from 'lucide-react';
 
 import './marketing.css';

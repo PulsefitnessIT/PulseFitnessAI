@@ -12,7 +12,6 @@ import ModuleSwitcher from '../components/shared/ModuleSwitcher';
 import ModulePageHeader from '../components/shared/ModulePageHeader';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 
 // Iter 216h173 — Heavy per-tab dashboards (GymDesign 1,353 LoC, Settings
 // 1,198 LoC, etc.) are lazy-loaded. Operators land on Start/Overview;

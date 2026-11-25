@@ -60,7 +60,7 @@ def main() -> int:
     print(f"-- CLEAR PLAN ({total} docs across {len(plan)} collections) --")
     for name, cnt in plan:
         print(f"   clear {cnt:>7d} from {name}")
-    print(f"\n-- PRESERVED (global reference) --")
+    print("\n-- PRESERVED (global reference) --")
     for name in sorted(GLOBAL_PRESERVE):
         if name in db.list_collection_names():
             print(f"   keep  {db[name].estimated_document_count():>7d} in {name}")

@@ -15,7 +15,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Package, Plus, Trash2, Search, Upload, Loader2, Send,
-  ShieldCheck, ShieldAlert, ShieldQuestion, X, Image as ImageIcon,
+  ShieldCheck, ShieldAlert, X, Image as ImageIcon,
   Sparkles, FileText, CheckCircle2, Truck, ClipboardList, ExternalLink,
 } from 'lucide-react';
 

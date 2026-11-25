@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Search, X } from 'lucide-react';
 
 // Searchable multi-select of every MOD site an engineer can be allocated to.

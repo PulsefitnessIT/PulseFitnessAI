@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Rocket, ScanLine, CheckCircle2, XCircle, Package, Truck, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Rocket, ScanLine, CheckCircle2, Package, Truck, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notify } from '@/components/notifications';
 import { invApi, fmtDate, statusLabel } from './api';
@@ -47,11 +47,11 @@ export default function OrderFulfilment({ orderId }) {
   const [qcTpl, setQcTpl] = useState(null);
   const [dispatch, setDispatch] = useState({ carrier: '', tracking: '' });
 
-  const load = useCallback(() => { invApi.fulfilment(orderId).then(setData).catch(() => notify.error(t('inv.ful.load_error', 'Could not load fulfilment'))); }, [orderId]);
+  const load = useCallback(() => { invApi.fulfilment(orderId).then(setData).catch(() => notify.error(t('inv.ful.load_error', 'Could not load fulfilment'))); }, [orderId, t]);
   useEffect(() => { load(); invApi.qcTemplates().then((d) => setQcTpl(d.templates?.[0] || null)).catch(() => {}); }, [load]);
 
   if (!data) return <Spinner />;
-  const { order, pick_tasks: tasks, units, qc, packages, shipment } = data;
+  const { order, pick_tasks: tasks, units, qc: _qc, packages, shipment } = data;
 
   const released = tasks.length > 0;
   const allPicked = released && tasks.every((pt) => pt.status === 'picked');

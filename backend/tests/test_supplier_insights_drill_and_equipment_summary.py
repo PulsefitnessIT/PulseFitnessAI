@@ -59,7 +59,7 @@ def test_equipment_summary_returns_200(owner_session):
         # No KeyError should surface; safe .get should have populated fields
         assert "id" in item or "_id" in item or item.get("name") is not None
         # type is safe to access
-        assert "type" in item or "equipment_type" in item or True
+        assert True
 
 
 # --- Drill-down: supplier= ---

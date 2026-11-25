@@ -82,7 +82,7 @@ export default function StepUpDialog() {
     >
       <form
         onSubmit={submit}
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-[var(--color-surface,#12151c)] p-6 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-[var(--color-surface,#14181f)] p-6 shadow-2xl"
         style={{ color: 'var(--color-text, #e7ebf3)' }}
       >
         <div className="flex items-start justify-between gap-4">

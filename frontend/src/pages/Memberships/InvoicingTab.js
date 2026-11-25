@@ -124,7 +124,7 @@ export default function InvoicingTab({ API, headers }) {
     } finally {
       setLoading(false);
     }
-  }, [API, headers, period, attendedOnly, includeSmoothed, defaultRate]);
+  }, [period, attendedOnly, includeSmoothed, defaultRate, API, headers, t]);
 
   const loadInvoices = useCallback(async () => {
     setInvoicesLoading(true);

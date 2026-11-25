@@ -311,7 +311,7 @@ export default function PartnerApplyPublic() {
                   className="flex items-center gap-2 shrink-0 snap-start sm:min-w-0 sm:flex-1"
                   data-testid={`partner-apply-step-${s.id}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    reached ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'
+                    reached ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800'
                   }`}>
                     {i < stepIdx ? <CheckCircle2 size={14} /> : <Icon size={14} />}
                   </div>
@@ -348,7 +348,7 @@ export default function PartnerApplyPublic() {
                   <select
                     value={profile.country_code}
                     onChange={setField('country_code')}
-                    className="mt-1.5 w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-slate-900 dark:bg-zinc-900"
+                    className="mt-1.5 w-full px-3 py-2.5 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm bg-white focus:outline-none focus:border-slate-900 dark:bg-zinc-900"
                     data-testid="pe-apply-country">
                     {COUNTRIES.map((c) => (
                       <option key={c.code} value={c.code}>{c.name} ({c.cur})</option>
@@ -381,7 +381,7 @@ export default function PartnerApplyPublic() {
                       if (errors.travel_radius_km) setErrors((er) => ({ ...er, travel_radius_km: null }));
                     }}
                     className={`mt-1.5 w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-slate-900 ${
-                      errors.travel_radius_km ? 'border-rose-400' : 'border-slate-200'
+                      errors.travel_radius_km ? 'border-rose-400' : 'border-slate-200 dark:border-zinc-800'
                     }`}
                     data-testid="pe-apply-radius" />
                   <span className="block text-[11px] text-slate-400 mt-1">Minimum 5 km — covers your home patch + a couple of clusters.</span>
@@ -574,7 +574,7 @@ function Field({ label, value, onChange, placeholder, required, error, type = 't
         placeholder={placeholder || ''}
         onChange={onChange}
         className={`mt-1.5 w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-slate-900 ${
-          error ? 'border-rose-300 bg-rose-50/60' : 'border-slate-200'
+          error ? 'border-rose-300 bg-rose-50/60' : 'border-slate-200 dark:border-zinc-800'
         }`}
         data-testid={testId}
       />
@@ -586,7 +586,7 @@ function Field({ label, value, onChange, placeholder, required, error, type = 't
 function FileDropTile({ label, file, onPick, onClear, testId }) {
   return (
     <div
-      className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/40"
+      className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/40 dark:bg-zinc-900"
       data-testid={testId}
     >
       <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">

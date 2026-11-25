@@ -1389,7 +1389,7 @@ def _merge_fault_photos(issue: dict) -> None:
         ct = _PHOTO_EXT_TYPES.get(ext, "image/webp")
         is_video = ct.startswith("video/")
         added.append({
-            "id": f"fault-photo-{i}-{hashlib.md5(path.encode()).hexdigest()[:10]}",
+            "id": f"fault-photo-{i}-{hashlib.md5(path.encode(), usedforsecurity=False).hexdigest()[:10]}",
             "filename": f"{'Video' if is_video else 'Photo'} {i + 1} (logged with fault)",
             "storage_path": path,
             "content_type": ct,

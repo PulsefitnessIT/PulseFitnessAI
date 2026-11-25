@@ -16,7 +16,7 @@ function Toggle({ on, onClick, label, testId }) {
       style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}>
       <span>{label}</span>
       <span className="relative inline-block w-9 h-5 rounded-full transition-colors" style={{ background: on ? 'var(--color-brand-cyan)' : 'var(--theme-border)' }}>
-        <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ left: on ? 18 : 2 }} />
+        <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white dark:bg-white transition-all" style={{ left: on ? 18 : 2 }} />
       </span>
     </button>
   );

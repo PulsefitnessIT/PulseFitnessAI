@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["MOD ASER Exports"])
 
 _EVENT_LABELS = {k: v for k, v in EVENT_TYPES}
-_TC = lambda s: (s or "").replace("_", " ").title()
+def _TC(s):
+    return (s or "").replace("_", " ").title()
 
 
 async def _scoped_entries(user: dict, *, site_id=None, event_type=None, risk=None,
@@ -106,10 +107,14 @@ async def export_csv(
         buf = io.StringIO()
         w = csv.DictWriter(buf, fieldnames=cols)
         w.writeheader()
-        yield buf.getvalue(); buf.seek(0); buf.truncate(0)
+        yield buf.getvalue()
+        buf.seek(0)
+        buf.truncate(0)
         for r in flat:
             w.writerow(r)
-            yield buf.getvalue(); buf.seek(0); buf.truncate(0)
+            yield buf.getvalue()
+            buf.seek(0)
+            buf.truncate(0)
 
     fn = f"ASER_Register_{datetime.now(timezone.utc):%Y%m%d}.csv"
     return StreamingResponse(gen(), media_type="text/csv",
@@ -131,11 +136,14 @@ async def export_xlsx(
     flat = [_flatten(e) for e in rows]
     cols = list(flat[0].keys()) if flat else list(_flatten({}).keys())
 
-    wb = Workbook(); ws = wb.active; ws.title = "ASER Register"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "ASER Register"
     header_fill = PatternFill("solid", fgColor="0F1419")
     ws.append(cols)
     for c in ws[1]:
-        c.font = Font(bold=True, color="FFFFFF"); c.fill = header_fill
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = header_fill
     for r in flat:
         ws.append([r.get(c, "") for c in cols])
     for i, col in enumerate(cols, 1):
@@ -143,7 +151,9 @@ async def export_xlsx(
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = width
     ws.freeze_panes = "A2"
 
-    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
     fn = f"ASER_Register_{datetime.now(timezone.utc):%Y%m%d}.xlsx"
     return Response(
         content=buf.getvalue(),
@@ -224,7 +234,8 @@ async def _build_summary_pdf(user: dict, *, site_id=None, start=None, end=None):
     # Repeated-issue equipment
     assets: dict = {}
     for e in rows:
-        eid = e.get("equipment_id"); snap = e.get("equipment_snapshot") or {}
+        eid = e.get("equipment_id")
+        snap = e.get("equipment_snapshot") or {}
         a = assets.setdefault(eid, {"name": snap.get("name"), "serial": snap.get("serial_number"),
                                     "count": 0, "label": (e.get("repeated_issue") or {}).get("label")})
         a["count"] += 1

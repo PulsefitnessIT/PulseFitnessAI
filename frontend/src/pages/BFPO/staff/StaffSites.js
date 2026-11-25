@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Card, Spinner, Badge, HEALTH } from '../ui';
-import { Globe2, MapPin } from 'lucide-react';
+import { Globe2 } from 'lucide-react';
 
 export default function StaffSites({ onOpenJobs }) {
   const [tree, setTree] = useState(null);

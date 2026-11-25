@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Rocket, Plus, Building2, AlertTriangle, CheckCircle2, Clock, Users2,
-  ListChecks, X, Loader2, Sparkles, ChevronRight, Mail, Send, Trash2,
+  ListChecks, Loader2, Sparkles, ChevronRight, Mail, Send, Trash2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';

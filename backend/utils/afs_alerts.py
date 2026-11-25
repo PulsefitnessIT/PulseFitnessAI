@@ -383,9 +383,8 @@ async def run_quote_chasers_once(organization_id: str | None = None, *, send: bo
             chases = set(q.get("chases_sent") or [])
             if window in chases:
                 continue
-            ok = True
             if send:
-                ok = await _send_quote_reminder(org_id, q, days_left)
+                await _send_quote_reminder(org_id, q, days_left)
             chases.add(window)
             await db.crm2_afs_quotes.update_one(
                 {"id": q["id"], "organization_id": org_id},

@@ -407,12 +407,12 @@ function App() {
  // useEffect just ensures the attribute is set before first render.
  useEffect(() => {
  const path = typeof window !== 'undefined' ? window.location.pathname : '/';
- const isPulseRoute = path.startsWith('/pulse');
- const isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
+ const _isPulseRoute = path.startsWith('/pulse');
+ const _isPulseAccount = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
  // Iter 215bc — match BrandAttrSync logic so the initial render of
  // member-facing routes (/members, /m/:slug) doesn't briefly flash
  // Pulse Fitness branding before the route-aware effect runs.
- const isMemberFacingRoute = path === '/members' || path.startsWith('/m/');
+ const _isMemberFacingRoute = path === '/members' || path.startsWith('/m/');
  const brandAttr = 'pulse'; // full white-label: Pulse Fitness everywhere
  document.documentElement.setAttribute('data-brand', brandAttr);
  }, [user?.account_type]);

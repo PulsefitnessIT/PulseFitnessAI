@@ -13,7 +13,7 @@ function authConfig() {
   return { headers: token ? { Authorization: `Bearer ${token}` } : {} };
 }
 
-const BRAND_BADGE = {
+const _BRAND_BADGE = {
   gymaxis: 'bg-cyan-50 text-cyan-700 border-cyan-200',
   pulse:   'bg-blue-50 text-blue-700 border-blue-200',
 };

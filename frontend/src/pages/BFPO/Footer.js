@@ -1,4 +1,3 @@
-import React from 'react';
 import { ShieldCheck } from 'lucide-react';
 
 // Mirrors the MOD Service Portal footer chrome (acceptable-use notice +

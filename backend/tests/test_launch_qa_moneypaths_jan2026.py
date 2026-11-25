@@ -19,7 +19,7 @@ def _load_backend_url() -> str:
     url = os.environ.get("REACT_APP_BACKEND_URL", "").strip()
     if not url:
         try:
-            with open("/app/frontend/.env", "r", encoding="utf-8") as fh:
+            with open("/app/frontend/.env", encoding="utf-8") as fh:
                 for line in fh:
                     if line.startswith("REACT_APP_BACKEND_URL="):
                         url = line.split("=", 1)[1].strip().strip('"').strip("'")

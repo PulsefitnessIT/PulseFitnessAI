@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { bfpo, uploadFile, pendingStatusFor, onOutboxChange, outboxCount } from '../bfpoApi';
 import { Card, Btn, Badge, Spinner, PriorityBadge, STATUS_LABEL, Field, inputCls, localTime } from '../ui';
 import SignOffFields, { signoffBody } from './SignOffFields';
@@ -7,12 +7,12 @@ import { EngineerReportFields, withReportDefaults, reportTimeError } from '@/com
 import { EngineerReportView } from '@/components/shared/EngineerReportView';
 import {
   ChevronLeft, AlertTriangle, MapPin, Wrench, ShieldCheck, ShieldAlert, Package,
-  RotateCcw, Ban, PlusCircle, Camera, CheckCircle2, Clock, FileText, History, Loader2,
+  RotateCcw, Ban, PlusCircle, Camera, CheckCircle2, FileText, History, Loader2,
 } from 'lucide-react';
 
 const OPEN = ['new', 'triaged', 'assigned', 'en_route', 'on_site', 'paused_parts', 'paused_customer', 'repaired', 'awaiting_sign_off'];
 
-export default function JobDetail({ jobId, onBack, onOpenJob }) {
+export default function JobDetail({ jobId, onBack, onOpenJob: _onOpenJob }) {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [panel, setPanel] = useState(null); // arrive | workflow | parts | outcome:X | report | complete
@@ -226,7 +226,7 @@ function WorkflowPanel({ job, onDiagnosis, onChoose, onClose, busy }) {
 function PartsPanel({ job, onSubmit, onCancel, busy }) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
-  const [eqId, setEqId] = useState(job.asset_id || '');
+  const [eqId, _setEqId] = useState(job.asset_id || '');
   const [photoUrl, setPhotoUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const parts = (job.equipment?.[0]?.parts) || [];
@@ -284,7 +284,7 @@ function OutcomePanel({ outcome, onSubmit, onCancel, busy }) {
   );
 }
 
-function ReportFaultPanel({ job, jobId, onDone, onCancel, busy }) {
+function ReportFaultPanel({ job, jobId, onDone, onCancel, busy: _busy }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('p3');

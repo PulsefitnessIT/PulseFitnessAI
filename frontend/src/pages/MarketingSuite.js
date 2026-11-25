@@ -211,7 +211,7 @@ const MarketingSuite = ({ embedded = false } = {}) => {
   // see the new Pulse Fitness brand: gradient wordmark + brand-gradient
   // active tab pills + theme-gymaxis class in light mode.
   const isPulseBrandedMkt = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
-  const brandLabel = isPulseBrandedMkt ? 'Pulse Fitness' : 'Pulse Fitness';
+  const _brandLabel = isPulseBrandedMkt ? 'Pulse Fitness' : 'Pulse Fitness';
 
   return (
     <div

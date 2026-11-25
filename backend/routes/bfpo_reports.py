@@ -46,7 +46,7 @@ async def _jobs_report(territory, site, frm, to):
     q = {**_base_filters(territory, site, frm, to), "bfpo": True}
     rows_raw = await db.svc_cases.find(q, {"_id": 0}).sort("created_at", -1).to_list(2000)
     rows_raw = [c for c in rows_raw if _in_range(c.get("created_at"), frm, to)]
-    now = _now()
+    _now()
     rows, by_prio, open_n, closed_n, safety_n = [], {"p1": 0, "p2": 0, "p3": 0, "p4": 0}, 0, 0, 0
     for c in rows_raw:
         is_open = c.get("status") in OPEN_STATES
@@ -249,7 +249,8 @@ def _to_pdf(data: dict, filters: dict) -> bytes:
         c.drawString(x + 4 * mm, y, txt)
         x += cw + 3 * mm
         if x > w - 40 * mm:
-            x = 15 * mm; y -= 10 * mm
+            x = 15 * mm
+            y -= 10 * mm
     y -= 12 * mm
     cols = data["columns"]
     n = len(cols)
@@ -267,8 +268,10 @@ def _to_pdf(data: dict, filters: dict) -> bytes:
     c.setFillColor(ink)
     for r in data["rows"]:
         if y < 15 * mm:
-            c.showPage(); y = h - 20 * mm
-            c.setFont("Helvetica", 7); c.setFillColor(ink)
+            c.showPage()
+            y = h - 20 * mm
+            c.setFont("Helvetica", 7)
+            c.setFillColor(ink)
         for i, col in enumerate(cols):
             c.drawString(15 * mm + i * cwid, y, str(r.get(col, ""))[:int(cwid / 4.4)])
         y -= 5 * mm

@@ -1080,7 +1080,7 @@ def _render_invoice_pdf(
     ]))
     tail = [total_tbl, Spacer(1, 6 * mm)]
     if c.get("bank_account_number"):
-        bank = (f"<b>Payment Details</b>"
+        bank = ("<b>Payment Details</b>"
                 + (f"  <font color='#6E7476'>{_esc_(c['payment_terms'])}</font>" if c.get("payment_terms") else "")
                 + f"<br/>{_esc_(c.get('bank_name') or '')}")
         if c.get("bank_account_name"):

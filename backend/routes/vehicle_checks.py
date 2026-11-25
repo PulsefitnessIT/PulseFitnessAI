@@ -379,8 +379,10 @@ async def export_vehicles_csv(user: dict = Depends(get_current_user)):
     rows = await db.vehicles.find({"organization_id": org, "active": {"$ne": False}}, {"_id": 0}).sort("fleet_department", 1).to_list(1000)
     staff = await db.staff_members.find({"organization_id": org}, {"_id": 0, "id": 1, "full_name": 1}).to_list(2000)
     names = {s["id"]: s.get("full_name") for s in staff}
-    import csv as _csv, io as _io
-    buf = _io.StringIO(); w = _csv.writer(buf)
+    import csv as _csv
+    import io as _io
+    buf = _io.StringIO()
+    w = _csv.writer(buf)
     w.writerow(["Department", "Reg", "Make/Model", "Type", "Driver", "Lease company", "Lease end", "Fuel card",
                 "DART", "Congestion", "M6 Toll", "MOT due", "Tax", "Insurance", "Next service", "Service ref",
                 "Odometer", "Open fines", "Notes"])
@@ -994,7 +996,8 @@ def _build_check_pdf(check: dict, template: dict, org_company: dict | None,
     df = check.get("defect") or {}
     if check.get("has_defects") or df.get("details"):
         story.append(section_label(s, "Defects / corrective action"))
-        yn = lambda v: "Yes" if v is True else "No" if v is False else "—"
+        def yn(v):
+            return "Yes" if v is True else "No" if v is False else "—"
         story.append(Paragraph(_esc(df.get("details") or "No description provided."), body))
         story.append(Spacer(1, 2 * mm))
         drow = [["Safe to drive", yn(df.get("safe_to_drive")), "Manager told", yn(df.get("manager_told")),
@@ -1081,7 +1084,8 @@ def _check_pdf_filename(doc: dict) -> str:
     reg = (doc.get("details") or {}).get("reg_no", "vehicle").replace(" ", "")
     driver = doc.get("driver_name") or (doc.get("details") or {}).get("driver_name") or "Driver"
     completed = (doc.get("submitted_at") or "")[:10] or doc.get("week_commencing", "")
-    _safe = lambda t: "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
+    def _safe(t):
+        return "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
     return " ".join(f"Vehicle Check - {_safe(driver)} - {_safe(reg)} - {completed}.pdf".split())
 
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Radar, TrendingUp, AlertTriangle, PackageX, Layers, Download, FileSpreadsheet } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
-import { Spinner, StatCard, TrendBadge, money } from './shared';
+import { Spinner, TrendBadge, money } from './shared';
 
 const TONE_ICON = { red: 'text-red-500', amber: 'text-amber-500', slate: 'text-slate-400' };
 

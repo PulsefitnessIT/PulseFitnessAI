@@ -71,7 +71,7 @@ class TestMultiSite:
         r = owner.get(f"{BASE_URL}/api/staffing/staff")
         assert r.status_code == 200
         ids = {s["id"] for s in r.json()["staff"]}
-        assert SITE_B_STAFF <= ids
+        assert ids >= SITE_B_STAFF
 
     @pytest.mark.parametrize("path", [
         "/api/staffing/shifts", "/api/staffing/live-floor", "/api/staffing/leave",

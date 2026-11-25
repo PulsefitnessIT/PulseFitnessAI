@@ -665,9 +665,7 @@ async def _generate_proposal(
     date_str = date or _now_dt().date().isoformat()
     cutoff = _now_dt()
     day_start, _ = _day_bounds(date_str, sh, eh)
-    if mode in ("full_day", "tomorrow") or date_str > _now_dt().date().isoformat():
-        cutoff = day_start
-    elif cutoff < day_start:
+    if mode in ("full_day", "tomorrow") or date_str > _now_dt().date().isoformat() or cutoff < day_start:
         cutoff = day_start
 
     strategy = _MODE_STRATEGY.get(mode, "sla")

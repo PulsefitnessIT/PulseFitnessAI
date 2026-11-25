@@ -750,9 +750,9 @@ export default function CRMTerritoryMap() {
             >
               <defs>
                 <pattern id="overlap-hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-                  {/* eslint-disable-next-line gymaxis/no-inline-hex */}
+                  { }
                   <rect width="6" height="6" fill="#DC2626" fillOpacity="0.08" />
-                  {/* eslint-disable-next-line gymaxis/no-inline-hex */}
+                  { }
                   <line x1="0" y1="0" x2="0" y2="6" stroke="#DC2626" strokeWidth="1.5" strokeOpacity="0.6" />
                 </pattern>
               </defs>
@@ -794,11 +794,11 @@ export default function CRMTerritoryMap() {
                         <Geography
                           geography={geo}
                           style={{
-                            /* eslint-disable gymaxis/no-inline-hex */
+                             
                             default: { fill: 'url(#overlap-hatch)', stroke: '#DC2626', strokeWidth: 1.6, outline: 'none', pointerEvents: 'none' },
                             hover:   { fill: 'url(#overlap-hatch)', stroke: '#B91C1C', strokeWidth: 1.8, outline: 'none', pointerEvents: 'none' },
                             pressed: { fill: 'url(#overlap-hatch)', stroke: '#DC2626', strokeWidth: 1.6, outline: 'none', pointerEvents: 'none' },
-                            /* eslint-enable gymaxis/no-inline-hex */
+                             
                           }}
                           data-testid={`region-overlap-${region.type}-${region.code}`}
                         />

@@ -12,7 +12,7 @@ import axios from 'axios';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { EquipmentDetailContent } from './LiteDashboard/LiteDialogs';
-import { Search, Download, FileText, Wrench, CheckCircle, Clock, Edit, QrCode, Filter, Loader2, AlertTriangle, X, Image, ExternalLink, Sparkles, Plus } from 'lucide-react';
+import { Search, Download, FileText, Wrench, CheckCircle, Clock, Edit, QrCode, Filter, Loader2, AlertTriangle, X, Image, ExternalLink, ScanLine, ClipboardList } from 'lucide-react';
 import AuditDetailPanel from './AuditDetailPanel';
 import { EquipmentCardSkeleton } from '@/components/shared/Skeleton';
 import ManufacturerCombobox from '@/components/equipment/ManufacturerCombobox';
@@ -22,7 +22,6 @@ import AddEquipmentDialog from '@/components/equipment/AddEquipmentDialog';
 import EquipmentScanModal from '@/components/equipment/EquipmentScanModal';
 import StockTakeModal from '@/components/equipment/StockTakeModal';
 import StockTakeHistoryModal from '@/components/equipment/StockTakeHistoryModal';
-import { ScanLine, ClipboardList } from 'lucide-react';
 import DatePicker from '@/components/shared/DatePicker';
 import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
@@ -31,7 +30,7 @@ const SLA_RESPONSE_OPTIONS = [
   { value: '__other__', label: 'Other (enter manually)' },
 ];
 
-const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceImport, onLogFault }) => {
+const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceImport: _onOpenInvoiceImport, onLogFault }) => {
  const { API, user } = useAuth();
  const { _t } = useTranslation();
  const [equipment, setEquipment] = useState([]);
@@ -272,7 +271,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  }
  };
 
- const handleExportCSV = async () => {
+ const _handleExportCSV = async () => {
  const token = localStorage.getItem('token');
  try {
  const response = await axios.get(`${API}/equipment/export/csv`, {
@@ -612,7 +611,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  <EquipmentCardSkeleton />
  </>
  ) : filteredEquipment.map(equip => {
- const hasOpenFault = (equip.stats?.open_faults || 0) > 0;
+ const _hasOpenFault = (equip.stats?.open_faults || 0) > 0;
  // Traffic-light cover status — Green = within warranty/contract,
  // Amber = running out (≤60 days), Red = out of cover, grey = no cover info.
  const _coverDates = [equip.warranty_expiry, equip.sla_expiry]

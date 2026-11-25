@@ -54,7 +54,7 @@ export default function FamilyBillingTab({ API, headers }) {
     } catch (e) {
       notify.error(t('memberships_console.fam_load_fail', 'Failed to load family billing'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [API, auth]);
+  }, [API, auth, t]);
   useEffect(() => { load(); }, [load]);
 
   const saveSibling = async () => {

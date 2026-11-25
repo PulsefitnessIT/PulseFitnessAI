@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Loader2, X, ChevronLeft, ChevronRight, ShieldAlert, Phone, Copy, Camera,
-  Plus, Trash2, CheckCircle2, Car, Check, PartyPopper, MapPin,
+  Plus, Trash2, Car, Check, PartyPopper, MapPin,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -102,7 +102,7 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
       () => setGeo('denied'),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   useEffect(() => {
     axios.get(`${API}/new-starter/portal/crash-packs/bootstrap`, { headers: H })

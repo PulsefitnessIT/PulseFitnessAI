@@ -42,7 +42,7 @@ function NumPad({ value, onChange, onDone }) {
     <div className="grid grid-cols-3 gap-2 mt-3" data-testid="calib-numpad">
       {keys.map(k => (
         <button key={k} onClick={() => press(k)} data-testid={`numpad-${k}`}
-          className="rounded-xl py-4 text-xl font-bold bg-slate-100 active:bg-slate-200">
+          className="rounded-xl py-4 text-xl font-bold bg-slate-100 active:bg-slate-200 dark:bg-zinc-800">
           {k === 'del' ? '⌫' : k}</button>
       ))}
       <button onClick={onDone} data-testid="numpad-done"
@@ -94,8 +94,8 @@ export default function BlueLightVisitWizard() {
     } catch { return []; }
   };
 
-  if (loading) return <div className="min-h-screen grid place-items-center bg-slate-50"><Loader2 className="animate-spin text-blue-600" /></div>;
-  if (!state) return <div className="min-h-screen grid place-items-center bg-slate-50 text-slate-500">Visit not found.</div>;
+  if (loading) return <div className="min-h-screen grid place-items-center bg-slate-50 dark:bg-zinc-900"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (!state) return <div className="min-h-screen grid place-items-center bg-slate-50 text-slate-500 dark:bg-zinc-900">Visit not found.</div>;
 
   const { pack, assets, progress, completion_blockers, can_complete, contract, visit, calibrations } = state;
   const notStarted = !visit.started_at && visit.status !== 'in_progress' && visit.status !== 'completed';
@@ -105,24 +105,24 @@ export default function BlueLightVisitWizard() {
   // ── START SCREEN (§6) ──
   if (notStarted) {
     return (
-      <div className="min-h-screen bg-slate-50 pb-10">
+      <div className="min-h-screen bg-slate-50 pb-10 dark:bg-zinc-900">
         <div className="bg-blue-700 text-white px-5 pt-8 pb-6">
           <div className="flex items-center gap-2 text-blue-200 text-sm"><Radio size={16} /> Blue Light Service</div>
           <h1 className="text-2xl font-bold mt-1" data-testid="visit-station-name">{pack.station_name}</h1>
           <p className="text-blue-100 text-sm mt-1">{pack.station?.address}, {pack.station?.city} {pack.station?.postcode}</p>
         </div>
         <div className="p-5 space-y-4">
-          <div className="rounded-2xl bg-white shadow p-4 grid grid-cols-3 text-center">
+          <div className="rounded-2xl bg-white shadow p-4 grid grid-cols-3 text-center dark:bg-zinc-900">
             <div><div className="text-2xl font-bold">{pack.expected_asset_count}</div><div className="text-xs text-slate-500">Machines</div></div>
             <div><div className="text-2xl font-bold text-blue-600">{pack.treadmill_count}</div><div className="text-xs text-slate-500">Treadmills</div></div>
             <div><div className="text-2xl font-bold">{contract.contract_number || '—'}</div><div className="text-xs text-slate-500">Contract</div></div>
           </div>
-          <div className="rounded-2xl bg-white shadow p-4 text-sm text-slate-600 space-y-1">
+          <div className="rounded-2xl bg-white shadow p-4 text-sm text-slate-600 space-y-1 dark:bg-zinc-900">
             <div><b>Contact:</b> {pack.station?.contact_name} · {pack.station?.telephone}</div>
             {pack.station?.access_instructions && <div><b>Access:</b> {pack.station.access_instructions}</div>}
             {pack.station?.parking_info && <div><b>Parking:</b> {pack.station.parking_info}</div>}
           </div>
-          <label className="flex items-start gap-3 rounded-2xl bg-white shadow p-4 text-sm">
+          <label className="flex items-start gap-3 rounded-2xl bg-white shadow p-4 text-sm dark:bg-zinc-900">
             <input type="checkbox" id="confirm-site" data-testid="confirm-on-site" className="mt-1 w-5 h-5" />
             <span>I confirm I am at the correct station: <b>{pack.station_name}</b></span>
           </label>
@@ -140,8 +140,8 @@ export default function BlueLightVisitWizard() {
 
   if (visit.status === 'completed') {
     return (
-      <div className="min-h-screen bg-slate-50 grid place-items-center p-6">
-        <div className="rounded-2xl bg-white shadow p-8 text-center max-w-sm" data-testid="visit-completed">
+      <div className="min-h-screen bg-slate-50 grid place-items-center p-6 dark:bg-zinc-900">
+        <div className="rounded-2xl bg-white shadow p-8 text-center max-w-sm dark:bg-zinc-900" data-testid="visit-completed">
           <CheckCircle size={56} className="mx-auto text-green-600" />
           <h2 className="text-xl font-bold mt-3">Visit Completed</h2>
           <p className="text-slate-600 mt-1">{pack.station_name}</p>
@@ -163,7 +163,7 @@ export default function BlueLightVisitWizard() {
   const curStep = STEPS[step].id;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-28">
+    <div className="min-h-screen bg-slate-50 pb-28 dark:bg-zinc-900">
       {/* Header + progress */}
       <div className="bg-blue-700 text-white px-5 pt-6 pb-4 sticky top-0 z-20">
         <div className="flex items-center justify-between">
@@ -209,7 +209,7 @@ export default function BlueLightVisitWizard() {
               return (
                 <button key={t.asset_key} data-testid={`calib-asset-${t.asset_key}`}
                   onClick={() => { setActiveAsset(t); setMode('calibration'); }}
-                  className="w-full text-left rounded-2xl bg-white shadow p-4 flex items-center justify-between">
+                  className="w-full text-left rounded-2xl bg-white shadow p-4 flex items-center justify-between dark:bg-zinc-900">
                   <div>
                     <div className="font-semibold">{t.asset_name}</div>
                     <div className="text-xs text-slate-500">Serial: {t.serial_number || '—'}</div>
@@ -227,7 +227,7 @@ export default function BlueLightVisitWizard() {
             <StepTitle>Faults & actions</StepTitle>
             {(state.faults || []).length === 0 && <Empty>No faults raised yet.</Empty>}
             {(state.faults || []).map(f => (
-              <div key={f.id} className="rounded-2xl bg-white shadow p-4" data-testid={`fault-row-${f.id}`}>
+              <div key={f.id} className="rounded-2xl bg-white shadow p-4 dark:bg-zinc-900" data-testid={`fault-row-${f.id}`}>
                 <div className="font-semibold text-sm">{f.reference} · {f.title}</div>
                 <div className="text-xs text-slate-500 mt-0.5">Priority {f.priority?.toUpperCase()}{f.out_of_service ? ' · OUT OF SERVICE' : ''}</div>
               </div>
@@ -250,7 +250,7 @@ export default function BlueLightVisitWizard() {
       </div>
 
       {/* Sticky footer nav */}
-      <div className="fixed bottom-0 inset-x-0 bg-white border-t p-3 flex gap-2 z-20">
+      <div className="fixed bottom-0 inset-x-0 bg-white border-t p-3 flex gap-2 z-20 dark:bg-zinc-900">
         <button data-testid="wizard-prev" disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))}
           className="flex-1 rounded-xl py-3 font-semibold border disabled:opacity-30 flex items-center justify-center gap-1"><ChevronLeft size={18} />Back</button>
         <button data-testid="wizard-next" disabled={step === STEPS.length - 1} onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
@@ -288,7 +288,7 @@ const SERVICE_LABEL = {
 };
 
 const StepTitle = ({ children }) => <h2 className="font-bold text-slate-700 px-1">{children}</h2>;
-const Empty = ({ children }) => <div className="rounded-2xl bg-white shadow p-6 text-center text-slate-400 text-sm">{children}</div>;
+const Empty = ({ children }) => <div className="rounded-2xl bg-white shadow p-6 text-center text-slate-400 text-sm dark:bg-zinc-900">{children}</div>;
 
 function AssetList({ assets, title, onPick, badge, footer, emptyDone }) {
   return (
@@ -299,7 +299,7 @@ function AssetList({ assets, title, onPick, badge, footer, emptyDone }) {
         const b = badge(a);
         return (
           <button key={a.asset_key} onClick={() => onPick(a)} data-testid={`asset-row-${a.asset_key}`}
-            className="w-full text-left rounded-2xl bg-white shadow p-4 flex items-center justify-between active:scale-[0.99] transition-transform">
+            className="w-full text-left rounded-2xl bg-white dark:bg-zinc-900 shadow p-4 flex items-center justify-between active:scale-[0.99] transition-transform">
             <div className="min-w-0">
               <div className="font-semibold truncate">{a.asset_name} {a.is_treadmill && <span className="text-blue-600 text-xs">· treadmill</span>}</div>
               <div className="text-xs text-slate-500 truncate">{a.equipment_type} · {a.serial_number || 'no serial'}</div>
@@ -316,7 +316,7 @@ function AssetList({ assets, title, onPick, badge, footer, emptyDone }) {
 function Sheet({ title, children, onClose }) {
   return (
     <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto dark:bg-zinc-900" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-lg">{title}</h3>
           <button onClick={onClose} className="text-slate-400 p-1"><XCircle size={22} /></button>
@@ -429,7 +429,7 @@ function AddAssetSheet({ onSubmit, onClose, busy, onLookup, onRequestTransfer })
   );
 }
 
-function ServiceSheet({ asset, onSubmit, onClose, onRaiseFault, busy }) {
+function ServiceSheet({ asset, onSubmit, onClose, onRaiseFault: _onRaiseFault, busy }) {
   const opts = [
     ['serviced_operational', 'Serviced — Operational', '#16a34a'],
     ['serviced_minor_issue', 'Serviced — Minor issue', '#d97706'],
@@ -451,7 +451,7 @@ function ServiceSheet({ asset, onSubmit, onClose, onRaiseFault, busy }) {
   );
 }
 
-function CalibrationSheet({ asset, config, existing, onSubmit, onClose, busy }) {
+function CalibrationSheet({ asset, config, existing, onSubmit, onClose, busy: _busy }) {
   const speedPts = config?.speed_points_mph || [3, 6, 9, 12];
   const inclinePts = config?.incline_points_pct || [0, 5, 10, 15];
   const [speed, setSpeed] = useState(() => speedPts.map(t => ({ target: t, measured: '' })));
@@ -573,7 +573,7 @@ function ReviewPanel({ state }) {
   return (
     <div className="space-y-2" data-testid="review-panel">
       <StepTitle>Station service summary</StepTitle>
-      <div className="rounded-2xl bg-white shadow divide-y">
+      <div className="rounded-2xl bg-white shadow divide-y dark:bg-zinc-900">
         {rows.map(([l, v]) => (
           <div key={l} className="flex justify-between px-4 py-2.5 text-sm">
             <span className="text-slate-500">{l}</span><span className="font-semibold">{v}</span>
@@ -623,10 +623,10 @@ function SignPanel({ blockers, canComplete, onComplete, onPartial, onGoTo, busy 
       <StepTitle>Sign & complete</StepTitle>
       <p className="text-sm text-slate-600 px-1">I confirm the above service information is complete and accurate.</p>
       <input className="w-full border rounded-xl px-3 py-2.5" placeholder="Engineer name" data-testid="sign-name" value={name} onChange={e => setName(e.target.value)} />
-      <div className="rounded-2xl bg-white shadow p-2">
+      <div className="rounded-2xl bg-white shadow p-2 dark:bg-zinc-900">
         <div className="text-xs text-slate-400 px-1 mb-1">Signature</div>
         <canvas ref={canvasRef} width={340} height={140} data-testid="sign-canvas"
-          className="w-full border rounded-xl touch-none bg-slate-50"
+          className="w-full border rounded-xl touch-none bg-slate-50 dark:bg-zinc-900"
           onPointerDown={draw} onPointerMove={draw} onPointerUp={stop} onPointerLeave={stop} />
         <button className="text-xs text-slate-400 mt-1" onClick={() => { const c = canvasRef.current; c.getContext('2d').clearRect(0, 0, c.width, c.height); setDrawn(false); }}>Clear</button>
       </div>

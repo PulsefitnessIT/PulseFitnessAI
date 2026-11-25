@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { CalendarPlus, Loader2 } from 'lucide-react';

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -26,7 +26,7 @@ export function reportTimeError(r) {
   return '';
 }
 
-const inputCls = 'w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white';
+const inputCls = 'w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white dark:bg-zinc-900 dark:border-zinc-800';
 const labelCls = 'text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-1 block';
 
 function PartRow({ part, idx, onChange, onRemove, onSearch }) {
@@ -40,13 +40,13 @@ function PartRow({ part, idx, onChange, onRemove, onSearch }) {
     <div className="relative flex gap-2 items-start" data-testid={`report-part-row-${idx}`}>
       <input className={`${inputCls} flex-1 min-w-0`} placeholder="Part name or number" value={part.name || ''}
         onChange={(e) => onChange({ name: e.target.value, sku: '', part_id: null })} data-testid={`report-part-name-${idx}`} />
-      <input type="number" min="1" className="w-20 shrink-0 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" value={part.qty || 1}
+      <input type="number" min="1" className="w-20 shrink-0 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white dark:bg-zinc-900 dark:border-zinc-800" value={part.qty || 1}
         onChange={(e) => onChange({ qty: Math.max(1, parseInt(e.target.value, 10) || 1) })} data-testid={`report-part-qty-${idx}`} aria-label="Quantity" />
       <button type="button" onClick={onRemove} className="p-2 text-slate-400 hover:text-red-600" data-testid={`report-part-remove-${idx}`} aria-label="Remove part"><Trash2 size={16} /></button>
       {hits.length > 0 && (
-        <div className="absolute z-20 top-full left-0 right-24 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto" data-testid={`report-part-suggestions-${idx}`}>
+        <div className="absolute z-20 top-full left-0 right-24 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto dark:bg-zinc-900 dark:border-zinc-800" data-testid={`report-part-suggestions-${idx}`}>
           {hits.map((h) => (
-            <button key={h.id || h.sku} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+            <button key={h.id || h.sku} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:bg-zinc-900"
               onClick={() => { onChange({ name: h.name || h.description || h.sku, sku: h.sku || '', part_id: h.id || null }); setHits([]); }}>
               <span className="font-semibold">{h.name || h.description}</span>{h.sku ? <span className="text-slate-400"> · {h.sku}</span> : null}
             </button>
@@ -62,7 +62,7 @@ export function EngineerReportFields({ value, onChange, defaultStart, defaultEnd
   const parts = (value?.further_parts_required) || [];
   const setParts = (next) => onChange({ further_parts_required: next });
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="engineer-report-fields">
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 dark:bg-zinc-900 dark:border-zinc-800" data-testid="engineer-report-fields">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="block"><span className={labelCls}>Start time *</span>
           <input type="datetime-local" className={inputCls} value={toLocalInput(r.start_time)} onChange={(e) => onChange({ start_time: fromLocalInput(e.target.value) })} data-testid="report-start-time" />

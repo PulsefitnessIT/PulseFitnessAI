@@ -192,7 +192,7 @@ _TERMINAL = ["closed", "invoiced", "repaired", "awaiting_sign_off", "rejected"]
 
 async def _kpis(base_q: dict) -> dict:
     open_q = {**base_q, "status": {"$in": list(OPEN_STATES)}}
-    today = _today()
+    _today()
     urgent = {**open_q, "$and": [{"$or": [{"priority": "p1"}, {"safety_critical": True}]}]}
     return {
         "open": await db.svc_cases.count_documents(open_q),
@@ -519,7 +519,7 @@ async def bfpo_arrive(case_id: str, data: dict = Body(...), user=Depends(_requir
 
 @router.post("/jobs/{case_id}/diagnosis")
 async def bfpo_diagnosis(case_id: str, data: dict = Body(...), user=Depends(_require_bfpo)):
-    case = await _get_scoped_case(user, case_id, read=False)
+    await _get_scoped_case(user, case_id, read=False)
     text = (data.get("diagnosis") or "").strip()
     if not text:
         raise HTTPException(400, "diagnosis required")

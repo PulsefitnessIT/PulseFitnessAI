@@ -169,7 +169,7 @@ export default function ModuleSwitcher({ user, current }) {
  if (pill && typeof pill.scrollIntoView === 'function') {
    pill.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
  }
- // eslint-disable-next-line react-hooks/exhaustive-deps
+  
  }, [current, location.pathname, available.length]);
 
  if (available.length < 2) return null;

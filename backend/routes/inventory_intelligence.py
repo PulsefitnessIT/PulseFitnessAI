@@ -56,7 +56,7 @@ async def _run_agents(user) -> list:
         if len(serials) > 1:
             findings.append(_alert("Serial & Asset Integrity", "critical", "Duplicate serial detected",
                                    {"normalised": norm, "count": len(serials)}, "Investigate and reconcile duplicate serial numbers.", {"serial": serials[0]}))
-    dispatched_no_pkg = await db.inv_equipment_units.count_documents({**of, "status": "dispatched", "asset_id": None})
+    await db.inv_equipment_units.count_documents({**of, "status": "dispatched", "asset_id": None})
     # (asset_id is set at allocation; dispatched-without-receipt is a watch item)
 
     # Order Exception — orders stuck early too long

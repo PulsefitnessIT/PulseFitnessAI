@@ -500,7 +500,7 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
 async def plan_group_sites(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
     """AI-group the selected sites into geographic runs (nearby sites together)
     and return them in a sensible visiting order, for the bulk scheduling wizard."""
-    operator = _operator(user)
+    _operator(user)
     customer_org = (data.get("customer_org_id") or "").strip()
     site_ids = [s for s in (data.get("site_ids") or []) if s]
     if not customer_org or not site_ids:

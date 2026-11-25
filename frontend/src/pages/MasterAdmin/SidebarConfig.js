@@ -309,7 +309,6 @@ export const sectionTitles = {
   archive: 'Archive',                           // Iter 216h53 — relocated from Service Desk
   'ask-support': 'Ask Support Desk',
   payments: 'Payments & subscriptions',
-  onboarding: 'Customer onboarding',             // Iter 216h20 — restored from People/"Staff onboarding". The hub creates customer organisations, not staff.
   trials: 'Trials',
   'activation-funnel': 'Customer activation',   // Iter 216h17 — terminology cleanup
   'sales-insights': 'Sales insights',
@@ -383,7 +382,6 @@ export const sectionDescriptions = {
   'marketing-suite': 'Marketing Suite — plans, subscriptions, platform-wide KPIs',
   'marketing-studio': 'Pulse Fitness Growth Hub — funnel view across trials, SEO, outbound, CRM pipeline and sales insights.',
   'social-autopilot': 'Daily auto-drafts for Instagram, TikTok and LinkedIn — channel-aware tone, brand-coloured imagery, copy & download.',
-  onboarding: 'Onboard a new customer organisation, send shareable packets, or bulk-load CSV rosters',
   trials: 'Track active trials, extend deadlines, convert to paid',
   'activation-funnel': 'Conversion funnel — what % of orgs hit each milestone, where they drop off.',
   'sales-insights': 'Top sales objections + AI-spotted themes from the public marketing chat.',

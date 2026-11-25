@@ -175,7 +175,8 @@ async def _detect_orphaned_issues() -> list[dict]:
         {"status": {"$ne": "resolved"}, "serial_unknown": {"$ne": True},
          "serial_number": {"$nin": [None, ""], "$exists": True}},
         {"_id": 0, "serial_number": 1, "organization_id": 1}):
-        oid = iss.get("organization_id"); sn = iss.get("serial_number")
+        oid = iss.get("organization_id")
+        sn = iss.get("serial_number")
         exists = await db.equipment.find_one(
             {"organization_id": oid, "serial_number": sn}, {"_id": 0, "id": 1})
         if not exists:

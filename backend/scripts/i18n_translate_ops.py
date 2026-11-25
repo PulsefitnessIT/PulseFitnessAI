@@ -10,7 +10,11 @@ Build-time i18n helper for the Operations Dashboards (LiteDashboard) module.
 
 Run: cd /app/backend && python scripts/i18n_translate_ops.py
 """
-import os, re, json, asyncio, sys
+import os
+import re
+import json
+import asyncio
+import sys
 
 FE = "/app/frontend/src"
 LOCALES = os.path.join(FE, "i18n", "locales")
@@ -77,7 +81,7 @@ def scan():
 
 # Catches the exact crash class ("TypeError: t is not a function") where a
 # component uses t('orgchart.x','...') but forgot `const { t } = useTranslation()`.
-_NS_T_CALL = re.compile(r"\bt\(\s*['\"](?:%s)\." % "|".join(NAMESPACES))
+_NS_T_CALL = re.compile(r"\bt\(\s*['\"](?:" + "|".join(NAMESPACES) + r")\.")
 
 def guard_missing_hook():
     offenders = []
@@ -139,7 +143,8 @@ async def translate_batch(pairs, target_lang_name):
         msg = "Translate the VALUES of this JSON to " + target_lang_name + ":\n" + json.dumps(chunk, ensure_ascii=False)
         resp = await chat.send_message(UserMessage(text=msg))
         raw = resp if isinstance(resp, str) else str(resp)
-        s = raw.find("{"); e = raw.rfind("}")
+        s = raw.find("{")
+        e = raw.rfind("}")
         try:
             parsed = json.loads(raw[s:e+1])
             out.update(parsed)

@@ -39,7 +39,7 @@ export default function BillingPage() {
       setRows(r.data.rows || []);
     } catch (e) { notify.error(t('service.svcbill_load_failed', 'Failed to load billing queue'), e?.response?.data?.detail || e.message); }
     finally { setLoading(false); }
-  }, [filter]);
+  }, [filter, t]);
 
   useEffect(() => { load(); }, [load]);
 

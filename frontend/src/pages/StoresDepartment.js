@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Warehouse, PackageSearch, Truck, Building2, ClipboardList, ListChecks, ArrowRight, Clock } from 'lucide-react';
+import { Warehouse, PackageSearch, Building2, ClipboardList, ListChecks, ArrowRight, Clock } from 'lucide-react';
 import { dpApi } from './DealerWarrantyParts/api';
 import { StatCard, Spinner, StatusBadge, money } from './DealerWarrantyParts/shared';
 import StoresDeptTab from './DealerWarrantyParts/StoresDeptTab';

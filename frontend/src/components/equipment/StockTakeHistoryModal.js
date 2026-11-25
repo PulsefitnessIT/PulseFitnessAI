@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { X, Loader2, ClipboardList, ChevronRight, AlertTriangle, Flag, CheckSquare, Square, ListChecks } from 'lucide-react';
+import { X, Loader2, ClipboardList, ChevronRight, AlertTriangle, Flag, Square, ListChecks } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });

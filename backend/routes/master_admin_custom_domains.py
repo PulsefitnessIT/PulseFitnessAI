@@ -75,9 +75,6 @@ _HOSTNAME_RX = re.compile(
 # tenant domain (would shadow the SaaS itself).
 PLATFORM_HOSTS = {
     "pulsefitness.ai",
-    "pulsefitness.ai",
-    "pulsefitness.ai",
-    "pulsefitness.ai",
     "preview.emergentagent.com",
     "emergentagent.com",
     "localhost",

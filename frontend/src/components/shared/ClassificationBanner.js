@@ -10,6 +10,7 @@
  */
 const LEVEL_STYLES = {
   'OFFICIAL-SENSITIVE': {
+    // eslint-disable-next-line gymaxis/no-inline-hex -- dark amber reserved for the OFFICIAL-SENSITIVE marking
     background: '#1a1205',
     color: '#fbbf24',
     border: 'rgba(251,191,36,0.35)',

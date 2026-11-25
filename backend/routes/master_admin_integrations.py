@@ -345,7 +345,7 @@ async def _sicon_org_readiness(org_id: str, org_name: str, cfg: dict) -> dict:
     eq_mapped = await db.equipment.count_documents({
         "organization_id": org_id, "sicon_equipment_id": {"$exists": True, "$ne": None},
     })
-    map_serials = len((cfg.get("equipment_id_mapping") or {}))
+    map_serials = len(cfg.get("equipment_id_mapping") or {})
     covered = max(eq_mapped, map_serials)
     pct = round((covered / eq_total) * 100) if eq_total else 0
     if eq_total == 0:
@@ -660,7 +660,7 @@ def _match_by_serial(import_rows: list, equipment: list) -> dict:
             "suggested_sage_item_id": sug_sage,
         })
 
-    unmatched_serials = [s for s in by_serial.keys() if s not in used_serials]
+    unmatched_serials = [s for s in by_serial if s not in used_serials]
     return {
         "matched": matched,
         "fuzzy": fuzzy,

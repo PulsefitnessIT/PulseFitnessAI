@@ -168,7 +168,6 @@ async def activate_campaign(camp: dict) -> int:
 
     rows = []
     for i, r in enumerate(recips):
-        is_test = (not ab_enabled) or (i in test_idx_set)
         rows.append({
             "id": _new_id(), "organization_id": org_id,
             "campaign_id": camp["id"], "contact_email": r["email"].lower(),

@@ -392,7 +392,7 @@ async def cancel_request(request_id: str, user=Depends(get_current_user)):
 
 @router.post("/parts-requests/{request_id}/mark-received")
 async def mark_received(request_id: str, user=Depends(get_current_user)):
-    doc = await _load(request_id, user)
+    await _load(request_id, user)
     await db[REQS].update_one({"id": request_id}, {"$set": {"status": "completed", "updated_at": _now()}})
     await _event(request_id, _actor_name(user), "operator", "received",
                  note="Parts received — request completed")

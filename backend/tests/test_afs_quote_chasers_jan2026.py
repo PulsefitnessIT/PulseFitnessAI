@@ -108,5 +108,5 @@ class TestAfsQuoteChasers:
         qexp = mongo.crm2_afs_quotes.find_one({"_demo_tag": "chase_demo", "quote_number": "CHASE-EXP"})
         found = [a for a in alerts if a.get("type") == "quote_expired"
                  and a.get("quote_id") == (qexp or {}).get("id")]
-        assert found, f"quote_expired alert not found for CHASE-EXP"
+        assert found, "quote_expired alert not found for CHASE-EXP"
         assert "Quote expired unsigned" in found[0].get("subject", "")

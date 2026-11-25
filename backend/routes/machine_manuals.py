@@ -689,7 +689,7 @@ def _load_bundled_catalogue() -> list[dict]:
     import os
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pulse_manual_urls.json")
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
         return data if isinstance(data, list) else []
     except FileNotFoundError:
@@ -814,7 +814,8 @@ async def manuals_for_equipment(
             {"organization_id": org_id, "linked_equipment_ids": eq_id}, proj,
         ):
             if m["id"] not in seen:
-                out.append(_compact(m)); seen.add(m["id"])
+                out.append(_compact(m))
+                seen.add(m["id"])
 
     if eq and eq.get("manufacturer") and eq.get("model"):
         mk = _key(eq.get("manufacturer"), eq.get("model"))
@@ -822,12 +823,14 @@ async def manuals_for_equipment(
             {"organization_id": org_id, "make_model_key": mk}, proj,
         ):
             if m["id"] not in seen:
-                out.append(_compact(m)); seen.add(m["id"])
+                out.append(_compact(m))
+                seen.add(m["id"])
         async for m in db.machine_manuals.find(
             {"organization_id": GLOBAL_ORG, "is_global": True, "make_model_key": mk}, proj,
         ):
             if m["id"] not in seen:
-                out.append(_compact(m)); seen.add(m["id"])
+                out.append(_compact(m))
+                seen.add(m["id"])
 
     return out[:8]
 

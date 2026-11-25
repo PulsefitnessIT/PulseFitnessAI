@@ -30,9 +30,7 @@ def _enabled_set(org: dict) -> set:
     enabled = set(org.get("enabled_modules") or [])
     modules = org.get("modules") or {}
     for k, v in modules.items():
-        if isinstance(v, dict) and v.get("enabled"):
-            enabled.add(k)
-        elif v is True:
+        if isinstance(v, dict) and v.get("enabled") or v is True:
             enabled.add(k)
     return enabled
 

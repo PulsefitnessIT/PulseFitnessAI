@@ -56,7 +56,7 @@ export default function BlogIndex() {
     <PulseMarketingShell>
       <section className="gx-grid-bg">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-14 pb-16 lg:pt-20 lg:pb-24">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
             <BookOpen size={12} /> The Pulse Fitness Blog
           </span>
           <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl tracking-tight font-black leading-[1.05] max-w-4xl" style={{ color: '#1B1C1D' }}>
@@ -69,14 +69,14 @@ export default function BlogIndex() {
         </div>
       </section>
 
-      <section className="bg-white pb-24">
+      <section className="bg-white pb-24 dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 grid md:grid-cols-2 lg:grid-cols-3 gap-5" data-testid="blog-index">
           {posts.map((p) => (
             <Link
               key={p.slug}
               to={`/blog/${p.slug}`}
               data-testid={`blog-card-${p.slug}`}
-              className="group rounded-2xl bg-white border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 hover:border-[#19CDFF] transition flex flex-col"
+              className="group rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 hover:border-[#19CDFF] transition flex flex-col"
             >
               <div className="aspect-[16/9] bg-[#1B1C1D] flex items-center justify-center p-6 overflow-hidden">
                 {p.hero_image_url ? (

@@ -26,7 +26,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Wrench, Car, Loader2, RefreshCw,
   Play, Square, Plus, Trash2, Check, AlertTriangle, ReceiptPoundSterling as Receipt,
-  ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
+  ChevronRight, CheckCircle2, Search, Package, X,
   Video, MapPin, Send, Download, Phone, Navigation, Edit3,
   Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer, ShieldCheck, QrCode,
   Sparkles, FileText, Camera,
@@ -325,7 +325,7 @@ export default function EngineerJobDetailV2() {
       if (!ok) return;
     }
     navigate(backHref);
-  }, [draftDirty, navigate, backHref]);
+  }, [draftDirty, navigate, backHref, t]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -344,7 +344,7 @@ export default function EngineerJobDetailV2() {
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [caseId, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -356,7 +356,7 @@ export default function EngineerJobDetailV2() {
     } catch {
       notify.error(t('service.eng_jd_ack_failed', 'Could not acknowledge the job'));
     }
-  }, [caseId, load]);
+  }, [caseId, load, t]);
 
   const activeTimer = useMemo(() => (job?.time_entries || []).find(t => !t.end_at) || null, [job]);
 
@@ -4221,6 +4221,7 @@ function CalibrationCapture({ job }) {
         }
       } catch { /* non-fatal */ }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'job; pre-existing as of iter 216h226-polish-5.
   }, [job.id]);
 
   const matrixMode = Array.isArray(machines);

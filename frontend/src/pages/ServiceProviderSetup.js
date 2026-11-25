@@ -39,7 +39,7 @@ export default function ServiceProviderSetup() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [data, setData] = useState(null);
+  const [_data, setData] = useState(null);
   const [branding, setBranding] = useState({ company_name: '', primary_color: '#0EA5E9', accent_color: '#7C3AED', logo_url: '' });
   const [sla, setSla] = useState({});
   const [eng, setEng] = useState({ full_name: '', email: '', mobile: '' });

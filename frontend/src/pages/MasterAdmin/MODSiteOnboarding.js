@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
-  Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
+  Download, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
   Dumbbell, Users, Truck, FileText, ClipboardCheck, RefreshCw, ShieldCheck,
   Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail, Sparkles, Trash2, Timer,
 } from 'lucide-react';
@@ -49,7 +49,7 @@ const MODSiteOnboarding = () => {
   const [sites, setSites] = useState([]);
   const [totals, setTotals] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [uploadingId, setUploadingId] = useState(null);
+  const [_uploadingId, setUploadingId] = useState(null);
   const [aiKitSite, setAiKitSite] = useState(null);
   const [deleteSite, setDeleteSite] = useState(null);
   const [confirmName, setConfirmName] = useState('');
@@ -314,7 +314,7 @@ const MODSiteOnboarding = () => {
     }
   };
 
-  const pickFileFor = (site) => { targetSite.current = site; fileInput.current?.click(); };
+  const _pickFileFor = (site) => { targetSite.current = site; fileInput.current?.click(); };
 
   const openKitDrill = async (site, category) => {
     setKitDrill({ site, category, loading: true, items: [] });

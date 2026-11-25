@@ -46,6 +46,7 @@ max-complexity = 70
 "conftest.py" = ["ANN201", "ANN202", "E712"]
 "routes/issues.py" = ["C901"]    # triage_issue is inherently complex (AI prompt assembly)
 "routes/files.py" = ["C901"]     # ask_documents is inherently complex (document scoring)
+"routes/svc/service_report.py" = ["C901"]  # _build_pdf lays out every optional report section
 
 [tool.bandit]
 # Security-focused static analysis. Run via: `bandit -c pyproject.toml -r .`

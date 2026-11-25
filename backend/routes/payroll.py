@@ -485,17 +485,28 @@ async def payroll_reports(date_from: str = Query(...), date_to: str = Query(...)
         g = dept.setdefault(d, {"department": d, "headcount": 0, "worked": 0.0, "overtime": 0.0,
                                 "holiday": 0.0, "sick": 0.0, "expected_days": 0, "present_days": 0})
         g["headcount"] += 1
-        g["worked"] += t["worked"]; g["overtime"] += ot
-        g["holiday"] += t["holiday"]; g["sick"] += t["sick"]
-        g["expected_days"] += t["expected_days"]; g["present_days"] += t["present_days"]
-        tot["worked"] += t["worked"]; tot["regular"] += t["regular"]; tot["overtime"] += ot
-        tot["holiday"] += t["holiday"]; tot["sick"] += t["sick"]; tot["unpaid_days"] += t["unpaid_days"]
-        tot["expected"] += t["expected"]; tot["expected_days"] += t["expected_days"]; tot["present_days"] += t["present_days"]
+        g["worked"] += t["worked"]
+        g["overtime"] += ot
+        g["holiday"] += t["holiday"]
+        g["sick"] += t["sick"]
+        g["expected_days"] += t["expected_days"]
+        g["present_days"] += t["present_days"]
+        tot["worked"] += t["worked"]
+        tot["regular"] += t["regular"]
+        tot["overtime"] += ot
+        tot["holiday"] += t["holiday"]
+        tot["sick"] += t["sick"]
+        tot["unpaid_days"] += t["unpaid_days"]
+        tot["expected"] += t["expected"]
+        tot["expected_days"] += t["expected_days"]
+        tot["present_days"] += t["present_days"]
 
     by_dept = []
     for g in dept.values():
-        g["worked"] = round(g["worked"], 1); g["overtime"] = round(g["overtime"], 1)
-        g["holiday"] = round(g["holiday"], 1); g["sick"] = round(g["sick"], 1)
+        g["worked"] = round(g["worked"], 1)
+        g["overtime"] = round(g["overtime"], 1)
+        g["holiday"] = round(g["holiday"], 1)
+        g["sick"] = round(g["sick"], 1)
         g["attendance_rate"] = round(100 * g["present_days"] / g["expected_days"], 1) if g["expected_days"] else 100.0
         by_dept.append(g)
     for k in ("worked", "regular", "overtime", "holiday", "sick", "expected"):

@@ -37,7 +37,7 @@ const SiteSwitcher = ({ onAllSites, onPickSite, allSitesActive = false }) => {
 
   // Effective "all sites" mode: either the parent controls it
   // (Operations) or the global isolation mode from the auth context.
-  const allActive = allSitesActive || (allSitesMode && !activeSite);
+  const _allActive = allSitesActive || (allSitesMode && !activeSite);
   // When in global all-mode but a site is still cached for label, prefer
   // showing "All sites" if the context flag is set and parent isn't driving.
   const showAll = allSitesActive || allSitesMode;

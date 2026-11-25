@@ -237,7 +237,7 @@ const AIDirectorPanel = ({ API, headers, entitlement, seedBriefId, onSeedConsume
     };
     window.addEventListener('director:seed-prompt', handler);
     return () => window.removeEventListener('director:seed-prompt', handler);
-  }, []);
+  }, [t]);
 
   const resolution = useMemo(() => {
     const [w, h] = resPreset.split('x').map((n) => parseInt(n, 10));

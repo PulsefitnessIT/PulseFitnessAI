@@ -94,7 +94,8 @@ class TestServiceReportPdf:
 # Fire station certificates: stored PDFs rebuilt with the light wide logo
 class TestFireCertificate:
     def test_stored_certs_rebranded_and_contain_logo(self):
-        import asyncio, base64
+        import asyncio
+        import base64
         from utils.database import db
 
         async def q():

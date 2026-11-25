@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Check, X, ShieldCheck, GitMerge, Plus } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
-import { Spinner, StatCard, Modal, Field, input, CONFIDENCE_TONE } from './shared';
+import { Spinner, Modal, Field, input, CONFIDENCE_TONE } from './shared';
 
 function ConfBadge({ c }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize ${CONFIDENCE_TONE[c] || CONFIDENCE_TONE.none}`}>{String(c || '').replace(/_/g, ' ')}</span>;

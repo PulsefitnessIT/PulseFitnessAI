@@ -2,7 +2,8 @@ p='/app/backend/routes/crm_contracts.py'
 s=open(p).read()
 def rep(old,new):
     global s
-    assert s.count(old)==1,(old[:70],s.count(old)); s=s.replace(old,new,1)
+    assert s.count(old)==1,(old[:70],s.count(old))
+    s=s.replace(old,new,1)
 i=s.index('@router.get("/contracts")')
 j=s.index('    query = _of(user)\n', i)
 s=s[:j]+'    query = {**_of(user), "contract_type": {"$ne": "mod"}}  # MOD contracts live in their own tab\n'+s[j+len('    query = _of(user)\n'):]
@@ -76,7 +77,8 @@ rep2=[('''              {s.virtual && (
   };
   const moveEq = async (eqId, siteId) => {''')]
 for a,b in rep2:
-    assert s.count(a)==1,(a[:60]); s=s.replace(a,b,1)
+    assert s.count(a)==1,(a[:60])
+    s=s.replace(a,b,1)
 open(p,'w').write(s)
 
 p='/app/frontend/src/pages/CRM/Contracts/ModContractsTab.js'

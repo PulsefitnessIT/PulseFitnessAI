@@ -103,7 +103,7 @@ export default function DeskAnalytics({ API }) {
             <button
               key={p.id} onClick={() => pickPreset(p)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                preset === p.id ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+                preset === p.id ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-800'
               }`}
               data-testid={`analytics-range-${p.id}`}
             >
@@ -111,10 +111,10 @@ export default function DeskAnalytics({ API }) {
             </button>
           ))}
           <input type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)}
-            className="px-2 py-1.5 rounded-lg border border-zinc-200 text-xs" data-testid="analytics-from-date" />
+            className="px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs" data-testid="analytics-from-date" />
           <span className="text-xs text-zinc-400">→</span>
           <input type="date" value={toDate} min={fromDate} onChange={(e) => setToDate(e.target.value)}
-            className="px-2 py-1.5 rounded-lg border border-zinc-200 text-xs" data-testid="analytics-to-date" />
+            className="px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs" data-testid="analytics-to-date" />
           <button onClick={applyCustom}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white"
             data-testid="analytics-apply-range">

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
-import { Card, Spinner, Empty, Badge } from '../ui';
+import { Card, Spinner, Empty } from '../ui';
 import { MapPin, ChevronRight, ChevronLeft, Lock, Wrench, Phone } from 'lucide-react';
 
 export default function Sites() {

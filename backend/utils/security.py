@@ -359,7 +359,7 @@ async def assert_password_not_breached(password: str) -> None:
     if not PASSWORD_HIBP_CHECK or not password:
         return
     import hashlib
-    sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
+    sha1 = hashlib.sha1(password.encode("utf-8"), usedforsecurity=False).hexdigest().upper()
     prefix, suffix = sha1[:5], sha1[5:]
     try:
         import httpx

@@ -35,9 +35,9 @@ function DeskMockup() {
   ];
   return (
     <div className="relative" data-testid="gx-sd-mockup">
-      <div className="rounded-2xl bg-white shadow-2xl ring-1 ring-white/10 overflow-hidden text-left">
+      <div className="rounded-2xl bg-white shadow-2xl ring-1 ring-white/10 overflow-hidden text-left dark:bg-zinc-900">
         {/* window chrome */}
-        <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-100 bg-slate-50/80">
+        <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80">
           <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
@@ -45,7 +45,7 @@ function DeskMockup() {
         </div>
         <div className="grid grid-cols-[88px_1fr] sm:grid-cols-[120px_1fr]">
           {/* sidebar */}
-          <div className="border-r border-slate-100 py-3 px-2 bg-white">
+          <div className="border-r border-slate-100 py-3 px-2 bg-white dark:bg-zinc-900 dark:border-zinc-800">
             <div className="flex items-center gap-1.5 px-2 mb-3">
               <span className="w-4 h-4 rounded bg-orange-500" />
               <span className="text-[9px] font-black tracking-tight text-slate-800 hidden sm:block">FITFIX LTD</span>
@@ -56,20 +56,20 @@ function DeskMockup() {
                 <span className="text-[9px] font-semibold hidden sm:block">{label}</span>
               </div>
             ))}
-            <div className="px-2 pt-2 mt-1 border-t border-slate-100">
+            <div className="px-2 pt-2 mt-1 border-t border-slate-100 dark:border-zinc-800">
               <div className="flex items-center gap-1.5 py-1 text-slate-400"><BarChart3 size={11} /><span className="text-[9px] font-semibold hidden sm:block">{t('mkt.sd_mock_analytics', 'Analytics')}</span></div>
               <div className="flex items-center gap-1.5 py-1 text-slate-400"><UploadCloud size={11} /><span className="text-[9px] font-semibold hidden sm:block">{t('mkt.sd_mock_import', 'Import data')}</span></div>
             </div>
           </div>
           {/* case board */}
-          <div className="p-3 sm:p-4 bg-slate-50/50">
+          <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-900">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold text-slate-800">{t('mkt.sd_mock_board', 'Live cases')}</span>
               <span className="inline-flex items-center gap-1 rounded-md bg-orange-500 text-white text-[9px] font-bold px-2 py-1"><PhoneCall size={9} /> {t('mkt.sd_mock_new_case', 'New case')}</span>
             </div>
             <div className="space-y-2">
               {cases.map((c) => (
-                <div key={c.ref} className="rounded-lg bg-white border border-slate-100 px-2.5 py-2 flex items-center gap-2 shadow-sm">
+                <div key={c.ref} className="rounded-lg bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 px-2.5 py-2 flex items-center gap-2 shadow-sm">
                   <span className="font-mono text-[8px] text-slate-400 shrink-0">{c.ref}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-bold text-slate-800 truncate">{c.title}</p>
@@ -86,7 +86,7 @@ function DeskMockup() {
       </div>
 
       {/* floating dispatch toast */}
-      <div className="absolute -bottom-5 -left-3 sm:-left-6 rounded-xl bg-white shadow-xl border border-slate-100 px-3.5 py-2.5 flex items-center gap-2.5" data-testid="gx-sd-mockup-dispatch">
+      <div className="absolute -bottom-5 -left-3 sm:-left-6 rounded-xl bg-white dark:bg-zinc-900 shadow-xl border border-slate-100 dark:border-zinc-800 px-3.5 py-2.5 flex items-center gap-2.5" data-testid="gx-sd-mockup-dispatch">
         <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><HardHat size={13} /></span>
         <div>
           <p className="text-[10px] font-extrabold text-slate-800">{t('mkt.sd_mock_dispatched', 'Engineer dispatched')}</p>
@@ -94,7 +94,7 @@ function DeskMockup() {
         </div>
       </div>
       {/* floating SLA chip */}
-      <div className="absolute -top-4 -right-2 sm:-right-5 rounded-xl bg-white shadow-xl border border-slate-100 px-3.5 py-2.5" data-testid="gx-sd-mockup-sla">
+      <div className="absolute -top-4 -right-2 sm:-right-5 rounded-xl bg-white dark:bg-zinc-900 shadow-xl border border-slate-100 dark:border-zinc-800 px-3.5 py-2.5" data-testid="gx-sd-mockup-sla">
         <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t('mkt.sd_mock_sla_label', 'SLA met · 30 days')}</p>
         <p className="text-lg font-black tracking-tight text-emerald-600 leading-none mt-0.5">94%</p>
       </div>

@@ -1,4 +1,3 @@
-import React from 'react';
 import SignaturePad from './SignaturePad';
 import { inputCls } from '../ui';
 

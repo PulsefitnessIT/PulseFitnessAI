@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Truck, PackageCheck, AlertTriangle, Wrench, Warehouse } from 'lucide-react';
+import { Truck, PackageCheck, AlertTriangle, Wrench } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { StatCard, Spinner, StatusBadge, money } from './shared';

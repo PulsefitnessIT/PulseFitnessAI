@@ -8,8 +8,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
-  Plus, Lock, Download, CheckCircle2, RotateCcw, AlertTriangle, X, Save,
-  Loader2, FileSpreadsheet, ShieldCheck, ChevronRight, BarChart3, Table2,
+  Plus, Lock, Download, CheckCircle2, X, Save,
+  Loader2, FileSpreadsheet, ShieldCheck, BarChart3, Table2,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 

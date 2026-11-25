@@ -85,7 +85,7 @@ async def parse_invoice_text(text: str) -> dict:
     try:
         from emergentintegrations.llm.chat import UserMessage
         raw = (await asyncio.wait_for(chat.send_message(UserMessage(text=prompt)), timeout=_LLM_TIMEOUT)).strip()
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("[dealer-parts-ai] invoice parse timed out after %ss", _LLM_TIMEOUT)
         return {"available": False, "error": "AI took too long to read this invoice. Please try again or enter the machines manually."}
     except Exception as exc:  # pragma: no cover
@@ -190,7 +190,7 @@ async def _parse_invoice_image(content: bytes, mime: str) -> dict:
     try:
         from emergentintegrations.llm.chat import UserMessage, ImageContent
         raw = (await asyncio.wait_for(chat.send_message(UserMessage(text=prompt, file_contents=[ImageContent(image_base64=b64)])), timeout=_LLM_TIMEOUT)).strip()
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("[dealer-parts-ai] invoice image timed out after %ss", _LLM_TIMEOUT)
         return {"available": False, "error": "AI took too long to read this image. Try a PDF or paste the text."}
     except Exception as exc:  # pragma: no cover

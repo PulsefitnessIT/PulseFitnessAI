@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/select';
 import {
   Building2, Users, AlertTriangle, PoundSterling, Wrench,
-  RefreshCw, ArrowUpRight, Eye
+  RefreshCw, Eye
 } from 'lucide-react';
 
 const PULSE_BLUE = 'var(--color-brand-blue-dark)';

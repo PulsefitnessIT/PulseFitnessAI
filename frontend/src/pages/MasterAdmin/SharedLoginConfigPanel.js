@@ -4,7 +4,7 @@
  * shared site logins. Per-site settings are seeded from these defaults
  * when a site first provisions its shared login.
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { KeyRound, Loader2, ShieldAlert } from 'lucide-react';

@@ -27,6 +27,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from utils.auth import get_current_user
 from utils.database import db
+
+
+def _esc_html(x):
+    return str(x or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 from utils.svc_desk_scope import as_case_org
 from utils.email import send_email
 
@@ -324,7 +328,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     def _box_cell(title: str, lines: list[str]) -> list:
         return [Paragraph(f"<b>{title}</b>", body), Paragraph("<br/>".join(lines) or "—", body)]
 
-    esc = lambda x: str(x or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    esc = _esc_html
     site_lines = [esc(x) for x in [case.get("customer_name"), case.get("site_name"),
                                      case.get("site_address"), case.get("site_postcode")] if x]
     eng_lines = []

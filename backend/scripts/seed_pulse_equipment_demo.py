@@ -1,7 +1,9 @@
 """Seed a Pulse Fitness equipment estate for the iso-demo-org (deck screenshots).
 Idempotent: clears prior deck-demo docs first. Run: python scripts/seed_pulse_equipment_demo.py
 """
-import os, sys, uuid
+import os
+import sys
+import uuid
 from datetime import datetime, timezone, timedelta
 from pymongo import MongoClient
 

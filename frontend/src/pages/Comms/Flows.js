@@ -3,7 +3,7 @@
  * Surfaces the shared marketing journeys engine (triggers + ordered nodes,
  * omnichannel dispatch) as a structured, step-based builder.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {

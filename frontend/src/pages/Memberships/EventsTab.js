@@ -68,7 +68,7 @@ export default function EventsTab({ API, headers }) {
     } catch (e) {
       notify.error(t('memberships_console.evt_load_fail', 'Failed to load events'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [API, auth, selectedId]);
+  }, [API, auth, selectedId, t]);
   useEffect(() => { load(); }, [load]);
 
   const handleCreated = (id) => {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
-  Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Copy, Loader2,
+  Upload, CheckCircle2, AlertTriangle, Copy, Loader2,
   Download, ArrowRight, ArrowLeft, RotateCcw, Database, Sparkles,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';

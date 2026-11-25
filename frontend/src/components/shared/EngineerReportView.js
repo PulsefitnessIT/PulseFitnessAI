@@ -1,4 +1,3 @@
-import React from 'react';
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 const dur = (a, b) => {
@@ -24,7 +23,7 @@ function SignoffBlock({ signoff }) {
   return (
     <div className="mt-2" data-testid="report-view-signature">
       <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-400 mb-1">Customer sign-off</p>
-      {signoff.image_data ? <img src={signoff.image_data} alt="Customer signature" className="max-h-24 rounded border border-zinc-200 bg-white p-1" /> : null}
+      {signoff.image_data ? <img src={signoff.image_data} alt="Customer signature" className="max-h-24 rounded border border-zinc-200 bg-white p-1 dark:bg-zinc-900 dark:border-zinc-800" /> : null}
       <p className="text-xs text-zinc-600 dark:text-zinc-300 mt-1">
         Signed by <b>{signoff.signed_by_name || 'Customer'}</b>{signoff.signed_by_role ? ` (${signoff.signed_by_role})` : ''}{signoff.signed_at ? ` · ${fmt(signoff.signed_at)}` : ''}
       </p>

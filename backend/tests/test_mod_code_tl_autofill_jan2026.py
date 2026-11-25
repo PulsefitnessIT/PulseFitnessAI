@@ -1,5 +1,6 @@
 """Unit tests for MOD Code → TL/SOR auto-fill mapping (Jan 2026)."""
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.mod_sor_data import (
     build_seed_rate_card, match_by_mod_code, normalise_mod_code, MOD_CODE_TO_ITEM_NO,

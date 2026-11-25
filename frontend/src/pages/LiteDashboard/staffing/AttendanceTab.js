@@ -11,11 +11,11 @@
  * All data comes from /api/attendance/* — one approved leave or clock punch
  * already resolved into these records server-side (ENTER ONCE → USE EVERYWHERE).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
-  CalendarDays, RefreshCw, AlertTriangle, Users, Layers, IdCard,
+  CalendarDays, RefreshCw, AlertTriangle, Layers, IdCard,
   Plus, Trash2, Save, X, Check, Wand2, Loader2, Upload, FileSpreadsheet,
   ClipboardCheck,
 } from 'lucide-react';
@@ -419,7 +419,7 @@ function PatternsView({ headers }) {
             </div>
             <div className="mt-2 flex gap-1 flex-wrap">
               {(p.days || []).filter((d) => d.working).map((d) => (
-                <span key={d.dow} className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 dark:text-slate-300">{DOW[d.dow]} {d.start}–{d.finish}</span>
+                <span key={d.dow} className="text-[11px] px-2 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300">{DOW[d.dow]} {d.start}–{d.finish}</span>
               ))}
             </div>
           </div>
@@ -639,7 +639,7 @@ function ImportCard({ headers, kind, title, hint }) {
       <div className="flex items-center gap-2 mb-1"><FileSpreadsheet size={16} className="text-cyan-600" /><h3 className="font-bold text-slate-900 dark:text-slate-100">{title}</h3></div>
       <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{hint}</p>
       <input type="file" accept=".xlsx" onChange={(e) => { setFile(e.target.files[0]); setPreview(null); setResult(null); }} data-testid={`import-file-${kind}`}
-        className="block w-full text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 dark:text-slate-200 file:font-semibold" />
+        className="block w-full text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-100 dark:file:bg-zinc-800 file:text-slate-700 dark:text-slate-200 file:font-semibold" />
       <div className="mt-3 flex gap-2">
         <button onClick={() => call('preview')} disabled={busy} data-testid={`import-preview-${kind}`}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold">

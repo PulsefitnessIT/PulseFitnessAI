@@ -1487,7 +1487,7 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
   const logoRef = useRef(null);
 
   const overlayStyle = { background: 'rgba(0,0,0,0.55)' };
-  const panelStyle = { background: isDark ? 'var(--color-surface-dark-1, #12151c)' : '#fff', border: `1px solid ${c.border}` };
+  const panelStyle = { background: isDark ? 'var(--color-surface-dark-1, #14181f)' : '#fff', border: `1px solid ${c.border}` };
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
 
   // Smart prefill — fill EMPTY token replacements from this tender's linked

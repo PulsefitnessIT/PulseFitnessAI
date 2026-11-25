@@ -280,7 +280,7 @@ async def equipment_facets(user: dict = Depends(get_current_user)) -> dict:
     total = await db.equipment.count_documents(org_filter)
     return {
         "types": sorted([t for t in types if t]),
-        "locations": sorted([l for l in locations if l]),
+        "locations": sorted([ln for ln in locations if ln]),
         "total": total,
     }
 

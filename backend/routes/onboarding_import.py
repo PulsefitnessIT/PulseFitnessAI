@@ -638,7 +638,8 @@ async def commit(body: CommitBody, user: dict = Depends(get_current_user)) -> di
                 "created_by": user.get("email"),
             }
             if spec["collection"] == "members":
-                fn = doc.get("first_name", ""); ln = doc.get("last_name", "")
+                fn = doc.get("first_name", "")
+                ln = doc.get("last_name", "")
                 new_doc["full_name"] = (fn + " " + ln).strip()
             if spec["collection"] == "suppliers" and doc.get("supplier_type"):
                 new_doc["supplier_types"] = [doc["supplier_type"]]

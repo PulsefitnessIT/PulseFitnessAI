@@ -4,7 +4,7 @@
  * allocations workflow, remote stores, stock ledger, dashboard, settings.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Wrench, RotateCcw, Truck, PackagePlus, Store, BarChart3, Wand2 } from 'lucide-react';
+import { LayoutDashboard, Building2, FileText, Package, Warehouse, ArrowRightLeft, Settings, Globe, Wrench, Store, BarChart3, Wand2 } from 'lucide-react';
 import DashboardTab from './DashboardTab';
 import DealersTab from './DealersTab';
 import OrdersTab from './OrdersTab';

@@ -3,7 +3,7 @@
  * Self-hosted automation: subscribe endpoints to comms events and call the
  * /api/v1/comms REST API with an X-API-Key.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Webhook, KeyRound, Plus, Trash2, Send, Copy, Power, Code2, CheckCircle2 } from 'lucide-react';

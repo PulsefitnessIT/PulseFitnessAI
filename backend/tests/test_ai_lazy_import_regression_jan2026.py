@@ -116,7 +116,7 @@ class TestMasterAdminPurge:
                          headers=admin_headers, timeout=30)
         assert r.status_code == 200, r.text
         body = r.json()
-        assert isinstance(body, dict) or isinstance(body, list)
+        assert isinstance(body, (dict, list))
 
     def test_purge_dry_run_admin_200(self, admin_headers):
         r = requests.post(f"{BASE}/api/master-admin/test-data/purge",

@@ -1,4 +1,6 @@
-import asyncio, sys, uuid
+import asyncio
+import sys
+import uuid
 sys.path.insert(0, '/app/backend')
 from dotenv import load_dotenv; load_dotenv('/app/backend/.env')
 from utils.auth import hash_password

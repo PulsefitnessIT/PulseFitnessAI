@@ -37,7 +37,7 @@ export default function PulsePricingPage({ onLogin }) {
     setLoginRedirect(typeof redirect === 'string' ? redirect : '');
     setLoginOpen(true);
   };
-  const openUpgrade = () => setUpgradeOpen(true);
+  const _openUpgrade = () => setUpgradeOpen(true);
 
   // Same theme-lock as the landing page — Pulse marketing surfaces
   // always render in light mode regardless of the authenticated app

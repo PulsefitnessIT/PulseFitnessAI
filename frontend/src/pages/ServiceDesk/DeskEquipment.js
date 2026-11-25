@@ -300,7 +300,7 @@ function EquipmentChangeReview({ API }) {
       await axios.post(`${API}/svc/desk/equipment-change-requests/${id}/${action}`, {}, auth());
       await load();
     } catch (e) {
-      // eslint-disable-next-line no-alert
+       
       window.alert(e?.response?.data?.detail || `Could not ${action}`);
     } finally { setBusyId(null); }
   };

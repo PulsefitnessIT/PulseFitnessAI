@@ -77,7 +77,7 @@ const DynamicListsTab = ({ API, headers }) => {
       notify.error(t('mkt.dl_load_err', 'Failed to load dynamic lists'));
     }
     setLoading(false);
-  }, [API, headers]);
+  }, [API, headers, t]);
 
   const loadCustomProps = useCallback(async () => {
     try {

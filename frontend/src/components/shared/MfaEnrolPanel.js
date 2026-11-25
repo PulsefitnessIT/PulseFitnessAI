@@ -84,14 +84,14 @@ export default function MfaEnrolPanel({
         Scan the QR code in Google Authenticator, Authy or 1Password, then enter the 6-digit code.
       </p>
       {enrol?.qrDataUrl ? (
-        <img src={enrol.qrDataUrl} alt="Scan in your authenticator app" className="w-40 h-40 mx-auto rounded-lg border border-white/10 p-2 bg-white" data-testid="nav-mfa-enrol-qr" />
+        <img src={enrol.qrDataUrl} alt="Scan in your authenticator app" className="w-40 h-40 mx-auto rounded-lg border border-white/10 p-2 bg-white dark:bg-zinc-900" data-testid="nav-mfa-enrol-qr" />
       ) : (
         <div className="w-40 h-40 mx-auto flex items-center justify-center"><Loader2 className="animate-spin text-white/60" /></div>
       )}
       {enrol?.secret && (
         <div>
           <p className="text-xs text-white/60 mb-1">Can't scan? Enter this key:</p>
-          <code className="block break-all rounded-lg bg-white/10 px-3 py-2 text-xs font-mono text-sky-300" data-testid="nav-mfa-enrol-secret">{enrol.secret}</code>
+          <code className="block break-all rounded-lg bg-white/10 px-3 py-2 text-xs font-mono text-sky-300 dark:bg-zinc-900" data-testid="nav-mfa-enrol-secret">{enrol.secret}</code>
         </div>
       )}
       <Input

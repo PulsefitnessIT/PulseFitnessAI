@@ -34,7 +34,7 @@ function CopyField({ value, testid }) {
   const [done, setDone] = useState(false);
   return (
     <div className="flex items-center gap-2">
-      <code className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded px-3 py-2 break-all" data-testid={testid}>{value}</code>
+      <code className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded px-3 py-2 break-all dark:bg-zinc-900 dark:border-zinc-800" data-testid={testid}>{value}</code>
       <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1600); toast.success('Copied'); }} data-testid={`${testid}-copy`}>
         {done ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
       </Button>
@@ -148,7 +148,7 @@ export default function Orbit4Wizard({ open, onClose, conn, onConnUpdate, onFini
               <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
                 {i < step ? <Check size={14} /> : i + 1}
               </div>
-              <span className={`text-xs ${i === step ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>{s}</span>
+              <span className={`text-xs ${i === step ? 'text-slate-900 font-semibold dark:text-zinc-100' : 'text-slate-400'}`}>{s}</span>
               {i < STEPS.length - 1 && <div className="h-px flex-1 bg-slate-200" />}
             </div>
           ))}
@@ -226,7 +226,7 @@ export default function Orbit4Wizard({ open, onClose, conn, onConnUpdate, onFini
         {step === 3 && (
           <div className="space-y-4 text-center py-4" data-testid="orbit4-wizard-step-done">
             <PartyPopper size={32} className="text-emerald-500 mx-auto" />
-            <p className="text-base font-semibold text-slate-900">You're connected!</p>
+            <p className="text-base font-semibold text-slate-900 dark:text-zinc-100">You're connected!</p>
             {firstCase && (
               <p className="text-sm text-slate-600">First case created: <span className="font-medium">{firstCase.reference}</span> — {firstCase.title}</p>
             )}

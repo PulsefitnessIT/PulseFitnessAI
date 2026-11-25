@@ -707,12 +707,14 @@ async def case_lifecycle(case_id: str, user=Depends(get_current_user)):
     missing_cost: list[str] = []
     if cost["labour"] > 0:
         if labour_cost_known:
-            known_charge += cost["labour"]; known_cost += labour_cost
+            known_charge += cost["labour"]
+            known_cost += labour_cost
         else:
             missing_cost.append("labour")
     if cost["parts"] > 0:
         if parts_cost_known:
-            known_charge += cost["parts"]; known_cost += parts_cost
+            known_charge += cost["parts"]
+            known_cost += parts_cost
         else:
             missing_cost.append("parts")
     has_basis = labour_cost_known or parts_cost_known

@@ -40,6 +40,7 @@ export const useBrand = (user, surface = 'app') => {
   return useMemo(() => {
     // Full white-label conversion: every surface is Pulse Fitness AI branded.
     return PULSE;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) unspecified; pre-existing as of iter 216h226-polish-5.
   }, [user, surface]);
 };
 

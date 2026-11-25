@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Spinner, Badge, PriorityBadge, HEALTH } from '../ui';
 import { ClipboardList, AlertTriangle, Package, Clock, MapPin, ChevronRight } from 'lucide-react';
@@ -10,7 +10,7 @@ const TILES = [
   { key: 'overdue', label: 'Overdue', icon: Clock, badge: 'text-rose-600 bg-rose-50 border border-rose-100/80', filter: { overdue: 'true' } },
 ];
 
-export default function StaffDashboard({ userName, role, onOpenJobs, onOpenJob }) {
+export default function StaffDashboard({ userName: _userName, role: _role, onOpenJobs, onOpenJob }) {
   const [data, setData] = useState(null);
   useEffect(() => { bfpo.get('/staff/dashboard').then((r) => setData(r.data)); }, []);
   if (!data) return <Spinner />;

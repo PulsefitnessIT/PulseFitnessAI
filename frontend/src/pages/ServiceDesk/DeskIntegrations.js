@@ -78,6 +78,7 @@ export default function DeskIntegrations() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
   useEffect(() => { load(); }, []);
 
   const save = async (patch) => {
@@ -164,7 +165,7 @@ export default function DeskIntegrations() {
       />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 dark:text-zinc-100">
             <Plug size={22} className="text-indigo-600" /> {t('service.o4_title', 'Integrations')}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -204,7 +205,7 @@ export default function DeskIntegrations() {
               {t('service.o4_step1_hint', 'Paste this into Orbit 4 → Settings → Webhooks. Orbit 4 will POST ticket, note, photo and asset events here.')}
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded px-3 py-2 break-all" data-testid="orbit4-webhook-url">
+              <code className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded px-3 py-2 break-all dark:bg-zinc-900 dark:border-zinc-800" data-testid="orbit4-webhook-url">
                 {fullWebhookUrl}
               </code>
               <Button variant="outline" size="sm" onClick={copyUrl} data-testid="orbit4-copy-url-btn">
@@ -278,19 +279,19 @@ export default function DeskIntegrations() {
       <Card data-testid="orbit4-health-strip">
         <CardContent className="py-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-900">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_status', 'Status')}</div>
               <div className={`text-sm font-semibold ${activity?.enabled ? 'text-emerald-600' : 'text-slate-500'}`} data-testid="health-status">
                 {activity?.enabled ? t('service.o4_live', 'Live') : t('service.o4_paused', 'Paused')}
               </div>
             </div>
-            <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-900">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_last_inbound', 'Last inbound')}</div>
               <div className="text-sm font-semibold text-slate-700" data-testid="health-last-inbound">
                 {activity?.last_inbound_at ? new Date(activity.last_inbound_at).toLocaleString() : '—'}
               </div>
             </div>
-            <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-900">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_last_sync_out', 'Last sync out')}</div>
               <div className={`text-sm font-semibold ${activity?.last_outbound?.status === 'error' ? 'text-red-600' : 'text-slate-700'}`} data-testid="health-last-outbound">
                 {activity?.last_outbound?.at
@@ -298,7 +299,7 @@ export default function DeskIntegrations() {
                   : '—'}
               </div>
             </div>
-            <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-900">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_cases_week', 'Cases this week')}</div>
               <div className="text-sm font-semibold text-slate-700" data-testid="health-cases-week">
                 {activity?.cases_this_week ?? 0}
@@ -321,12 +322,12 @@ export default function DeskIntegrations() {
         <CardContent>
           <div className="flex items-center gap-6 mb-4">
             <div>
-              <div className="text-2xl font-bold text-slate-900" data-testid="orbit4-cases-total">{activity?.cases_total ?? 0}</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-zinc-100" data-testid="orbit4-cases-total">{activity?.cases_total ?? 0}</div>
               <div className="text-xs text-slate-500">{t('service.o4_total_cases_created', 'Total cases created')}</div>
             </div>
           </div>
           {activity?.recent_cases?.length ? (
-            <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+            <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden dark:border-zinc-800">
               {activity.recent_cases.map((c) => (
                 <div key={c.id} className="flex items-center justify-between px-3 py-2 text-sm" data-testid={`orbit4-recent-case-${c.id}`}>
                   <div className="min-w-0">
@@ -360,7 +361,7 @@ export default function DeskIntegrations() {
           {engineers.length === 0 ? (
             <p className="text-sm text-slate-400">{t('service.o4_no_engineers', 'No engineers in this Service Desk yet.')}</p>
           ) : (
-            <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+            <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden dark:border-zinc-800">
               {engineers.map((eng) => (
                 <div key={eng.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm" data-testid={`orbit4-engineer-row-${eng.id}`}>
                   <div className="min-w-0">
@@ -368,7 +369,7 @@ export default function DeskIntegrations() {
                     <span className="text-slate-400 ml-2 text-xs truncate">{eng.email}</span>
                   </div>
                   <select
-                    className="text-sm border border-slate-200 rounded px-2 py-1 bg-white max-w-[220px]"
+                    className="text-sm border border-slate-200 rounded px-2 py-1 bg-white max-w-[220px] dark:bg-zinc-900 dark:border-zinc-800"
                     value={eng.orbit4_user_id || ''}
                     onChange={(e) => mapEngineer(eng.id, e.target.value)}
                     data-testid={`orbit4-engineer-select-${eng.id}`}

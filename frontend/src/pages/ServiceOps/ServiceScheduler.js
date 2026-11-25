@@ -125,7 +125,7 @@ export default function ServiceScheduler() {
     } catch (e) {
       notify.error(t('service.sched_load_failed', 'Failed to load diary'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [windowStart, days]);
+  }, [windowStart, days, t]);
 
   useEffect(() => { load(); }, [load]);
 

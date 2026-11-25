@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, ArrowLeft, ScanLine, CheckCircle2, PackageCheck, ShieldCheck, Trash2, FileUp, Sparkles, Loader2, RefreshCw, Play } from 'lucide-react';
+import { Plus, Search, ArrowLeft, ScanLine, CheckCircle2, PackageCheck, ShieldCheck, Trash2, FileUp, Sparkles, Loader2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import i18n from '../../../i18n';
-import { invApi, money, fmtDate, statusLabel } from './api';
-import { Card, StatCard, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
+import { invApi, money, fmtDate } from './api';
+import { Card, Spinner, StatusBadge, Btn, Field, inputCls } from './ui';
 import OrderFulfilment from './InvFulfilment';
 
 const SOURCE_BADGE = {
@@ -258,7 +258,7 @@ function OrderDetail({ orderId, onBack }) {
   const [tab, setTab] = useState('overview');
   const [busy, setBusy] = useState('');
 
-  const load = useCallback(() => { invApi.order(orderId).then(setData).catch(() => notify.error(t('inv.orders.load_error', 'Could not load order'))); }, [orderId]);
+  const load = useCallback(() => { invApi.order(orderId).then(setData).catch(() => notify.error(t('inv.orders.load_error', 'Could not load order'))); }, [orderId, t]);
   useEffect(() => { load(); }, [load]);
 
   if (!data) return <Spinner />;

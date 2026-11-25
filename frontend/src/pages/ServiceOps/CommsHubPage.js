@@ -82,7 +82,7 @@ function TemplatesTab() {
       setRows(r.data.templates || []);
       if (!active && r.data.templates?.length) setActive(r.data.templates[0].key);
     } catch (e) { notify.error(t('service.comms_load_tpl_failed', 'Failed to load templates'), e?.response?.data?.detail || e.message); }
-  }, [active]);
+  }, [active, t]);
   useEffect(() => { load(); }, [load]);
 
   const current = useMemo(() => rows.find((r) => r.key === active), [rows, active]);

@@ -240,7 +240,7 @@ class TestMasterAdminServiceDeskCustomers:
         assert r.status_code == 200, r.text[:300]
         d = r.json()
         # returns a dict with a list somewhere (customers/items/orgs)
-        assert isinstance(d, dict) or isinstance(d, list)
+        assert isinstance(d, (dict, list))
         if isinstance(d, dict):
             found = any(isinstance(v, list) for v in d.values())
             assert found, f"expected a list somewhere: {list(d)[:6]}"

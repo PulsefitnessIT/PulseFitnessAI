@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Truck, Mail, Phone, User, MapPin, Building2, Loader2, Search, ShieldCheck,
-  Pencil, X, Plus, Trash2, CheckCircle2, Copy, Link2, KeyRound, Wrench, ArrowLeft,
+  Pencil, Plus, Trash2, CheckCircle2, Copy, Link2, KeyRound, Wrench, ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EngineerSitePicker } from './EngineerSitePicker';
@@ -112,7 +112,7 @@ const ExternalServiceProviders = () => {
       `${API}/master-admin/mod-estate/external-providers/${editing.id}/engineers/${e.id}${force ? '?force=true' : ''}`,
       { headers: headers() });
     try {
-      const { data } = await doDelete(false);
+      const { data: _data } = await doDelete(false);
       toast.success(`${e.full_name} removed`);
       setExistingEngs((arr) => arr.filter((_, idx) => idx !== i));
       load();

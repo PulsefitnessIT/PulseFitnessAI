@@ -2,7 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timezone
 import uuid
+import tempfile
 import json
+import os
 import re
 import io
 import csv
@@ -632,7 +634,7 @@ async def _run_invoice_extraction(data: bytes, filename: str, content_type: str 
 
 
 # ── Chunked invoice upload (bypasses the 2MB ingress body limit) ──────────
-_CHUNK_DIR = "/tmp/pulse_invoice_chunks"
+_CHUNK_DIR = os.path.join(tempfile.gettempdir(), "pulse_invoice_chunks")
 _INVOICE_ALLOWED = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 # Large multi-page leisure-centre invoices can be big scanned PDFs. Chunked
 # upload (1.5MB slices) means this cap is only checked on the reassembled

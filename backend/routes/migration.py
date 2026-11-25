@@ -140,12 +140,14 @@ def parse_timesheet(data: bytes) -> dict:
                         sv = str(v).strip()
                         if ":" in sv or sv.lower().startswith("department"):
                             break  # hit the next label, no name entered
-                        name = sv; break
+                        name = sv
+                        break
                 if lbl.startswith("department") and not dept:
                     for cc in range(c + 1, ws.max_column + 1):
                         v = ws.cell(1, cc).value
                         if v and ":" not in str(v):
-                            dept = str(v).strip(); break
+                            dept = str(v).strip()
+                            break
         for r in range(8, ws.max_row + 1):
             diso = _parse_ddmmyy(ws.cell(r, 1).value)
             if not diso:
@@ -199,7 +201,9 @@ async def commit_attendance(file: UploadFile = File(...), year: int | None = For
     for r in records:
         staff = idx.get(_norm(r["name"]))
         if not staff:
-            unmatched.add(r["name"]); skipped += 1; continue
+            unmatched.add(r["name"])
+            skipped += 1
+            continue
         meta = ATTENDANCE_STATUSES.get(r["status"], {})
         await db.attendance_daily.update_one(
             {"organization_id": org_id, "staff_id": staff["id"], "date": r["date"]},

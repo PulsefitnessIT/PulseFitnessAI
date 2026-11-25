@@ -269,6 +269,10 @@ const APPROVED_HEX = new Set([
   '#f0f0f0', '#f0fdf4', '#f0fff4', '#f472b6', '#fecaca',
   '#ff5722', '#ff6b6b', '#ff8800', '#ff9800', '#ff9933', '#ffc107',
   '#ffeaa7', '#ffeb3b', '#fff3cd', '#bbf7d0',
+  // Pulse Fitness palette — mirrors src/theme/tokens.js + index.css vars
+  '#0091ca', '#0073a4', '#e4f9ff', '#1b1c1d', '#26292b', '#393e41',
+  '#565b5e', '#6e7476', '#9a9fa1', '#c9cbcc', '#e0e0e0', '#f7f7f7',
+  '#dbeafe', '#92400e',
 ]);
 const HEX_RE = /#[0-9A-Fa-f]{6}\b/;
 

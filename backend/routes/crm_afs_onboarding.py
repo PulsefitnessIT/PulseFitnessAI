@@ -103,13 +103,15 @@ def _auto_map(headers):
             if i in used:
                 continue
             if any(cell == h for h in hints):        # exact first
-                best = i; break
+                best = i
+                break
         if best is None:
             for i, cell in hl:
                 if i in used:
                     continue
                 if any(h in cell for h in hints):     # contains
-                    best = i; break
+                    best = i
+                    break
         if best is not None:
             cmap[field] = best
             used.add(best)
@@ -171,7 +173,8 @@ async def analyze(file: UploadFile = File(...), user=Depends(require_crm_perm("c
         "suggested_sheet": suggested["name"], "column_map": cmap,
     }
     await db.crm2_afs_onboarding.insert_one(dict(doc))
-    doc.pop("file_b64", None); doc.pop("_id", None)
+    doc.pop("file_b64", None)
+    doc.pop("_id", None)
     return {"import_id": doc["id"], "filename": file.filename, "sheets": doc["sheets"],
             "suggested_sheet": suggested["name"], "suggested_header_row": suggested["header_row"],
             "column_map": cmap, "sample_rows": sample, "canon_fields": CANON_FIELDS}
@@ -340,8 +343,8 @@ async def build(import_id: str, body: BuildIn, user=Depends(require_crm_perm("co
         raise HTTPException(400, "Sheet not found in the uploaded file.")
     ws = wb[body.sheet_name]
 
-    idx = await _config_index(org_id)
-    rows, lines = [], []
+    await _config_index(org_id)
+    rows, _lines = [], []
     cleans = []
     for vals in ws.iter_rows(min_row=body.header_row + 1, values_only=True):
         vals = list(vals)
@@ -472,7 +475,7 @@ async def analyze_pdf(file: UploadFile = File(...), customer_name: str = Form(""
                       user=Depends(require_crm_perm("contracts.manage"))):
     """Upload a prior supplier's invoice / agreement PDF. AI extracts what the
     customer currently pays; the lines flow into the same review queue."""
-    of = _of(user)
+    _of(user)
     org_id = _org(user)
     raw = await file.read()
     if not raw:
@@ -855,10 +858,8 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
 
     from utils.cm_actions import raise_missing_info_action
     contract_ids = []
-    seq = 0
-    for gkey, grp in groups.items():
+    for seq, (gkey, grp) in enumerate(groups.items(), start=1):
         annual = round(sum(_row_value(r) for r in grp), 2)
-        seq += 1
         cid = _id()
         num = f"PF-MA-IMP-{now.strftime('%y%m')}-{import_id[:4].upper()}-{seq:02d}"
         title = customer if grouping == "master" else (

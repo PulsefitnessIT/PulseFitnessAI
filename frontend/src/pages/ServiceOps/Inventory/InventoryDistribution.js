@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Boxes, Warehouse, ClipboardList, PackageSearch, PlugZap,
-  Settings as SettingsIcon, ArrowLeft, Plus, ScanLine, Truck, MapPin, ShieldCheck,
-  FileText, Globe, ChevronRight, ArrowRightLeft, Headphones,
+  Settings as SettingsIcon, ArrowLeft, Plus, ScanLine, Truck, MapPin, ShieldCheck, ChevronRight, ArrowRightLeft, Headphones,
   Radar, ShieldAlert, FileBarChart, PackagePlus, Menu, X, LogOut,
   UserPlus, Users, KeyRound, Power,
 } from 'lucide-react';
@@ -63,7 +62,7 @@ const NAV = [
 function Dashboard({ go }) {
   const { t } = useTranslation();
   const [d, setD] = useState(null);
-  useEffect(() => { invApi.dashboard().then(setD).catch(() => notify.error(t('inv.dash.load_error', 'Could not load dashboard'))); }, []);
+  useEffect(() => { invApi.dashboard().then(setD).catch(() => notify.error(t('inv.dash.load_error', 'Could not load dashboard'))); }, [t]);
   if (!d) return <Spinner />;
   const c = d.cards;
   return (

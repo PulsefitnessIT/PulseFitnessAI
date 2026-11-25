@@ -130,7 +130,7 @@ export default function DeskImports({ API, embedded = false }) {
           <div key={i} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold ${
             i === step ? 'bg-orange-500 text-white'
               : i < step ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-white text-zinc-400 border border-zinc-200'
+                : 'bg-white text-zinc-400 border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800'
           }`} data-testid={`import-step-${i}`}>
             {i < step ? <CheckCircle2 size={13} /> : <span>{i + 1}.</span>} {label}
           </div>
@@ -150,15 +150,15 @@ export default function DeskImports({ API, embedded = false }) {
             {TYPES.map(({ id, label, icon: Icon, blurb }) => (
               <button key={id} onClick={() => setImportType(id)}
                 className={`text-left p-4 rounded-xl border transition-colors ${
-                  importType === id ? 'border-orange-500 bg-orange-50/50 ring-1 ring-orange-500/30' : 'border-zinc-200 hover:border-zinc-300'
+                  importType === id ? 'border-orange-500 bg-orange-50/50 ring-1 ring-orange-500/30' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800'
                 }`} data-testid={`import-type-${id}`}>
                 <Icon size={18} className={importType === id ? 'text-orange-600' : 'text-zinc-400'} />
-                <div className="text-sm font-semibold text-zinc-900 mt-2">{label}</div>
+                <div className="text-sm font-semibold text-zinc-900 mt-2 dark:text-zinc-100">{label}</div>
                 <div className="text-xs text-zinc-500 mt-0.5">{blurb}</div>
               </button>
             ))}
           </div>
-          <div className="border-2 border-dashed border-zinc-200 rounded-xl p-8 text-center">
+          <div className="border-2 border-dashed border-zinc-200 rounded-xl p-8 text-center dark:border-zinc-800">
             <Upload className="mx-auto text-zinc-400 mb-2" size={22} />
             <p className="text-sm text-zinc-600 mb-3">{t('service.imp_file_hint', 'CSV or Excel (.xlsx) — up to 10,000 rows / 10MB')}</p>
             <input ref={fileRef} type="file" accept=".csv,.xlsx" className="hidden"
@@ -177,7 +177,7 @@ export default function DeskImports({ API, embedded = false }) {
         <Card className="p-6 space-y-4" data-testid="import-mapping-step">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="text-sm text-zinc-600">
-              <span className="font-semibold text-zinc-900">{job.row_count.toLocaleString()}</span> {t('service.imp_rows_in', 'rows in')}{' '}
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">{job.row_count.toLocaleString()}</span> {t('service.imp_rows_in', 'rows in')}{' '}
               <span className="font-mono text-xs">{job.headers.length}</span> {t('service.imp_cols_match', 'columns — match each column to a field, or ignore it.')}
             </div>
             {unmatchedCount > 0 && (
@@ -199,7 +199,7 @@ export default function DeskImports({ API, embedded = false }) {
                   </div>
                 </div>
                 <select value={mapping[h] || ''} onChange={(e) => setMapping({ ...mapping, [h]: e.target.value })}
-                  className="px-2 py-1.5 rounded-lg border border-zinc-200 text-sm bg-white"
+                  className="px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-sm bg-white dark:bg-zinc-900"
                   data-testid={`map-select-${h}`}>
                   <option value="">{t('service.imp_ignore', '— Ignore —')}</option>
                   {Object.entries(fields).map(([k, v]) => (
@@ -217,7 +217,7 @@ export default function DeskImports({ API, embedded = false }) {
             </div>
           )}
           <div className="flex gap-3">
-            <button onClick={reset} className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900">
+            <button onClick={reset} className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100">
               <ArrowLeft size={14} /> {t('service.imp_start_over', 'Start over')}
             </button>
             <button onClick={runValidate} disabled={busy || requiredUnmapped.length > 0}
@@ -266,7 +266,7 @@ export default function DeskImports({ API, embedded = false }) {
               <div className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
                 <AlertTriangle size={13} /> {t('service.imp_first_errors', 'First {{n}} errors (these rows will be skipped)', { n: Math.min(validation.errors.length, 50) })}
               </div>
-              <div className="max-h-40 overflow-y-auto rounded-lg border border-zinc-100 divide-y divide-zinc-50 text-xs">
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-zinc-100 divide-y divide-zinc-50 text-xs dark:border-zinc-800">
                 {validation.errors.map((e, i) => (
                   <div key={i} className="px-3 py-1.5 flex gap-3">
                     <span className="text-zinc-400 shrink-0">{t('service.imp_row', 'Row {{n}}', { n: e.row })}</span>
@@ -278,9 +278,9 @@ export default function DeskImports({ API, embedded = false }) {
           )}
 
           {validation.preview.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-zinc-100" data-testid="import-preview-table">
+            <div className="overflow-x-auto rounded-lg border border-zinc-100 dark:border-zinc-800" data-testid="import-preview-table">
               <table className="w-full text-xs">
-                <thead className="bg-zinc-50 text-zinc-500">
+                <thead className="bg-zinc-50 text-zinc-500 dark:bg-zinc-900">
                   <tr>{Object.keys(validation.preview[0]).map((k) => (
                     <th key={k} className="text-left px-3 py-2 font-semibold whitespace-nowrap">{fields[k]?.label || k}</th>
                   ))}</tr>
@@ -297,7 +297,7 @@ export default function DeskImports({ API, embedded = false }) {
           )}
 
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900">
+            <button onClick={() => setStep(1)} className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100">
               <ArrowLeft size={14} /> {t('service.imp_back_mapping', 'Back to mapping')}
             </button>
             <button onClick={runCommit} disabled={busy || validation.valid_count === 0}
@@ -321,7 +321,7 @@ export default function DeskImports({ API, embedded = false }) {
               [t('service.imp_updated', 'Updated'), result.updated, 'text-sky-700', 'import-result-updated'],
               [t('service.imp_skipped', 'Skipped'), result.skipped, 'text-zinc-600', 'import-result-skipped'],
               [t('service.imp_errored', 'Errored'), result.errored, 'text-red-700', 'import-result-errored']].map(([label, v, tone, tid]) => (
-              <div key={tid} className="rounded-xl border border-zinc-100 p-4" data-testid={tid}>
+              <div key={tid} className="rounded-xl border border-zinc-100 p-4 dark:border-zinc-800" data-testid={tid}>
                 <div className={`text-2xl font-bold tabular-nums ${tone}`}>{Number(v).toLocaleString()}</div>
                 <div className="text-xs text-zinc-500">{label}</div>
               </div>
@@ -330,7 +330,7 @@ export default function DeskImports({ API, embedded = false }) {
           <div className="flex gap-3 flex-wrap">
             {result.errored > 0 && (
               <button onClick={downloadErrors}
-                className="inline-flex items-center gap-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-sm font-semibold px-4 py-2 rounded-lg"
+                className="inline-flex items-center gap-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-sm font-semibold px-4 py-2 rounded-lg dark:bg-zinc-900 dark:border-zinc-800"
                 data-testid="import-download-errors">
                 <Download size={14} /> {t('service.imp_download_errors', 'Download errored rows (CSV)')}
               </button>

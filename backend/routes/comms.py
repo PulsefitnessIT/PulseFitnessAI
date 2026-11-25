@@ -204,10 +204,10 @@ def _render_block(b: dict) -> str:
     if t == "social":
         links = p.get("links") or [{"label": "Instagram", "url": "#"}, {"label": "Facebook", "url": "#"}]
         cells = "".join(
-            f'<a href="{_esc(l.get("url","#"))}" style="color:{_CYAN};text-decoration:none;'
+            f'<a href="{_esc(ln.get("url","#"))}" style="color:{_CYAN};text-decoration:none;'
             f'font-weight:700;margin:0 8px;font-family:Arial,Helvetica,sans-serif;font-size:13px">'
-            f'{_esc(l.get("label",""))}</a>'
-            for l in links
+            f'{_esc(ln.get("label",""))}</a>'
+            for ln in links
         )
         return f'<tr><td style="padding:12px 24px;text-align:center">{cells}</td></tr>'
     if t == "video":

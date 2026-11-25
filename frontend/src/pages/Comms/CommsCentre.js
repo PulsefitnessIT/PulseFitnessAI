@@ -9,7 +9,7 @@
  * Settings menu. A module-scope control (All / Marketing / Members / CRM)
  * filters the shared records — no duplication.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Megaphone, TrendingUp, Clock, Award, ShieldCheck, Users, Filter, Workflow, Upload, Webhook, Settings, ChevronDown, Check } from 'lucide-react';
 

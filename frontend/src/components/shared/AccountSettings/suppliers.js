@@ -113,7 +113,7 @@ export default function SuppliersSection() {
     } finally {
       setLoading(false);
     }
-  }, [headers]);
+  }, [headers, t]);
 
   useEffect(() => { load(); loadReadiness(); loadInsights(); }, [load, loadReadiness, loadInsights]);
 

@@ -71,11 +71,11 @@ def test_equipment_template_csv_downloads(headers):
 
 def test_analyse_and_commit_with_mod_code(headers, site):
     csv_bytes = (
-        "name,equipment_type,manufacturer,mod_code\n"
-        "QA Treadmill 1,cardio,Life Fitness,MOD-Tread\n"
-        "QA Bench 1,strength,Rogue,MOD-Bench\n"
-        "QA Bike 1,cardio,Wattbike,MOD-Bike\n"
-    ).encode("utf-8")
+        b"name,equipment_type,manufacturer,mod_code\n"
+        b"QA Treadmill 1,cardio,Life Fitness,MOD-Tread\n"
+        b"QA Bench 1,strength,Rogue,MOD-Bench\n"
+        b"QA Bike 1,cardio,Wattbike,MOD-Bike\n"
+    )
 
     files = {"file": ("qa-kit.csv", io.BytesIO(csv_bytes), "text/csv")}
     r = requests.post(

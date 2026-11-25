@@ -11,7 +11,7 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
   ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
-  IdCard, HelpCircle, Receipt, Car, PoundSterling, Upload, Send,
+  IdCard, HelpCircle, Receipt,
 } from 'lucide-react';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import Navbar from '../components/shared/Navbar';

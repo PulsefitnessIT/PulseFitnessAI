@@ -3,7 +3,7 @@ import { Truck, LogOut, Search, CalendarDays, MapPin, ClipboardList, PackageChec
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import IncidentSignaturePad from '@/pages/IncidentSignaturePad';
-import { invApi, fmtDate, statusLabel } from './api';
+import { invApi, fmtDate } from './api';
 import { InstallPackModal } from './InvAllocation';
 import { Spinner, StatusBadge, Btn, inputCls } from './ui';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';

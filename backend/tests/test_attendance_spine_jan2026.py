@@ -230,7 +230,8 @@ def test_attendance_board(hdrs):
 # ─── Cleanup ───────────────────────────────────────────────────────────
 def test_cleanup(hdrs, created_leave, owner_staff_id, leave_dates):
     """Best-effort cleanup: remove test leave + payroll number + created daily rows."""
-    import asyncio, sys
+    import asyncio
+    import sys
     sys.path.insert(0, "/app/backend")
     from utils.database import db  # noqa
 

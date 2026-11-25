@@ -69,7 +69,7 @@ function PerformanceView({ API, headers }) {
       .then((r) => setRows(r.data?.rows || []))
       .catch((e) => notifyApiError(notify, e, t('memberships_console.inst_load_fail', 'Failed to load')))
       .finally(() => setLoading(false));
-  }, [API, headers, days]);
+  }, [API, headers, days, t]);
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({
     classes: acc.classes + r.classes_total,

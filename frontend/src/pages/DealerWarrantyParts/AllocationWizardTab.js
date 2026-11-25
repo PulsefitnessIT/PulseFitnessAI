@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X, Loader2, Brain, TrendingUp } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, Search, X, Loader2, Brain, TrendingUp } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, inputTight, money } from './shared';

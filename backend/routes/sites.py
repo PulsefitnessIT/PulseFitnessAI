@@ -39,7 +39,7 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
     # Auto-create is idempotent and harmless for non-privileged callers —
     # they just won't see the HQ themselves until an owner visits.
     role = (user.get("role") or "").lower()
-    is_privileged = (
+    (
         role in ("owner", "manager", "master_admin", "master", "pulse_master_admin")
         or bool(user.get("is_master_admin"))
         # Iter 237 — Pulse Master Admins manage the whole Pulse estate;

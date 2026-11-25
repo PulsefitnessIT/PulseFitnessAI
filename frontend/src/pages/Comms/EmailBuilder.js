@@ -299,7 +299,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
     return w;
   }, [subject, blocks, campaign]);
 
-  const previewHtml = useMemo(() => {
+  const _previewHtml = useMemo(() => {
     const inner = blocks.map(renderBlock).join('');
     return `<div style="background:${dark ? '#0B1220' : '#F3F4F6'};padding:24px 0"><div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden">${inner}</div></div>`;
   }, [blocks, dark]);
@@ -432,7 +432,7 @@ export default function EmailBuilder({ campaign, API, headers, onClose, onSaved 
                   <button onClick={(e) => { e.stopPropagation(); move(b.id, 1); }} className="p-1 text-slate-500 hover:text-slate-900"><ArrowDown size={13} /></button>
                   <button onClick={(e) => { e.stopPropagation(); removeBlock(b.id); }} className="p-1 text-rose-500 hover:text-rose-700" data-testid={`block-delete-${b.type}`}><Trash2 size={13} /></button>
                 </div>
-                {/* eslint-disable-next-line react/no-danger */}
+                { }
                 <div dangerouslySetInnerHTML={{ __html: renderBlock(b) }} />
               </div>
             ))}

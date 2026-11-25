@@ -9,9 +9,9 @@ export async function clearOfflineData() {
       .forEach((k) => localStorage.removeItem(k));
   } catch { /* storage unavailable */ }
   try {
-    if (typeof caches !== 'undefined') {
-      const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k.includes('-api-')).map((k) => caches.delete(k)));
+    if (typeof window.caches !== 'undefined') {
+      const keys = await window.caches.keys();
+      await Promise.all(keys.filter((k) => k.includes('-api-')).map((k) => window.caches.delete(k)));
     }
   } catch { /* cache API unavailable */ }
 }

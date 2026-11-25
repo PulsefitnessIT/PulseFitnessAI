@@ -1,5 +1,6 @@
 # Seed/cleanup TEST_ui_ data for fault-title UI checks. Usage: python _seed_fault_title_ui.py seed|clean
-import os, sys
+import os
+import sys
 from datetime import datetime, timezone
 from pymongo import MongoClient
 from dotenv import load_dotenv

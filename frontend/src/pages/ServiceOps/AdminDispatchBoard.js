@@ -252,7 +252,7 @@ export default function AdminDispatchBoard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
 

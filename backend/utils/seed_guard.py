@@ -18,7 +18,7 @@ import os
 from urllib.parse import urlparse
 
 # Hostnames we treat as a local (non-production) database.
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1", ""}
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1", ""}  # nosec B104 - hostname allow-list, not a bind address
 
 
 def _mongo_host() -> str:

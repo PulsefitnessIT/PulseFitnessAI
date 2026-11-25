@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Trash2, Star, Search } from 'lucide-react';
+import { Plus, Trash2, Search } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, Modal, Field, input, money } from './shared';

@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 from routes.master_admin import require_master_admin
@@ -504,42 +504,70 @@ async def mod_site_service_providers(user: dict = Depends(get_current_user)):
 
 # ── MOD site quotes (view & sign in-portal — no extra login) ───────
 
+def _visible_quote_filter(site_id: str) -> dict:
+    """Customers only ever see published, current versions (or legacy quotes explicitly sent for e-sign)."""
+    return {"mod_site_id": site_id, "quote_kind": "mod_sor", "$or": [
+        {"mod_group_id": {"$exists": True}, "customer_visible": True, "status": {"$ne": "superseded"}},
+        {"mod_group_id": {"$exists": False}, "$or": [{"esign_status": {"$in": ["sent", "signed"]}}, {"status": "accepted"}]},
+    ]}
+
+
+async def _visible_quote(org: dict, quote_id: str) -> dict:
+    q = await db.crm2_quotes.find_one({"id": quote_id, **_visible_quote_filter(org["id"])}, {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Quote not found for this site")
+    return q
+
+
+async def _portal_event(q: dict, kind: str, user: dict, detail: dict | None = None):
+    from routes.mod_ops_quotes import _event
+    if q.get("mod_group_id"):
+        await _event(q["mod_group_id"], kind, user, q["id"], q.get("version"), detail,
+                     actor=f"{user.get('full_name') or user.get('email')} (customer)")
+
+
 @router.get("/mod/site/quotes")
 async def mod_site_quotes(user: dict = Depends(get_current_user)):
-    """Quotes raised for this MOD site so the owner/manager can review and
-    e-sign them without a separate public link / login."""
+    """Published quotations for this MOD site, grouped so alternatives can be compared."""
     org = await _require_mod_site(user)
-    rows = await db.crm2_quotes.find(
-        {"mod_site_id": org["id"], "quote_kind": "mod_sor"},
-        {"_id": 0, "signature": 0},
-    ).sort("created_at", -1).to_list(200)
+    rows = await db.crm2_quotes.find(_visible_quote_filter(org["id"]), {"_id": 0, "signature": 0, "esign_token": 0}).sort("created_at", -1).to_list(200)
     quotes = [{
-        "id": q.get("id"),
-        "quote_number": q.get("quote_number"),
-        "title": q.get("title"),
-        "mod_contract_type": q.get("mod_contract_type"),
-        "status": q.get("status"),
-        "esign_status": q.get("esign_status"),
-        "total": q.get("total"),
-        "currency": q.get("currency", "GBP"),
-        "line_count": len(q.get("lines") or []),
-        "valid_until": q.get("valid_until"),
-        "signer_name": q.get("signer_name"),
-        "signed_at": q.get("signed_at"),
-        "created_at": q.get("created_at"),
+        "id": q.get("id"), "quote_number": q.get("quote_number"), "title": q.get("title"),
+        "mod_contract_type": q.get("mod_contract_type"), "mod_quote_type": q.get("mod_quote_type"),
+        "mod_group_id": q.get("mod_group_id"), "status": q.get("status"), "esign_status": q.get("esign_status"),
+        "subtotal": q.get("subtotal"), "vat_amount": q.get("vat_amount"), "total": q.get("total"),
+        "currency": q.get("currency", "GBP"), "line_count": len(q.get("lines") or []),
+        "valid_until": q.get("valid_until"), "published_at": q.get("published_at"), "version": q.get("version"),
+        "signer_name": q.get("signer_name"), "signed_at": q.get("signed_at"), "created_at": q.get("created_at"),
     } for q in rows]
-    pending = sum(1 for q in quotes if q["esign_status"] != "signed" and q["status"] != "accepted")
-    return {"quotes": quotes, "pending_count": pending}
+    groups: dict = {}
+    for q in quotes:
+        if q["mod_group_id"]:
+            groups.setdefault(q["mod_group_id"], []).append(q)
+    group_out = []
+    for gid, qs in groups.items():
+        g = await db.mod_quote_groups.find_one({"id": gid}, {"_id": 0, "status": 1, "customer.name": 1, "accepted_quote_id": 1, "published_at": 1})
+        auth = await db.mod_quote_authorisations.find_one({"group_id": gid}, {"_id": 0, "status": 1, "quote_id": 1, "submitted_at": 1}, sort=[("submitted_at", -1)])
+        group_out.append({"id": gid, "status": (g or {}).get("status"), "published_at": (g or {}).get("published_at"),
+                          "accepted_quote_id": (g or {}).get("accepted_quote_id"), "authorisation": auth,
+                          "quotes": sorted(qs, key=lambda x: {"A": 0, "B": 1, "AB": 2}.get(x["mod_quote_type"] or "", 3))})
+    pending = sum(1 for q in quotes if q["status"] in ("published", "customer_review"))
+    return {"quotes": quotes, "groups": group_out, "pending_count": pending}
 
 
 @router.get("/mod/site/quotes/{quote_id}")
 async def mod_site_quote_detail(quote_id: str, user: dict = Depends(get_current_user)):
     org = await _require_mod_site(user)
     from routes.crm_mod_quote import _quote_org_branding, _public_quote_view
-    q = await db.crm2_quotes.find_one(
-        {"id": quote_id, "mod_site_id": org["id"]}, {"_id": 0})
-    if not q:
-        raise HTTPException(404, "Quote not found for this site")
+    q = await _visible_quote(org, quote_id)
+    if q.get("mod_group_id"):
+        await _portal_event(q, "customer_viewed", user)
+        snap = q.get("pricing_snapshot") or {}
+        return {"id": q["id"], "quote_number": q["quote_number"], "mod_quote_type": q.get("mod_quote_type"),
+                "title": q.get("title"), "status": q.get("status"), "valid_until": q.get("valid_until"),
+                "lines": snap.get("lines") or q.get("lines"), "subtotal": snap.get("net", q.get("subtotal")),
+                "vat_amount": snap.get("vat", q.get("vat_amount")), "total": snap.get("gross", q.get("total")),
+                "published_at": q.get("published_at"), "version": q.get("version")}
     brand = await _quote_org_branding(q.get("organization_id"))
     return _public_quote_view(q, brand)
 
@@ -548,11 +576,10 @@ async def mod_site_quote_detail(quote_id: str, user: dict = Depends(get_current_
 async def mod_site_quote_sign(quote_id: str, payload: dict, request: Request,
                               user: dict = Depends(get_current_user)):
     org = await _require_mod_site(user)
+    q = await _visible_quote(org, quote_id)
+    if q.get("mod_group_id"):
+        raise HTTPException(409, "Use 'Submit authorisation' for this quotation — Pulse Fitness verifies MOD approval before acceptance")
     from routes.crm_mod_quote import apply_quote_signature
-    q = await db.crm2_quotes.find_one(
-        {"id": quote_id, "mod_site_id": org["id"]}, {"_id": 0})
-    if not q:
-        raise HTTPException(404, "Quote not found for this site")
     signer = (payload.get("signer_name") or user.get("full_name") or user.get("email") or "").strip()
     return await apply_quote_signature(
         q, signer, payload.get("signature"),
@@ -562,10 +589,13 @@ async def mod_site_quote_sign(quote_id: str, payload: dict, request: Request,
 @router.get("/mod/site/quotes/{quote_id}/pdf")
 async def mod_site_quote_pdf(quote_id: str, user: dict = Depends(get_current_user)):
     org = await _require_mod_site(user)
-    q = await db.crm2_quotes.find_one(
-        {"id": quote_id, "mod_site_id": org["id"]}, {"_id": 0})
-    if not q:
-        raise HTTPException(404, "Quote not found for this site")
+    q = await _visible_quote(org, quote_id)
+    if q.get("mod_group_id"):
+        from routes.mod_ops_quotes import _group, pdf_filename, quote_pdf_bytes
+        g = await _group(q["mod_group_id"])
+        await _portal_event(q, "customer_downloaded", user)
+        return Response(content=await quote_pdf_bytes(q, g), media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{pdf_filename(q, g)}"'})
     try:
         from utils.crm_quote_pdf import render_quote_pdf
         pdf_bytes = await render_quote_pdf(q, organization_id=q.get("organization_id"))
@@ -573,6 +603,74 @@ async def mod_site_quote_pdf(quote_id: str, user: dict = Depends(get_current_use
         raise HTTPException(500, f"Could not generate PDF: {exc}") from exc
     return Response(content=pdf_bytes, media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="{q.get("quote_number", "quote")}.pdf"'})
+
+
+@router.get("/mod/site/quote-groups/{group_id}/zip")
+async def mod_site_quote_group_zip(group_id: str, user: dict = Depends(get_current_user)):
+    org = await _require_mod_site(user)
+    from routes.mod_ops_quotes import _group, zip_bytes
+    qs = await db.crm2_quotes.find({"mod_group_id": group_id, **_visible_quote_filter(org["id"])}, {"_id": 0}).to_list(20)
+    if not qs:
+        raise HTTPException(404, "No quotations found for this site")
+    g = await _group(group_id)
+    for q in qs:
+        await _portal_event(q, "customer_downloaded", user, {"zip": True})
+    safe = "".join(ch if ch.isalnum() else "-" for ch in g["customer"]["name"]).strip("-")
+    return Response(content=await zip_bytes(qs, g), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="Pulse-Fitness-Quotations-{safe}.zip"'})
+
+
+@router.post("/mod/site/quotes/{quote_id}/reviewing")
+async def mod_site_quote_reviewing(quote_id: str, user: dict = Depends(get_current_user)):
+    org = await _require_mod_site(user)
+    q = await _visible_quote(org, quote_id)
+    if not q.get("mod_group_id"):
+        raise HTTPException(400, "Not available for this quotation")
+    await db.mod_quote_groups.update_one({"id": q["mod_group_id"], "status": "published"}, {"$set": {"status": "customer_review"}})
+    await db.crm2_quotes.update_many({"mod_group_id": q["mod_group_id"], "status": "published"}, {"$set": {"status": "customer_review"}})
+    await _portal_event(q, "customer_reviewing", user)
+    return {"ok": True}
+
+
+@router.post("/mod/site/quotes/{quote_id}/authorise")
+async def mod_site_quote_authorise(quote_id: str, po_reference: str = Form(""), authorising_officer: str = Form(...),
+                                   authorisation_date: str = Form(...), notes: str = Form(""),
+                                   evidence: UploadFile | None = File(None), user: dict = Depends(get_current_user)):
+    """Customer submits MOD authorisation for one option. Pulse staff verify before anything is accepted."""
+    org = await _require_mod_site(user)
+    q = await _visible_quote(org, quote_id)
+    if not q.get("mod_group_id"):
+        raise HTTPException(400, "Not available for this quotation")
+    g = await db.mod_quote_groups.find_one({"id": q["mod_group_id"]}, {"_id": 0})
+    if q["status"] == "superseded" or q.get("version") != g.get("revision"):
+        raise HTTPException(409, "This quotation has been replaced by a newer version")
+    if g["status"] in ("accepted", "handed_over", "withdrawn", "expired", "declined"):
+        raise HTTPException(409, f"This quotation is {g['status'].replace('_', ' ')}")
+    if await db.mod_quote_authorisations.find_one({"group_id": g["id"], "status": "submitted"}):
+        raise HTTPException(409, "An authorisation is already awaiting Pulse Fitness review")
+    if not authorising_officer.strip() or not authorisation_date.strip():
+        raise HTTPException(422, "Authorising officer and date are required")
+    aid = str(uuid.uuid4())
+    doc = {"id": aid, "group_id": g["id"], "quote_id": q["id"], "quote_number": q["quote_number"],
+           "quote_type": q.get("mod_quote_type"), "quote_version": q.get("version"), "mod_site_id": org["id"],
+           "site_name": org.get("name"), "po_reference": po_reference.strip()[:80],
+           "authorising_officer": authorising_officer.strip()[:120], "authorisation_date": authorisation_date[:10],
+           "notes": notes.strip()[:2000], "status": "submitted", "submitted_by": user.get("id"),
+           "submitted_by_name": user.get("full_name") or user.get("email"), "submitted_at": datetime.now(timezone.utc).isoformat()}
+    if evidence is not None and evidence.filename:
+        data = await evidence.read()
+        if len(data) > 15 * 1024 * 1024:
+            raise HTTPException(413, "Evidence file too large (15 MB max)")
+        path = f"mod_quote_evidence/{g['id']}/{aid}_{''.join(ch for ch in evidence.filename if ch.isalnum() or ch in '._-')[:80]}"
+        put_object(path, data, evidence.content_type or "application/octet-stream")
+        doc.update({"evidence_path": path, "evidence_filename": evidence.filename})
+    await db.mod_quote_authorisations.insert_one(dict(doc))
+    await db.mod_quote_groups.update_one({"id": g["id"]}, {"$set": {"status": "authorisation_submitted"}})
+    await db.crm2_quotes.update_many({"mod_group_id": g["id"], "status": {"$in": ["published", "customer_review"]}},
+                                     {"$set": {"status": "authorisation_submitted"}})
+    await _portal_event(q, "authorisation_submitted", user, {"authorisation_id": aid, "po": doc["po_reference"]})
+    doc.pop("_id", None)
+    return {"ok": True, "authorisation": doc}
 
 
 

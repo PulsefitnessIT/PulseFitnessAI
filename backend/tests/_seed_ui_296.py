@@ -1,5 +1,7 @@
 # UI seed for iteration_296 retest; run with "seed" or "clean"
-import os, sys, json
+import os
+import sys
+import json
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -8,7 +10,8 @@ db = MongoClient(os.environ['MONGO_URL'])[os.environ['DB_NAME']]
 ADMIN_ORG = "d19de469-645a-4b66-93b1-52455a643f5b"
 ADMIN_ID = "1fedcc01-1f53-408a-bc48-017375348536"
 SIG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
-now = lambda d=0: (datetime.now(timezone.utc) + timedelta(minutes=d)).isoformat()
+def now(d=0):
+    return (datetime.now(timezone.utc) + timedelta(minutes=d)).isoformat()
 REPORT = {"work_completed": "TEST_ UI replaced drive belt", "further_work_required": "TEST_ UI check motor",
           "further_parts_required": [{"name": "TEST_ UI Drive belt long name", "qty": 2, "sku": "DB-9"}],
           "start_time": now(-90), "end_time": now(-10), "recorded_at": now()}

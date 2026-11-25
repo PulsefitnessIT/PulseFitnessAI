@@ -653,7 +653,7 @@ function ConfigForm({ cfg, setCfg, meta, c, API, headers, contractId }) {
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           {logoSrc
             ? <img data-testid="bl-cfg-logo-preview" src={logoSrc} alt="Customer logo"
-                className="h-12 rounded border p-1 bg-white object-contain" style={{ borderColor: c.border }} />
+                className="h-12 rounded border p-1 bg-white object-contain dark:bg-zinc-900" style={{ borderColor: c.border }} />
             : <span className="text-xs italic" style={{ color: c.textMuted }}>No logo yet — the certificate shows the Pulse header only</span>}
           <label className="text-xs px-3 py-1.5 rounded-md border cursor-pointer" data-testid="bl-cfg-logo-upload"
             style={{ borderColor: c.border, color: c.text }}>

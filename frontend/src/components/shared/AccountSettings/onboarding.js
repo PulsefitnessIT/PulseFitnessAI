@@ -9,7 +9,7 @@ import EquipmentImportInline from './EquipmentImportInline';
 import QrPrintInline from './QrPrintInline';
 import StripeConnectErrorBanner from '@/components/shared/StripeConnectErrorBanner';
 
-const PORTAL_STATUS_IDS = ['in_progress', 'ready_for_review', 'complete'];
+const _PORTAL_STATUS_IDS = ['in_progress', 'ready_for_review', 'complete'];
 
 function CustomerPortalPanel() {
   const { t } = useTranslation();
@@ -34,7 +34,8 @@ function CustomerPortalPanel() {
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
+  useEffect(() => { load();   }, []);
 
   const setStep = async (stepId, status) => {
     setSavingStep(stepId);
@@ -163,7 +164,8 @@ function SurveyPortalDetail({ survey, onBack, headers }) {
       setAttachments(r.attachments || []);
     } catch { /* ignore */ }
   };
-  useEffect(() => { loadAtt(); /* eslint-disable-next-line */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'loadAtt'; pre-existing as of iter 216h226-polish-5.
+  useEffect(() => { loadAtt();   }, []);
 
   const setField = (sec, key, val) => setData((d) => ({ ...d, [sec]: { ...(d[sec] || {}), [key]: val } }));
   const setContact = (idx, key, val) => setData((d) => { const a = [...(d.site_contacts || [])]; a[idx] = { ...(a[idx] || {}), [key]: val }; return { ...d, site_contacts: a }; });
@@ -266,7 +268,8 @@ function SurveyPortalPanel() {
       setSurveys(data.enabled ? (data.surveys || []) : []);
     } catch { setSurveys([]); } finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'load'; pre-existing as of iter 216h226-polish-5.
+  useEffect(() => { load();   }, []);
 
   const openOne = async (id) => {
     try {

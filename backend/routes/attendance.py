@@ -405,10 +405,7 @@ async def recompute_day(org_id: str, staff_id: str, date_iso: str,
         elif expected["expected_status"] == "off":
             status = "off"
             source = "working_pattern"
-        elif actuals:
-            status = "working"
-            source = "employee_time_entry"
-        elif (existing or {}).get("employee_entry"):
+        elif actuals or (existing or {}).get("employee_entry"):
             status = "working"
             source = "employee_time_entry"
         else:
@@ -441,11 +438,7 @@ async def recompute_day(org_id: str, staff_id: str, date_iso: str,
         regular = min(raw_worked, exp_h) if raw_worked else exp_h
         if raw_worked and raw_worked > exp_h:
             overtime_raw = round(raw_worked - exp_h, 2)
-    elif status == "not_confirmed":
-        pass
-    elif status == "off":
-        pass
-    elif status == "unpaid_leave":
+    elif status == "not_confirmed" or status == "off" or status == "unpaid_leave":
         pass
     elif meta["paid"]:
         paid_leave_hours = expected["expected_hours"] or profile.get("standard_daily_hours") or 0.0

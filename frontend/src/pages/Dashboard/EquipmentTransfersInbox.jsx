@@ -83,17 +83,17 @@ export default function EquipmentTransfersInbox({ onImported }) {
     <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50/60 p-5" data-testid="eq-transfers-inbox">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center"><ArrowRightLeft size={16} /></span>
-        <h3 className="font-bold text-slate-900">Equipment from your engineer</h3>
+        <h3 className="font-bold text-slate-900 dark:text-zinc-100">Equipment from your engineer</h3>
       </div>
 
       {pending.map((t) => (
-        <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4 mb-2 flex flex-wrap items-center justify-between gap-3" data-testid={`eq-transfer-pending-${t.id}`}>
+        <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4 mb-2 flex flex-wrap items-center justify-between gap-3 dark:bg-zinc-900 dark:border-zinc-800" data-testid={`eq-transfer-pending-${t.id}`}>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900">{t.equipment_count} machine{t.equipment_count === 1 ? '' : 's'} ready to import</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{t.equipment_count} machine{t.equipment_count === 1 ? '' : 's'} ready to import</p>
             <p className="text-xs text-slate-500 mt-0.5">From {t.engineer_name || 'your engineer'}{t.engineer_company ? ` · ${t.engineer_company}` : ''} · QR codes & service history included</p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => decline(t)} disabled={busyId === t.id} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-300 text-slate-600 text-xs font-bold hover:bg-slate-50" data-testid={`eq-transfer-decline-${t.id}`}>
+            <button type="button" onClick={() => decline(t)} disabled={busyId === t.id} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-300 text-slate-600 text-xs font-bold hover:bg-slate-50 dark:bg-zinc-900" data-testid={`eq-transfer-decline-${t.id}`}>
               <X size={13} /> Decline
             </button>
             <button type="button" onClick={() => approve(t)} disabled={busyId === t.id} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-50" data-testid={`eq-transfer-approve-${t.id}`}>
@@ -104,9 +104,9 @@ export default function EquipmentTransfersInbox({ onImported }) {
       ))}
 
       {available.map((a) => (
-        <div key={a.source_customer_id} className="rounded-xl border border-slate-200 bg-white p-4 mb-2 flex flex-wrap items-center justify-between gap-3" data-testid={`eq-transfer-available-${a.source_customer_id}`}>
+        <div key={a.source_customer_id} className="rounded-xl border border-slate-200 bg-white p-4 mb-2 flex flex-wrap items-center justify-between gap-3 dark:bg-zinc-900 dark:border-zinc-800" data-testid={`eq-transfer-available-${a.source_customer_id}`}>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900">{a.equipment_count} machine{a.equipment_count === 1 ? '' : 's'} on file with {a.engineer_org_name}</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{a.equipment_count} machine{a.equipment_count === 1 ? '' : 's'} on file with {a.engineer_org_name}</p>
             <p className="text-xs text-slate-500 mt-0.5">Request to import these into your Operations portal.</p>
           </div>
           <button type="button" onClick={() => requestPull(a)} disabled={busyId === a.source_customer_id} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`eq-transfer-request-${a.source_customer_id}`}>

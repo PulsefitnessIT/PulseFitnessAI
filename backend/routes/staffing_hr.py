@@ -726,7 +726,8 @@ async def _employee_file_data(org_id: str, staff: dict) -> dict:
             ts = await _ensure_timesheet_doc(org_id, sid, ws, we)
             ah = round(ts.get("actual_hours", 0), 2)
             pay = round(ah * rate, 2)
-            tot_hours += ah; tot_pay += pay
+            tot_hours += ah
+            tot_pay += pay
             pay_rows.append([ws, f"{ah:.2f}", f"{ts.get('overtime_hours', 0):g}",
                              (ts.get("approval_status") or "").title(), f"£{pay:.2f}"])
     except Exception:
@@ -738,7 +739,7 @@ async def _employee_file_data(org_id: str, staff: dict) -> dict:
         ("Attendance & Pay", ["Week", "Hours", "Overtime", "Status", "Pay"],
          pay_rows + ([["TOTAL", f"{tot_hours:.2f}", "", "", f"£{tot_pay:.2f}"]] if pay_rows else [])),
         ("Leave", ["Type", "From", "To", "Status", "Reason"],
-         [[l.get("leave_type"), l.get("start_date"), l.get("end_date"), l.get("status"), l.get("reason")] for l in leave]),
+         [[ln.get("leave_type"), ln.get("start_date"), ln.get("end_date"), ln.get("status"), ln.get("reason")] for ln in leave]),
         ("Disciplinary", ["Date", "Severity", "Summary", "Actions agreed", "Resolved"],
          [[d.get("occurred_at"), d.get("severity"), d.get("summary"), d.get("actions_agreed"), d.get("resolved_at")] for d in disc]),
         ("Training", ["Course", "Provider", "Completed", "Expires", "Score"],
@@ -752,9 +753,12 @@ def _emp_xlsx(f: dict, brand: dict | None = None) -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from utils.export_branding import xlsx_brand_band
-    wb = Workbook(); wb.remove(wb.active)
-    thin = Side(style="thin", color="D0D5DD"); border = Border(thin, thin, thin, thin)
-    head = PatternFill("solid", fgColor="0B0C10"); hfont = Font(bold=True, color="FFFFFF")
+    wb = Workbook()
+    wb.remove(wb.active)
+    thin = Side(style="thin", color="D0D5DD")
+    border = Border(thin, thin, thin, thin)
+    head = PatternFill("solid", fgColor="0B0C10")
+    hfont = Font(bold=True, color="FFFFFF")
     lab = Font(bold=True, color="475467")
     ws = wb.create_sheet("Summary")
     o = xlsx_brand_band(ws, brand)
@@ -762,21 +766,31 @@ def _emp_xlsx(f: dict, brand: dict | None = None) -> bytes:
     ws.cell(tr, 1, f"EMPLOYEE FILE — {f['name']}").font = Font(bold=True, size=15)
     r = tr + 2
     for title, kvs in f["kv"]:
-        ws.cell(r, 1, title).font = Font(bold=True, size=12, color="0E7490"); r += 1
-        for k, v in kvs:
-            ws.cell(r, 1, k).font = lab; ws.cell(r, 2, v if v is None else str(v)); r += 1
+        ws.cell(r, 1, title).font = Font(bold=True, size=12, color="0E7490")
         r += 1
-    ws.column_dimensions["A"].width = 26; ws.column_dimensions["B"].width = 52
+        for k, v in kvs:
+            ws.cell(r, 1, k).font = lab
+            ws.cell(r, 2, v if v is None else str(v))
+            r += 1
+        r += 1
+    ws.column_dimensions["A"].width = 26
+    ws.column_dimensions["B"].width = 52
     for title, cols, rows in f["tables"]:
         sh = wb.create_sheet(title[:28])
         for c, col in enumerate(cols, 1):
-            cell = sh.cell(1, c, col); cell.fill = head; cell.font = hfont; cell.border = border
+            cell = sh.cell(1, c, col)
+            cell.fill = head
+            cell.font = hfont
+            cell.border = border
         for i, row in enumerate(rows, 2):
             for c, val in enumerate(row, 1):
-                cell = sh.cell(i, c, "" if val is None else str(val)); cell.border = border
+                cell = sh.cell(i, c, "" if val is None else str(val))
+                cell.border = border
         for c in range(1, len(cols) + 1):
             sh.column_dimensions[chr(64 + c)].width = 22
-    buf = io.BytesIO(); wb.save(buf); return buf.getvalue()
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
 
 
 def _emp_pdf(f: dict, brand: dict | None = None) -> bytes:
@@ -804,9 +818,11 @@ def _emp_pdf(f: dict, brand: dict | None = None) -> bytes:
     for title, cols, rows in f["tables"]:
         story.append(Paragraph(f"{title} ({len(rows)})", h2))
         if not rows:
-            story.append(Paragraph("<i>No records.</i>", cell)); continue
+            story.append(Paragraph("<i>No records.</i>", cell))
+            continue
         data = [cols] + [[Paragraph(_fv(x), cell) for x in row] for row in rows]
-        n = len(cols); w = (182 * mm) / n
+        n = len(cols)
+        w = (182 * mm) / n
         t = Table(data, colWidths=[w] * n, repeatRows=1)
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B0C10")),

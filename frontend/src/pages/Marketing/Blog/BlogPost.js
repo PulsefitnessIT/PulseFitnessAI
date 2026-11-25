@@ -178,13 +178,13 @@ export default function BlogPost() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       ) : null}
-      <article className="bg-white">
+      <article className="bg-white dark:bg-zinc-900">
         <div className="max-w-3xl mx-auto px-6 lg:px-8 pt-10 pb-20" data-testid={`blog-post-${post.slug}`}>
           <Link to="/blog" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#19CDFF] transition-colors mb-6">
             <ArrowLeft size={14} /> All posts
           </Link>
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-            {post.tags?.map((t) => <span key={t} className="rounded-full bg-slate-100 px-2.5 py-1">{t}</span>)}
+            {post.tags?.map((t) => <span key={t} className="rounded-full bg-slate-100 dark:bg-zinc-800 px-2.5 py-1">{t}</span>)}
           </div>
           <h1 className="mt-4 text-4xl md:text-5xl lg:text-6xl tracking-tight font-black leading-[1.05]" style={{ color: '#1B1C1D' }}>
             {post.title}
@@ -202,7 +202,7 @@ export default function BlogPost() {
       </article>
 
       {/* CTA — Pulse Fitness brand */}
-      <section className="bg-slate-50 py-16">
+      <section className="bg-slate-50 py-16 dark:bg-zinc-900">
         <div className="max-w-4xl mx-auto px-6 lg:px-8 rounded-3xl p-10 text-center text-white" style={{ background: '#1B1C1D' }}>
           <h2 className="text-3xl md:text-4xl font-black tracking-tight text-white">Run the playbook on your own floor.</h2>
           <p className="mt-3 text-white/80 max-w-xl mx-auto">
@@ -221,12 +221,12 @@ export default function BlogPost() {
 
       {/* Related */}
       {other.length ? (
-        <section className="bg-white py-16">
+        <section className="bg-white py-16 dark:bg-zinc-900">
           <div className="max-w-6xl mx-auto px-6 lg:px-8">
             <h2 className="text-2xl font-black tracking-tight" style={{ color: '#1B1C1D' }}>Keep reading</h2>
             <div className="mt-6 grid md:grid-cols-2 gap-5">
               {other.map((o) => (
-                <Link key={o.slug} to={`/blog/${o.slug}`} className="rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:border-[#19CDFF] transition">
+                <Link key={o.slug} to={`/blog/${o.slug}`} className="rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 hover:shadow-lg hover:border-[#19CDFF] transition">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{o.tags?.[0] || 'Article'}</p>
                   <h3 className="mt-2 text-lg font-bold tracking-tight" style={{ color: '#1B1C1D' }}>{o.title}</h3>
                   <p className="mt-2 text-sm text-slate-600">{o.excerpt}</p>

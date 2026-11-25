@@ -2,7 +2,10 @@
 # Usage: python _seed_comment_edit_delivery_294.py seed|clean|send
 # seed/clean: direct DB rows only (no emails). send: ONE real email to TEST_RECIPIENT_EMAIL
 # and stores its message_id on the TEST MOD issue's pulse recipient.
-import os, sys, asyncio, json
+import os
+import sys
+import asyncio
+import json
 from datetime import datetime, timezone, timedelta
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -14,7 +17,8 @@ from utils.auth import hash_password
 db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 PW = "TestCmt294#2026"
 NOW = datetime.now(timezone.utc)
-iso = lambda d: d.isoformat()
+def iso(d):
+    return d.isoformat()
 
 MOD_ORG = "TEST_294_modorg"
 GYM_ORG = "TEST_294_gymorg"
@@ -70,7 +74,8 @@ def seed():
                                     ("TEST_294_case_gym", "TEST_294_i_gym", "Inda Fitness", "inda294@example.test")]:
         db.supplier_cases.insert_one({"id": cid, "issue_id": iid, "token": f"{cid}_tok", "supplier_name": sname,
                                       "supplier_email": semail, "current_status": "open", "created_at": iso(NOW)})
-    m = lambda mins: iso(NOW - timedelta(minutes=mins))
+    def m(mins):
+        return iso(NOW - timedelta(minutes=mins))
     C = "TEST_294_case_mod"
     rows = [
         ("own_edit", "gym", "TEST_294_owner", 2, {}),

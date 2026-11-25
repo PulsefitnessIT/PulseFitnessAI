@@ -19,7 +19,7 @@ const box = {
 
 export default function ShareModal({ chart, onClose, onChanged }) {
   const { t } = useTranslation();
-  const published = !!chart?.is_public;
+  const _published = !!chart?.is_public;
   const [token, setToken] = useState(chart?.public_token || null);
   const [showContact, setShowContact] = useState(!!chart?.public_show_contact);
   const [busy, setBusy] = useState(false);

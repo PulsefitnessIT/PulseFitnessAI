@@ -1898,7 +1898,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             unit = price_map.get(cn) or u.get("avg_cost") or 0
             dup = ""
             if have > 0 and rec < raw:
-                dup = ("Dealer already holds/allocated %d — none needed." % have if rec == 0
+                dup = (f"Dealer already holds/allocated {have:d} — none needed." if rec == 0
                        else f"Reduced {raw}\u2192{rec}: dealer already holds/allocated {have}.")
             pre = "Supplementary (not in warranty plan): " if source == "supplementary" else ""
             tnote = (f"Usage trend {u['trend']} — quantity adjusted ×{tmult:g}. " if tmult != 1.0 else "")
@@ -1999,7 +1999,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     plan_used = any(i.get("source") == "warranty_plan" for grp in pack for i in grp["items"])
     over = bool(allowance and total_value > allowance + 0.01)
     parts_total = sum(g["item_count"] for g in pack)
-    matched_machine_count = sum(1 for l in machine_lines if l.get("matched"))
+    matched_machine_count = sum(1 for line_item in machine_lines if line_item.get("matched"))
 
     # Explain the pack / an empty pack so the operator knows the exact reason + next step.
     note = ""
@@ -2342,7 +2342,7 @@ async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx
     return {
         "lines": lines, "order_value": round(order_value, 2),
         "order_reference": invoice_no,
-        "matched_count": sum(1 for l in lines if l["matched"]),
+        "matched_count": sum(1 for line_item in lines if line_item["matched"]),
         "lines_total": len(lines),
         "machines_total": machines_total, "machines_matched": machines_matched,
         "quantity_column_found": has_qty,
@@ -2367,7 +2367,7 @@ async def _scan_pdf_invoice(content: bytes, idx) -> dict:
     except Exception:  # pragma: no cover
         return {"lines": [], "order_value": 0, "matched_count": 0, "lines_total": 0,
                 "machines_total": 0, "machines_matched": 0}
-    lines = [l.strip() for l in text.split("\n")]
+    lines = [line_item.strip() for line_item in text.split("\n")]
     n = len(lines)
     price_re = re.compile(r"^[\d,]+\.\d{1,2}$")
     # Item codes never contain spaces and are short (e.g. 581H-AAG, 867H-ZZW).
@@ -2438,7 +2438,7 @@ async def _scan_pdf_invoice(content: bytes, idx) -> dict:
         "lines": out_lines, "order_value": round(order_value, 2),
         "order_reference": _extract_invoice_number(text),
         "invoice_total": invoice_total, "line_sum": line_sum,
-        "matched_count": sum(1 for l in out_lines if l["matched"]),
+        "matched_count": sum(1 for line_item in out_lines if line_item["matched"]),
         "lines_total": len(out_lines),
         "machines_total": machines_total, "machines_matched": machines_matched,
     }
@@ -2531,7 +2531,7 @@ async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filenam
         "order_value": parsed.get("order_value", 0),
         "note": parsed.get("note", ""),
         "lines": lines,
-        "matched_count": sum(1 for l in lines if l["matched"]),
+        "matched_count": sum(1 for line_item in lines if line_item["matched"]),
         **dup_info,
     }
 

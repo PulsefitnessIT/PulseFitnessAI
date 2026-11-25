@@ -10,7 +10,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const PILL = {
   expired:   { cls: 'bg-rose-100 text-rose-700 border-rose-200',       label: 'Expired' },
   expiring:  { cls: 'bg-amber-100 text-amber-700 border-amber-200',    label: 'Expiring' },
-  missing:   { cls: 'bg-slate-100 text-slate-600 border-slate-200',    label: 'Not on file' },
+  missing:   { cls: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:border-zinc-800',    label: 'Not on file' },
   ok:        { cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Valid' },
   attention: { cls: 'bg-rose-100 text-rose-700 border-rose-200',       label: 'Check needed' },
 };
@@ -29,7 +29,7 @@ function SummaryCard({ testid, icon: Icon, tint, title, urgent, urgentLabel, bre
   const clear = urgent === 0;
   return (
     <div data-testid={testid}
-      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:bg-zinc-900 dark:border-zinc-800">
       <div className="flex items-start justify-between">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl"
           style={{ background: `${tint}1f`, color: tint }}>
@@ -52,8 +52,8 @@ function SummaryCard({ testid, icon: Icon, tint, title, urgent, urgentLabel, bre
 
 function SectionCard({ title, icon: Icon, count, children }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:bg-zinc-900 dark:border-zinc-800">
+      <div className="flex items-center gap-2 border-b border-slate-100 dark:border-zinc-800 px-5 py-3.5">
         <Icon size={18} className="text-slate-400" />
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{title}</h3>
         <span className="ml-auto text-xs font-semibold text-slate-400">{count} to review</span>
@@ -120,7 +120,7 @@ export default function ComplianceTab({ headers }) {
           </p>
         </div>
         <button onClick={load} data-testid="compliance-refresh"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
           {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Refresh
         </button>
       </div>

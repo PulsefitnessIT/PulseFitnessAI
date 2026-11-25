@@ -1,5 +1,6 @@
 """Tests for staff onboarding pack email settings (Jan 2026)."""
-import os, time
+import os
+import time
 import requests
 import pytest
 

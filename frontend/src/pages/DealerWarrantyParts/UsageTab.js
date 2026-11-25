@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Wrench, RotateCcw } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
-import { Spinner, Modal, Field, input, money } from './shared';
+import { Spinner, Modal, Field, input } from './shared';
 
 export const FAILURE_REASONS = [
   'mechanical_failure', 'electrical_failure', 'wear_and_tear', 'accidental_damage',

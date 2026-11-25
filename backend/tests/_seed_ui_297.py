@@ -1,5 +1,7 @@
 # UI seed for iteration_297 (Book follow-up from case drawer); run with "seed" or "clean"
-import os, sys, json
+import os
+import sys
+import json
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -7,7 +9,8 @@ load_dotenv('/app/backend/.env')
 db = MongoClient(os.environ['MONGO_URL'])[os.environ['DB_NAME']]
 ADMIN_ORG = "d19de469-645a-4b66-93b1-52455a643f5b"
 ADMIN_ID = "1fedcc01-1f53-408a-bc48-017375348536"
-now = lambda d=0: (datetime.now(timezone.utc) + timedelta(minutes=d)).isoformat()
+def now(d=0):
+    return (datetime.now(timezone.utc) + timedelta(minutes=d)).isoformat()
 CID, REF = "TEST_u297_case", "TEST-U297FU"
 REPORT = {"work_completed": "TEST_ UI replaced belt", "further_work_required": "TEST_ UI motor needs replacing",
           "further_parts_required": [{"name": "TEST_ UI Motor", "qty": 1, "sku": "MTR-1"}],

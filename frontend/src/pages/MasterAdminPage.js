@@ -98,7 +98,7 @@ import AlertBell from './MasterAdmin/AlertBell';
 import useMasterAdminActions from './MasterAdmin/hooks/useMasterAdminActions';
 // Iter 216h17 — brand context for Master Admin (Phase 1 IA redesign).
 import { BrandContextProvider, useBrandContext } from './MasterAdmin/BrandContext';
-import BrandPicker from './MasterAdmin/BrandPicker';  // eslint-disable-line no-unused-vars -- retained for future multi-brand; picker hidden Iter 285
+ 
 
 const MasterAdminPage = ({ _onBack }) => {
   const { user, API, logout } = useAuth();

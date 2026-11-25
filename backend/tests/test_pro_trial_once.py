@@ -1,5 +1,9 @@
 # Pulse Pro trial: once-per-org, dismissible banner, master-admin re-grant
-import os, sys, asyncio, pytest, requests
+import os
+import sys
+import asyncio
+import pytest
+import requests
 sys.path.insert(0, "/app/backend")
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")

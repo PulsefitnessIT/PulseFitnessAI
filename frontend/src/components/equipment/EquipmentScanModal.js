@@ -54,7 +54,7 @@ export default function EquipmentScanModal({ open, onClose, siteId }) {
   };
 
   const lookup = async (raw) => {
-    let code = (raw || '').trim();
+    const code = (raw || '').trim();
     if (!code) return;
     // A scanned Pulse QR is a full /scan/{id} URL — jump straight in.
     const urlMatch = /\/scan\/([^/?#]+)/.exec(code);

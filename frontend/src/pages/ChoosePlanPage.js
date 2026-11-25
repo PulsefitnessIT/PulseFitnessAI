@@ -15,8 +15,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import {
-  Check, ArrowRight, Loader2, Minus, Plus, ShieldCheck, Sparkles, MessageCircle,
+import { ArrowRight, Loader2, ShieldCheck, Sparkles, MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 
@@ -33,7 +32,7 @@ export default function ChoosePlanPage() {
   const [live, setLive] = useState(null);
   const [currency, setCurrency] = useState('gbp');
   const [cycle, setCycle] = useState('monthly');
-  const [siteCount, setSiteCount] = useState(1);
+  const [siteCount, _setSiteCount] = useState(1);
   const [busy, setBusy] = useState(null);
 
   useEffect(() => {
@@ -110,7 +109,7 @@ export default function ChoosePlanPage() {
 
   const bundle = pricing?.bundle;
   const modules = pricing?.modules || [];
-  const bundleTotal = bundle ? bundle.monthly + (siteCount - 1) * bundle.per_site : 0;
+  const _bundleTotal = bundle ? bundle.monthly + (siteCount - 1) * bundle.per_site : 0;
 
   return (
     <div className="min-h-screen bg-zinc-50" data-testid="choose-plan-page">

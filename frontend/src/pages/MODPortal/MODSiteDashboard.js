@@ -412,7 +412,7 @@ function FaultCard({ fault, onChange }) {
   // base's DIO (Defence Infrastructure Organisation) contact when HQ
   // has configured one. Button hides once a fault has already been
   // escalated.
-  const [escalating, setEscalating] = useState(false);
+  const [escalating, _setEscalating] = useState(false);
   const [dioModalOpen, setDioModalOpen] = useState(false);
   const alreadyEscalated = Boolean(fault.escalated_to_dio);
 

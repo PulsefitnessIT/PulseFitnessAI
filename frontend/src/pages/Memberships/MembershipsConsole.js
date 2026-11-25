@@ -231,7 +231,7 @@ function MembershipsConsoleInner() {
   // solid cyan active tab. Pulse Fitness customers + master admins see the new
   // Pulse Fitness brand: gradient wordmark heading + brand-gradient active tab.
   const isPulseBrandedMbr = user?.account_type === 'pulse_pro' || user?.account_type === 'lite';
-  const brandLabel = isPulseBrandedMbr ? 'Pulse Fitness' : 'Pulse Fitness';
+  const _brandLabel = isPulseBrandedMbr ? 'Pulse Fitness' : 'Pulse Fitness';
 
   return (
     <div

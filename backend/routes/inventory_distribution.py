@@ -430,7 +430,7 @@ async def _attach_catalogue_matches(lines: list, user: dict) -> None:
 async def match_order_lines(body: dict = Body(...), user=Depends(get_current_user)):
     """Suggest catalogue matches for a set of order lines (manual entry helper)."""
     _require_ops_role(user)
-    lines = [dict(l) for l in (body.get("lines") or [])]
+    lines = [dict(line_item) for line_item in (body.get("lines") or [])]
     await _attach_catalogue_matches(lines, user)
     return {"lines": lines}
 

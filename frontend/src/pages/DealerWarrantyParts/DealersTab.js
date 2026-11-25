@@ -190,7 +190,8 @@ export default function DealersTab() {
   };
 
   const save = async () => {
-    let { company_id, name } = form;
+    const { name } = form;
+    let { company_id } = form;
     // Create-new-company path (option 1b): create the CRM company, then link it.
     if (companyMode === 'new') {
       if (!name.trim()) { notify.error('Company name required'); return; }

@@ -167,7 +167,7 @@ def build_afs_quote_pdf(quote: dict, org: dict | None = None,
     ]
     if disc:
         total_rows.insert(1, [Paragraph(f"Discount ({disc:g}%)", s["total_label"]),
-                              Paragraph(f"applied", s["total_value"])])
+                              Paragraph("applied", s["total_value"])])
     totals = Table(total_rows, colWidths=[45 * mm, 40 * mm], hAlign="RIGHT")
     totals.setStyle(TableStyle([
         ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),

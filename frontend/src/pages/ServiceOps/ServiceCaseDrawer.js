@@ -226,7 +226,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
     } catch (e) {
       notify.error(t('service.cd_load_case_failed', 'Failed to load case'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [caseId]);
+  }, [caseId, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -292,7 +292,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
     } catch (e) {
       notify.error(t('service.cd_comms_failed', 'Failed to load comms'), e?.response?.data?.detail || e.message);
     } finally { setCommsLoading(false); }
-  }, [caseId, commsTemplates]);
+  }, [caseId, commsTemplates, t]);
 
   useEffect(() => {
     if (tab === 'comms') loadComms();

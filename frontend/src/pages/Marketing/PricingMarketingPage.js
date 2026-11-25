@@ -178,7 +178,7 @@ function BundleHero({ siteCount, setSiteCount, billingCycle, setBillingCycle }) 
   const annualPaid = baseMonthly * 10; // 10 months for the price of 12
   const annualEqMonthly = (annualPaid / 12).toFixed(2);
   const total = isAnnual ? annualPaid : baseMonthly;
-  const periodLabel = isAnnual ? '/yr' : '/mo';
+  const _periodLabel = isAnnual ? '/yr' : '/mo';
   const savings = MODULES_TOTAL - BUNDLE.base; // £186 - £150 = £36 savings
   return (
     <div className="relative" data-testid="gx-pricing-bundle">

@@ -512,7 +512,8 @@ def _build_handbook_pdf(full_name: str | None) -> bytes:
     story += pulse_title(s, "Staff Portal Handbook",
                          f"Welcome{(' ' + full_name) if full_name else ''} — your quick guide to the Pulse Fitness Staff Portal")
     story.append(Spacer(1, 5 * mm))
-    esc = lambda t: str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    def esc(t):
+        return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     for i, (title, points) in enumerate(HANDBOOK_SECTIONS, start=1):
         story.append(section_label(s, f"{i}. {title}"))
         story.append(ListFlowable(
@@ -1037,7 +1038,8 @@ async def portal_my_detail_requests(user: dict = Depends(get_current_user_portal
 @router.get("/staffing/detail-change-requests")
 async def hr_list_detail_requests(status: str = Query("pending"),
                                   user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     q: dict = {"organization_id": org}
     if status and status != "all":
         q["status"] = status
@@ -1051,7 +1053,8 @@ async def hr_list_detail_requests(status: str = Query("pending"),
 
 @router.post("/staffing/detail-change-requests/{req_id}/approve")
 async def hr_approve_detail_request(req_id: str, user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     r = await db.staff_detail_change_requests.find_one({"id": req_id, "organization_id": org})
     if not r:
         raise HTTPException(404, "Request not found")
@@ -1091,7 +1094,8 @@ async def hr_approve_detail_request(req_id: str, user: dict = Depends(get_curren
 @router.post("/staffing/detail-change-requests/{req_id}/reject")
 async def hr_reject_detail_request(req_id: str, body: DetailRejectReq,
                                    user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
+    _require_hr(user)
+    org = _org(user)
     r = await db.staff_detail_change_requests.find_one({"id": req_id, "organization_id": org})
     if not r:
         raise HTTPException(404, "Request not found")
@@ -1111,7 +1115,9 @@ async def hr_reject_detail_request(req_id: str, body: DetailRejectReq,
 
 def _process_headshot(raw: bytes) -> bytes:
     from PIL import Image
-    img = Image.open(io.BytesIO(raw)); img.load(); img = img.convert("RGB")
+    img = Image.open(io.BytesIO(raw))
+    img.load()
+    img = img.convert("RGB")
     w, h = img.size
     side = min(w, h)
     left = (w - side) // 2
@@ -1480,7 +1486,8 @@ async def my_reports(user: dict = Depends(get_current_user)):
             u = await db.users.find_one(
                 {"id": r["user_id"]}, {"_id": 0, "is_service_desk": 1, "is_inventory": 1})
             if u:
-                granted.discard("service_desk"); granted.discard("inventory")
+                granted.discard("service_desk")
+                granted.discard("inventory")
                 if u.get("is_service_desk"):
                     granted.add("service_desk")
                 if u.get("is_inventory"):
@@ -1628,7 +1635,7 @@ def _exp_recalc(claim: dict) -> dict:
                       "nominal": ln.get("nominal") or "", "net": net, "vat": vat, "no_vat": no_vat,
                       "total": total, "receipt_id": ln.get("receipt_id")})
     # Keep the sheet in date order (oldest first); lines without a date sink to the bottom.
-    lines.sort(key=lambda l: (l["date"] == "", l["date"]))
+    lines.sort(key=lambda line_item: (line_item["date"] == "", line_item["date"]))
     claim["lines"] = lines
     claim["expenses_total"] = round(e_total, 2)
     claim["grand_total"] = round(m_total + e_total, 2)
@@ -1902,15 +1909,15 @@ def _exp_flags(claim: dict, threshold: float) -> list[str]:
     lines = claim.get("lines") or []
     receipts = claim.get("receipts") or {}
     # Missing receipt: a real expense line with no photo attached
-    if any((float(l.get("total") or 0) > 0 or float(l.get("net") or 0) > 0) and not l.get("receipt_id")
-           for l in lines):
+    if any((float(line_item.get("total") or 0) > 0 or float(line_item.get("net") or 0) > 0) and not line_item.get("receipt_id")
+           for line_item in lines):
         flags.append("missing_receipt")
     # Duplicate: two lines with same merchant + date + amount
     seen = {}
-    for l in lines:
-        m = (l.get("description") or "").strip().lower()
-        d = (l.get("date") or "")[:10]
-        amt = round(float(l.get("total") or 0), 2)
+    for line_item in lines:
+        m = (line_item.get("description") or "").strip().lower()
+        d = (line_item.get("date") or "")[:10]
+        amt = round(float(line_item.get("total") or 0), 2)
         if m and d and amt > 0:
             key = (m, d, amt)
             if key in seen:
@@ -1925,14 +1932,14 @@ def _exp_flags(claim: dict, threshold: float) -> list[str]:
             flags.append("low_scan")
             break
     # Amount mismatch: typed net+VAT differs from the receipt's photographed total
-    for l in lines:
-        rid = l.get("receipt_id")
+    for line_item in lines:
+        rid = line_item.get("receipt_id")
         if not rid:
             continue
         ocr_total = (receipts.get(rid) or {}).get("ocr_total")
         if not isinstance(ocr_total, (int, float)) or ocr_total <= 0:
             continue
-        typed = round(float(l.get("net") or 0) + (0 if l.get("no_vat") else float(l.get("vat") or 0)), 2)
+        typed = round(float(line_item.get("net") or 0) + (0 if line_item.get("no_vat") else float(line_item.get("vat") or 0)), 2)
         if typed > 0 and abs(typed - float(ocr_total)) > 0.05:
             flags.append("amount_mismatch")
             break
@@ -2203,26 +2210,34 @@ def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
     heads = ["Employee", "Department", "Mileage (£)", "Expenses (£)", "Total (£)"]
     for i, h in enumerate(heads, start=1):
         c = cover.cell(row=3, column=i, value=h)
-        c.font = Font(bold=True, color="FFFFFF"); c.fill = band
-        c.alignment = Alignment(horizontal="center"); c.border = box
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = band
+        c.alignment = Alignment(horizontal="center")
+        c.border = box
     r = 4
     g_mile = g_exp = g_total = 0.0
     for c in claims:
         m = round(float(c.get("mileage_total") or 0), 2)
         e = round(float(c.get("expenses_total") or 0), 2)
         t = round(float(c.get("grand_total") or 0), 2)
-        g_mile += m; g_exp += e; g_total += t
+        g_mile += m
+        g_exp += e
+        g_total += t
         cover.cell(row=r, column=1, value=c.get("staff_name", "")).border = box
         cover.cell(row=r, column=2, value=c.get("department", "")).border = box
         for col, val in ((3, m), (4, e), (5, t)):
             cc = cover.cell(row=r, column=col, value=val)
-            cc.number_format = GBP; cc.border = box
+            cc.number_format = GBP
+            cc.border = box
         r += 1
-    tot = cover.cell(row=r, column=2, value="TOTAL"); tot.font = Font(bold=True)
+    tot = cover.cell(row=r, column=2, value="TOTAL")
+    tot.font = Font(bold=True)
     tot.alignment = Alignment(horizontal="right")
     for col, val in ((3, g_mile), (4, g_exp), (5, g_total)):
         cc = cover.cell(row=r, column=col, value=round(val, 2))
-        cc.number_format = GBP; cc.font = Font(bold=True); cc.fill = grey
+        cc.number_format = GBP
+        cc.font = Font(bold=True)
+        cc.fill = grey
     for col, w in (("A", 26), ("B", 18), ("C", 14), ("D", 14), ("E", 14)):
         cover.column_dimensions[col].width = w
 
@@ -2242,29 +2257,41 @@ def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
 
         ws["A1"] = "Pulse Fitness Limited - Expense Claim"
         ws["A1"].font = Font(bold=True, size=18, color="1F3A5F")
-        ws.merge_cells("A1:F1"); ws.row_dimensions[1].height = 28
+        ws.merge_cells("A1:F1")
+        ws.row_dimensions[1].height = 28
 
         def lbl(addr, text, **kw):
-            c = ws[addr]; c.value = text
+            c = ws[addr]
+            c.value = text
             c.font = Font(bold=kw.get("bold", True), size=kw.get("size", 10))
             if kw.get("center"):
                 c.alignment = Alignment(horizontal="center")
             return c
 
         def inp(addr, val, numfmt=None):
-            c = ws[addr]; c.value = val; c.fill = orange; c.border = box
+            c = ws[addr]
+            c.value = val
+            c.fill = orange
+            c.border = box
             if numfmt:
                 c.number_format = numfmt
             return c
 
-        lbl("A3", "Name"); inp("B3", claim.get("staff_name", "")); lbl("C3", "(Required)", bold=False, size=9)
-        lbl("D3", "Date:"); ws["E3"] = month; ws["E3"].alignment = Alignment(horizontal="center")
-        lbl("A4", "Department"); inp("B4", claim.get("department", ""))
+        lbl("A3", "Name")
+        inp("B3", claim.get("staff_name", ""))
+        lbl("C3", "(Required)", bold=False, size=9)
+        lbl("D3", "Date:")
+        ws["E3"] = month
+        ws["E3"].alignment = Alignment(horizontal="center")
+        lbl("A4", "Department")
+        inp("B4", claim.get("department", ""))
         lbl("C4", "(Choose from Drop Down)", bold=False, size=9)
-        lbl("A6", "Car Registration"); inp("B6", claim.get("car_registration", ""))
+        lbl("A6", "Car Registration")
+        inp("B6", claim.get("car_registration", ""))
         lbl("C6", "(Required)", bold=False, size=9)
 
-        lbl("C9", "Miles claimed", center=True); lbl("D9", "Rate per mile", center=True)
+        lbl("C9", "Miles claimed", center=True)
+        lbl("D9", "Rate per mile", center=True)
         lbl("E9", "Total", center=True)
         mile_by_key = {m.get("key"): m for m in (claim.get("mileage") or [])}
         for i in range(5):
@@ -2276,22 +2303,33 @@ def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
             ws[f"B{row}"] = m.get("label") or base.get("label", "")
             ws[f"B{row}"].font = Font(size=10)
             inp(f"C{row}", round(float(m.get("miles") or 0), 2))
-            d = ws[f"D{row}"]; d.value = m.get("rate", base.get("rate", 0)); d.number_format = GBP
+            d = ws[f"D{row}"]
+            d.value = m.get("rate", base.get("rate", 0))
+            d.number_format = GBP
             d.alignment = Alignment(horizontal="center")
-            e = ws[f"E{row}"]; e.value = round(float(m.get("amount") or 0), 2); e.number_format = GBP
+            e = ws[f"E{row}"]
+            e.value = round(float(m.get("amount") or 0), 2)
+            e.number_format = GBP
 
         mileage_total = round(float(claim.get("mileage_total") or 0), 2)
         lbl("D16", "Mileage claim (£)", center=True)
         ws["D16"].fill = grey
-        e16 = ws["E16"]; e16.value = mileage_total; e16.number_format = GBP; e16.fill = grey
+        e16 = ws["E16"]
+        e16.value = mileage_total
+        e16.number_format = GBP
+        e16.fill = grey
         ws["D18"] = "if receipt is without VAT - put amount in NET"
         ws["D18"].font = Font(italic=True, size=9, color="808080")
 
         for col, text in (("A", "Date"), ("B", "Description of Expense"),
                           ("C", "Nominal (choose from drop down)"), ("D", "Net"),
                           ("E", "VAT"), ("F", "Total")):
-            c = ws[f"{col}20"]; c.value = text; c.font = Font(bold=True, size=10)
-            c.alignment = Alignment(horizontal="center"); c.fill = grey; c.border = box
+            c = ws[f"{col}20"]
+            c.value = text
+            c.font = Font(bold=True, size=10)
+            c.alignment = Alignment(horizontal="center")
+            c.fill = grey
+            c.border = box
 
         lines = claim.get("lines") or []
         for i in range(30):  # rows 21-50
@@ -2306,12 +2344,19 @@ def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
             inp(f"E{row}", vat, GBP)
             f = ws[f"F{row}"]
             f.value = round(float(ln.get("total") or 0), 2) if ln else None
-            f.number_format = GBP; f.border = box
+            f.number_format = GBP
+            f.border = box
 
-        d52 = ws["D52"]; d52.value = "Total Claim"; d52.font = Font(bold=True)
-        d52.alignment = Alignment(horizontal="right"); d52.fill = grey
-        f52 = ws["F52"]; f52.value = round(float(claim.get("grand_total") or 0), 2)
-        f52.number_format = GBP; f52.font = Font(bold=True, size=12); f52.fill = grey
+        d52 = ws["D52"]
+        d52.value = "Total Claim"
+        d52.font = Font(bold=True)
+        d52.alignment = Alignment(horizontal="right")
+        d52.fill = grey
+        f52 = ws["F52"]
+        f52.value = round(float(claim.get("grand_total") or 0), 2)
+        f52.number_format = GBP
+        f52.font = Font(bold=True, size=12)
+        f52.fill = grey
 
         # ── Nominal Analysis code (auto-totalled from this claim's lines) ──
         net_by_nom: dict[str, float] = {}
@@ -2326,12 +2371,16 @@ def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
         mile_neg = round(sum(float(m.get("amount") or 0) for m in (claim.get("mileage") or [])
                              if float(m.get("amount") or 0) < 0), 2)
 
-        lbl("C54", "Nominal Analysis code", center=True); ws["C54"].fill = grey
-        lbl("J54", "List of Deptartments", center=True); ws["J54"].fill = grey
-        lbl("M54", "Nominals", center=True); ws["M54"].fill = grey
+        lbl("C54", "Nominal Analysis code", center=True)
+        ws["C54"].fill = grey
+        lbl("J54", "List of Deptartments", center=True)
+        ws["J54"].fill = grey
+        lbl("M54", "Nominals", center=True)
+        ws["M54"].fill = grey
         row = 55
         for nom in _EXP_ANALYSIS_ROWS:
-            ws[f"C{row}"] = nom; ws[f"C{row}"].font = Font(size=10)
+            ws[f"C{row}"] = nom
+            ws[f"C{row}"].font = Font(size=10)
             ws[f"D{row}"] = _EXP_ANALYSIS_CODES.get(nom, "")
             ws[f"D{row}"].alignment = Alignment(horizontal="center")
             if nom == "Mileage claim":
@@ -2340,16 +2389,23 @@ def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
                 amt = mile_neg
             else:
                 amt = net_by_nom.get(nom, 0.0)
-            e = ws[f"E{row}"]; e.value = round(amt, 2); e.number_format = GBP
+            e = ws[f"E{row}"]
+            e.value = round(amt, 2)
+            e.number_format = GBP
             row += 1
-        ws[f"C{row}"] = "VAT"; ws[f"D{row}"] = 2201
+        ws[f"C{row}"] = "VAT"
+        ws[f"D{row}"] = 2201
         ws[f"D{row}"].alignment = Alignment(horizontal="center")
-        ev = ws[f"E{row}"]; ev.value = round(vat_total, 2); ev.number_format = GBP
+        ev = ws[f"E{row}"]
+        ev.value = round(vat_total, 2)
+        ev.number_format = GBP
 
         for i, dep in enumerate(EXP_DEPARTMENTS):
-            ws[f"J{56 + i}"] = dep; ws[f"J{56 + i}"].font = Font(size=10)
+            ws[f"J{56 + i}"] = dep
+            ws[f"J{56 + i}"].font = Font(size=10)
         for i, nom in enumerate(EXP_NOMINALS):
-            ws[f"M{56 + i}"] = nom; ws[f"M{56 + i}"].font = Font(size=10)
+            ws[f"M{56 + i}"] = nom
+            ws[f"M{56 + i}"].font = Font(size=10)
 
     if len(wb.sheetnames) == 1:  # summary only → no claims; add a note tab
         note = wb.create_sheet("No claims")

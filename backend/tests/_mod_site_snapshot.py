@@ -1,5 +1,7 @@
 # Snapshot / restore MOD Test Site supplier state (usage: python _mod_site_snapshot.py save|restore)
-import pickle, os, sys
+import pickle
+import os
+import sys
 from dotenv import load_dotenv
 from pymongo import MongoClient
 load_dotenv("/app/backend/.env")
@@ -15,7 +17,9 @@ if sys.argv[1] == "save":
 else:
     snap = pickle.load(open(P, "rb"))
     db.organizations.replace_one({"id": SITE}, snap["org"])
-    db.equipment.delete_many({"organization_id": SITE}); db.equipment.insert_many(snap["eq"])
+    db.equipment.delete_many({"organization_id": SITE})
+    db.equipment.insert_many(snap["eq"])
     db.suppliers.delete_many({"organization_id": SITE})
-    if snap["sup"]: db.suppliers.insert_many(snap["sup"])
+    if snap["sup"]:
+        db.suppliers.insert_many(snap["sup"])
     print("restored")

@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Loader2, ShieldAlert, Printer, X, Settings, Car, FileDown, MapPin } from 'lucide-react';
+import { Loader2, ShieldAlert, Printer, X, Settings, FileDown, MapPin } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const jwt = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
@@ -83,11 +83,11 @@ function ReportModal({ id, headers, onClose }) {
   const allPhotos = [['Your vehicle', photos.vehicle_damage], ['Scene', photos.scene], ['Other vehicle(s)', photos.other_vehicle], ['Sketch', photos.sketch]];
 
   return (
-    <div className="fixed inset-0 z-[200] overflow-y-auto bg-black/60 print:bg-white print:static" data-testid="crash-report-modal">
+    <div className="fixed inset-0 z-[200] overflow-y-auto bg-black/60 print:bg-white print:static dark:bg-zinc-900" data-testid="crash-report-modal">
       <div className="min-h-full flex items-start justify-center p-4 print:p-0">
-        <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl print:shadow-none print:rounded-none" id="crash-report-print">
-          <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 print:hidden">
-            <span className="font-bold text-slate-900">Fleet Incident Report</span>
+        <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl print:shadow-none print:rounded-none dark:bg-zinc-900" id="crash-report-print">
+          <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 print:hidden dark:border-zinc-800">
+            <span className="font-bold text-slate-900 dark:text-zinc-100">Fleet Incident Report</span>
             <div className="flex gap-2">
               <button onClick={() => downloadPdf(id, headers, 'Crash Pack Report')} data-testid="download-crash-pdf-btn" className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg border border-slate-300 text-slate-700"><FileDown size={15} /> PDF</button>
               <button onClick={() => window.print()} data-testid="print-crash-report-btn" className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg bg-cyan-500 text-white"><Printer size={15} /> Print</button>
@@ -95,7 +95,7 @@ function ReportModal({ id, headers, onClose }) {
             </div>
           </div>
           {!d ? <div className="p-16 flex justify-center"><Loader2 className="animate-spin text-cyan-500" /></div> : (
-            <div className="p-8 text-slate-900 text-sm leading-relaxed">
+            <div className="p-8 text-slate-900 text-sm leading-relaxed dark:text-zinc-100">
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-4">
                 <div><h1 className="text-xl font-extrabold">Pulse Fitness — Fleet Incident Report</h1><p className="text-xs text-slate-500">Confidential · Incident #{(pack.id || '').slice(0, 8).toUpperCase()}</p></div>
                 <div className="text-right text-xs"><div><strong>Policy</strong> {ins.qbe_policy_number}</div><div>{fmt(pack.submitted_at)}</div></div>
@@ -124,14 +124,14 @@ function ReportModal({ id, headers, onClose }) {
                 {allPhotos.every(([, a]) => !(a || []).length) ? <p className="text-slate-500">No photos attached.</p> : allPhotos.map(([lab, a]) => (a || []).length ? (
                   <div key={lab} className="mb-3" style={{ breakInside: 'avoid' }}>
                     <div className="text-xs font-bold uppercase text-slate-500 mb-1">{lab}</div>
-                    <div className="grid grid-cols-3 gap-2">{a.map((fid) => <img key={fid} alt={lab} src={img(fid)} className="w-full h-32 object-cover rounded border border-slate-200" />)}</div>
+                    <div className="grid grid-cols-3 gap-2">{a.map((fid) => <img key={fid} alt={lab} src={img(fid)} className="w-full h-32 object-cover rounded border border-slate-200 dark:border-zinc-800" />)}</div>
                   </div>
                 ) : null)}
               </Section>
 
               <Section title="D · Other drivers & witnesses">
                 {(data.third_parties || []).length === 0 ? <p className="text-slate-500">No other drivers recorded.</p> : (data.third_parties || []).map((t, i) => (
-                  <div key={i} className="mb-2 pb-2 border-b border-slate-100"><strong>Driver {i + 1}:</strong> {[t.name, t.phone, t.vehicle, t.reg, t.insurer, t.passengers && `${t.passengers} passengers`, t.damage, t.injuries].filter(Boolean).join(' · ') || '—'}</div>
+                  <div key={i} className="mb-2 pb-2 border-b border-slate-100 dark:border-zinc-800"><strong>Driver {i + 1}:</strong> {[t.name, t.phone, t.vehicle, t.reg, t.insurer, t.passengers && `${t.passengers} passengers`, t.damage, t.injuries].filter(Boolean).join(' · ') || '—'}</div>
                 ))}
                 {(data.witnesses || []).length > 0 && <div className="mt-2"><strong>Witnesses:</strong> {(data.witnesses || []).map((w) => [w.name, w.phone, w.note].filter(Boolean).join(' ')).join('; ')}</div>}
               </Section>
@@ -153,7 +153,7 @@ function ReportModal({ id, headers, onClose }) {
 
 const Section = ({ title, children }) => (
   <div className="mb-5" style={{ breakInside: 'avoid' }}>
-    <h2 className="text-sm font-extrabold uppercase tracking-wide bg-slate-100 px-2 py-1 rounded mb-2">{title}</h2>
+    <h2 className="text-sm font-extrabold uppercase tracking-wide bg-slate-100 px-2 py-1 rounded mb-2 dark:bg-zinc-800">{title}</h2>
     {children}
   </div>
 );
@@ -170,8 +170,8 @@ function InsuranceModal({ headers, onClose }) {
   const fields = [['qbe_claim_line', 'QBE 24h claim line'], ['qbe_claim_note', 'Claim line note'], ['qbe_policy_number', 'QBE policy number'], ['broker_name', 'Broker name'], ['broker_phone', 'Broker phone'], ['broker_note', 'Broker note']];
   return (
     <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4" data-testid="crash-insurance-modal">
-      <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl">
-        <div className="flex items-center justify-between mb-3"><h3 className="font-extrabold text-slate-900">Insurance details</h3><button onClick={onClose} className="text-slate-400"><X size={18} /></button></div>
+      <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl dark:bg-zinc-900">
+        <div className="flex items-center justify-between mb-3"><h3 className="font-extrabold text-slate-900 dark:text-zinc-100">Insurance details</h3><button onClick={onClose} className="text-slate-400"><X size={18} /></button></div>
         {!f ? <Loader2 className="animate-spin text-cyan-500" /> : (
           <div className="space-y-2.5">
             {fields.map(([k, l]) => (

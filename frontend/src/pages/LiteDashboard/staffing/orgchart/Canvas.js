@@ -5,7 +5,7 @@ import {
   ZoomIn, ZoomOut, Maximize2, RotateCcw, Wand2, Plus, Crosshair,
 } from 'lucide-react';
 import OrgCard from './OrgCard';
-import { CARD_W, CARD_H, computeLayout, bounds } from './layout';
+import { CARD_W, CARD_H, bounds } from './layout';
 import { deptColor, EDGE_TYPES } from './api';
 
 const EDGE_COLOR = Object.fromEntries(EDGE_TYPES.map((e) => [e.id, e.color]));
@@ -75,7 +75,8 @@ export default function Canvas({
 
   // Fit once when node count goes from 0→n.
   const fitKey = nodes.length;
-  useEffect(() => { const tid = setTimeout(fit, 60); return () => clearTimeout(tid); /* eslint-disable-next-line */ }, [fitKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'fit'; pre-existing as of iter 216h226-polish-5.
+  useEffect(() => { const tid = setTimeout(fit, 60); return () => clearTimeout(tid);   }, [fitKey]);
 
   // On-demand fit (e.g. before an export) — parent bumps `fitSignal`.
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function Canvas({
     }
   };
 
-  const onPointerUp = (e) => {
+  const onPointerUp = (_e) => {
     if (drag.current) {
       const d = drag.current;
       const target = hoverTarget;

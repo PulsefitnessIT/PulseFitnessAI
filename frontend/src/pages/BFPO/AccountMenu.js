@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { changePassword } from './bfpoApi';
 import { Btn, inputCls, Field, ROLE_LABEL } from './ui';
-import { Menu, X, LogOut, KeyRound, UserCog, Wifi, WifiOff, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
+import { X, LogOut, KeyRound, UserCog, Wifi, WifiOff, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
 
 export default function AccountMenu({ user, role, online, onLogout, showSync = true }) {
   const [open, setOpen] = useState(false);

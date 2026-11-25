@@ -2,7 +2,7 @@
  * Pulse Fitness AI — campaign analytics modal: rates, click map, bot
  * filtering toggle, conversions and an AI "why did this perform?" summary.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { X, Wand2, Loader2, MousePointerClick } from 'lucide-react';

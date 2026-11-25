@@ -9,7 +9,7 @@ import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
   Network, List, UserPlus, FileUp, Settings as SettingsIcon, Search,
-  Loader2, RefreshCw, Plus, Users, Building2, AlertTriangle, X, Sparkles, LayoutTemplate, History, Presentation as PresentIcon, Share2,
+  Loader2, RefreshCw, Plus, X, Sparkles, LayoutTemplate, History, Presentation as PresentIcon, Share2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ocApi } from './api';
@@ -106,7 +106,7 @@ export default function OrgChartTab() {
     } catch (e) {
       toast.error(t('orgchart.could_not_load', 'Could not load org charts'));
     } finally { setLoading(false); }
-  }, [loadChart, loadStaff]);
+  }, [loadChart, loadStaff, t]);
 
   useEffect(() => { boot(); }, [boot]);
   useEffect(() => { if (chartId) localStorage.setItem('orgchart.activeId', chartId); }, [chartId]);

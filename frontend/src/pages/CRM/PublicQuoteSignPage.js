@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, CheckCircle2, Loader2, FileText, PenLine, RotateCcw } from 'lucide-react';
@@ -137,7 +137,7 @@ export default function PublicQuoteSignPage() {
               ))}
             </tbody>
           </table>
-          <div style={{ padding: '14px 16px', borderTop: '1px solid #E0E0E0', background: '#FAFCFF' }}>
+          <div style={{ padding: '14px 16px', borderTop: '1px solid #E0E0E0', background: '#F8FAFC' }}>
             <Row label="Net" val={money(quote?.subtotal, cur)} />
             <Row label={`VAT (${quote?.vat_rate ?? 20}%)`} val={money(quote?.vat_amount, cur)} />
             <Row label="Total" val={money(quote?.total, cur)} bold color={brand} />

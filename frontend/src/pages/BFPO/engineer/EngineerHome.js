@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
-import { Card, PriorityBadge, Spinner, Empty, Badge, HEALTH, ROLE_LABEL } from '../ui';
-import { AlertTriangle, Package, RotateCcw, ClipboardList, ChevronRight, Clock, ClipboardCheck } from 'lucide-react';
+import { Card, PriorityBadge, Spinner, Empty, Badge, ROLE_LABEL } from '../ui';
+import { AlertTriangle, Package, RotateCcw, ClipboardList, ChevronRight, ClipboardCheck } from 'lucide-react';
 
 const TILES = [
   { key: 'all_open', label: 'Open Jobs', icon: ClipboardList, color: 'text-cyan-600 bg-cyan-50', kpi: 'open' },

@@ -485,7 +485,7 @@ async def get_capex_analysis(
     # board figure.
     total = len(results)
     actual_count = sum(1 for r in results if (r.get("valuation") or {}).get("basis") == "actual")
-    missing_cost = [r["id"] for r in results if not (r.get("valuation") or {}).get("basis") == "actual"]
+    missing_cost = [r["id"] for r in results if (r.get("valuation") or {}).get("basis") != "actual"]
     data_health = {
         "total_assets": total,
         "actual_count": actual_count,

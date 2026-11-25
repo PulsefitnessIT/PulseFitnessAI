@@ -10,7 +10,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
-  Package, Loader2, CheckCircle2, FileText, Truck, ShieldCheck, ShieldAlert, Send,
+  Package, Loader2, CheckCircle2, FileText, Truck, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
 
 const BACKEND = process.env.REACT_APP_BACKEND_URL || '';

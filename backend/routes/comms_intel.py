@@ -373,10 +373,13 @@ async def campaign_analytics(
     # fall back to stored campaign metrics if no per-message rows yet
     if sent == 0:
         cm = camp.get("metrics") or {}
-        sent = int(cm.get("sent", 0)); opened = int(cm.get("opened", 0))
-        clicked = int(cm.get("clicked", 0)); bounced = int(cm.get("bounced", 0))
+        sent = int(cm.get("sent", 0))
+        opened = int(cm.get("opened", 0))
+        clicked = int(cm.get("clicked", 0))
+        bounced = int(cm.get("bounced", 0))
 
-    rate = lambda n: round(n / sent * 100, 1) if sent else 0.0
+    def rate(n):
+        return round(n / sent * 100, 1) if sent else 0.0
     convs = await db.comms_conversions.find(
         {"organization_id": org_id, "campaign_id": campaign_id}, {"_id": 0},
     ).to_list(length=10000)
@@ -432,7 +435,8 @@ async def deliverability(user: dict = Depends(get_current_user)):
     suppress = await db.marketing_subscriptions.count_documents(
         {"organization_id": org_id, "status": {"$in": ["unsubscribed", "bounced", "complained"]}})
 
-    rate = lambda n: round(n / sent * 100, 2) if sent else 0.0
+    def rate(n):
+        return round(n / sent * 100, 2) if sent else 0.0
     bounce_rate = rate(bounced)
     unsub_rate = rate(unsub)
     warnings = []
@@ -521,7 +525,7 @@ async def ai_import_email(
             ),
             timeout=75,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise HTTPException(504, "That email is taking too long to rebuild. Try a smaller email or paste just the body text.")
     except Exception as exc:
         logger.warning("[comms-ai] import rebuild failed: %s", exc)

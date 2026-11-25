@@ -27,7 +27,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from utils.tender_docx_exporter import detect_template_styles
 
 # ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
-import os as _sg_os, sys as _sg_sys
+import os as _sg_os
+import sys as _sg_sys
 _sg_sys.path.insert(0, _sg_os.path.dirname(_sg_os.path.dirname(_sg_os.path.abspath(__file__))))
 from utils.seed_guard import assert_seeding_allowed  # noqa: E402
 assert_seeding_allowed(__file__)
@@ -62,14 +63,17 @@ def _set_header_footer(doc, header_text, footer_text):
     hp = sec.header.paragraphs[0]
     hp.text = ""
     hr = hp.add_run(header_text)
-    hr.font.name = "Arial"; hr.font.size = Pt(9); hr.bold = True
+    hr.font.name = "Arial"
+    hr.font.size = Pt(9)
+    hr.bold = True
     hr.font.color.rgb = BRAND_INK
     hp.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
     fp = sec.footer.paragraphs[0]
     fp.text = ""
     fr = fp.add_run(footer_text)
-    fr.font.name = "Arial"; fr.font.size = Pt(8)
+    fr.font.name = "Arial"
+    fr.font.size = Pt(8)
     fr.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
     fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
@@ -83,7 +87,8 @@ def _build_template(title, header_text, footer_text, accent, intro):
     t = doc.add_paragraph(style="Title")
     t.alignment = WD_ALIGN_PARAGRAPH.CENTER
     t.add_run("{{CLIENT}} — Tender Response")
-    m = doc.add_paragraph(); m.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    m = doc.add_paragraph()
+    m.alignment = WD_ALIGN_PARAGRAPH.CENTER
     m.add_run("Reference {{REFERENCE}} · {{SCOPE}} · {{DATE}}").font.color.rgb = accent
     doc.add_paragraph()
     doc.add_paragraph(intro)

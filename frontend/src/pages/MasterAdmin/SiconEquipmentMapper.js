@@ -196,7 +196,7 @@ export default function SiconEquipmentMapper() {
     const name = window.prompt('Name this export format (e.g. "Sage 200 export", "Sicon asset dump"):');
     if (!name || !name.trim()) return;
     try {
-      const res = await axios.post(`${API}/master-admin/sicon/import-templates`, {
+      const _res = await axios.post(`${API}/master-admin/sicon/import-templates`, {
         name: name.trim(),
         col_map: colMap,
         first_row_header: firstRowHeader,

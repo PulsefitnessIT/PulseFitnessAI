@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { bfpo } from '../bfpoApi';
-import { Card, Spinner, Empty, Badge, PriorityBadge, STATUS_LABEL, inputCls, localTime } from '../ui';
+import { Card, Spinner, Empty, Badge, PriorityBadge, STATUS_LABEL, inputCls } from '../ui';
 import { Filter, AlertTriangle, ChevronRight, ClipboardList } from 'lucide-react';
 
 export default function StaffJobs({ initialFilter = {}, onOpenJob }) {
@@ -9,7 +9,8 @@ export default function StaffJobs({ initialFilter = {}, onOpenJob }) {
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState({ engineers: [], sites: [] });
 
-  useEffect(() => { setFilters((f) => ({ ...f, ...initialFilter })); /* eslint-disable-next-line */ }, [JSON.stringify(initialFilter)]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- todo: review missing dep(s) 'initialFilter'; pre-existing as of iter 216h226-polish-5.
+  useEffect(() => { setFilters((f) => ({ ...f, ...initialFilter }));   }, [JSON.stringify(initialFilter)]);
 
   useEffect(() => {
     Promise.all([bfpo.get('/staff/engineers'), bfpo.get('/sites')]).then(([e, s]) =>

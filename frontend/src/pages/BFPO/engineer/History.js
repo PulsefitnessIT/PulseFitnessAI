@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Card, Spinner, Empty, Badge, STATUS_LABEL, localTime } from '../ui';
 import { History as HistoryIcon, ChevronRight } from 'lucide-react';

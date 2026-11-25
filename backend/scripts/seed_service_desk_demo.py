@@ -24,7 +24,8 @@ from datetime import datetime, timedelta, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
-import os as _sg_os, sys as _sg_sys  # noqa: E402
+import os as _sg_os
+import sys as _sg_sys  # noqa: E402
 _sg_sys.path.insert(0, _sg_os.path.dirname(_sg_os.path.dirname(_sg_os.path.abspath(__file__))))
 from utils.seed_guard import assert_seeding_allowed  # noqa: E402
 assert_seeding_allowed(__file__)
@@ -203,7 +204,7 @@ async def main():
     print(f"  • {len(orgs)} service_provider orgs (paying / active / expiring / lapsed / onboarding)")
     print(f"  • {len(cases)+1} svc_cases (incl. full lifecycle case '{life_id}' for {peak})")
     print(f"  • Lifecycle: asset {asset_id}, engineer £32/h, part cost £78, paid invoice £274.55")
-    print(f"     → charge labour £118.75 / part £145 / travel £10.80; margin known over labour+parts")
+    print("     → charge labour £118.75 / part £145 / travel £10.80; margin known over labour+parts")
     print(f"  Verify: Master Admin → Platform Tools → Service Desk customers; open case {life_id} → Lifecycle tab")
     client.close()
 

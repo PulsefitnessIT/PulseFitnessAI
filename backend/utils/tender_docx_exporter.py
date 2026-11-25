@@ -63,24 +63,24 @@ def _pick(names: set, *cands):
 def _merge_runs_and_patch(xml_bytes: bytes, tokens: list[dict]) -> bytes:
     from lxml import etree
     root = etree.fromstring(xml_bytes)
-    for p in root.iter('{%s}p' % W):
-        runs = [r for r in p if r.tag == '{%s}r' % W]
+    for p in root.iter(f'{{{W}}}p'):
+        runs = [r for r in p if r.tag == f'{{{W}}}r']
         i = 0
         while i < len(runs) - 1:
             a, b = runs[i], runs[i + 1]
 
             def simple(r):
                 kids = list(r)
-                ts = [k for k in kids if k.tag == '{%s}t' % W]
-                other = [k for k in kids if k.tag not in ('{%s}t' % W, '{%s}rPr' % W)]
+                ts = [k for k in kids if k.tag == f'{{{W}}}t']
+                other = [k for k in kids if k.tag not in (f'{{{W}}}t', f'{{{W}}}rPr')]
                 return len(ts) == 1 and not other
 
             def rpr(r):
-                e = r.find('{%s}rPr' % W)
+                e = r.find(f'{{{W}}}rPr')
                 return etree.tostring(e) if e is not None else b''
 
             if simple(a) and simple(b) and rpr(a) == rpr(b):
-                ta, tb = a.find('{%s}t' % W), b.find('{%s}t' % W)
+                ta, tb = a.find(f'{{{W}}}t'), b.find(f'{{{W}}}t')
                 ta.text = (ta.text or '') + (tb.text or '')
                 ta.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
                 p.remove(b)
@@ -124,12 +124,17 @@ def _set_update_fields(doc):
 def _add_toc(doc, levels="1-3"):
     p = doc.add_paragraph()
     run = p.add_run()
-    fld_begin = OxmlElement('w:fldChar'); fld_begin.set(qn('w:fldCharType'), 'begin')
-    instr = OxmlElement('w:instrText'); instr.set(qn('xml:space'), 'preserve')
+    fld_begin = OxmlElement('w:fldChar')
+    fld_begin.set(qn('w:fldCharType'), 'begin')
+    instr = OxmlElement('w:instrText')
+    instr.set(qn('xml:space'), 'preserve')
     instr.text = f' TOC \\o "{levels}" \\h \\z \\u '
-    fld_sep = OxmlElement('w:fldChar'); fld_sep.set(qn('w:fldCharType'), 'separate')
-    t = OxmlElement('w:t'); t.text = "Right-click and choose 'Update Field' to build the contents."
-    fld_end = OxmlElement('w:fldChar'); fld_end.set(qn('w:fldCharType'), 'end')
+    fld_sep = OxmlElement('w:fldChar')
+    fld_sep.set(qn('w:fldCharType'), 'separate')
+    t = OxmlElement('w:t')
+    t.text = "Right-click and choose 'Update Field' to build the contents."
+    fld_end = OxmlElement('w:fldChar')
+    fld_end.set(qn('w:fldCharType'), 'end')
     for el in (fld_begin, instr, fld_sep, t, fld_end):
         run._r.append(el)
 
@@ -138,15 +143,20 @@ def _no_number(p):
     """Strip any inherited list/heading auto-numbering from a paragraph."""
     pPr = p._p.get_or_add_pPr()
     numPr = OxmlElement('w:numPr')
-    il = OxmlElement('w:ilvl'); il.set(qn('w:val'), '0')
-    ni = OxmlElement('w:numId'); ni.set(qn('w:val'), '0')
-    numPr.append(il); numPr.append(ni); pPr.append(numPr)
+    il = OxmlElement('w:ilvl')
+    il.set(qn('w:val'), '0')
+    ni = OxmlElement('w:numId')
+    ni.set(qn('w:val'), '0')
+    numPr.append(il)
+    numPr.append(ni)
+    pPr.append(numPr)
 
 
 def _page_break(doc):
     p = doc.add_paragraph()
     r = p.add_run()
-    br = OxmlElement('w:br'); br.set(qn('w:type'), 'page')
+    br = OxmlElement('w:br')
+    br.set(qn('w:type'), 'page')
     r._r.append(br)
 
 
@@ -173,7 +183,7 @@ def _add_body_text(doc, text, body_style, tokens):
         para = para.strip()
         if not para:
             continue
-        bullet = para.lstrip().startswith(("- ", "• ", "* "))
+        para.lstrip().startswith(("- ", "• ", "* "))
         for line in para.split("\n"):
             line = line.strip()
             if not line:
@@ -189,7 +199,9 @@ def _add_body_text(doc, text, body_style, tokens):
                 p = doc.add_paragraph(style=body_style) if body_style else doc.add_paragraph()
                 r = p.add_run(clean)
                 if not body_style:
-                    r.font.name = 'Arial'; r.font.size = Pt(11); r.font.color.rgb = INK
+                    r.font.name = 'Arial'
+                    r.font.size = Pt(11)
+                    r.font.color.rgb = INK
 
 
 def _add_question_figures(doc, figures, fig_ctr, tokens):
@@ -217,7 +229,9 @@ def _add_question_figures(doc, figures, fig_ctr, tokens):
         caption_text = _apply_tokens((fig.get("caption") or "").strip(), tokens)
         label = f"Figure {fig_ctr[0]}" + (f": {caption_text}" if caption_text else "")
         r = cap.add_run(label)
-        r.font.name = 'Arial'; r.italic = True; r.font.size = Pt(9)
+        r.font.name = 'Arial'
+        r.italic = True
+        r.font.size = Pt(9)
         r.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
         cap.paragraph_format.space_after = Pt(10)
 
@@ -260,7 +274,10 @@ def build_templated_submission(template_bytes: bytes, tender: dict, questions: l
     _no_number(tp)
     tr = tp.add_run(_apply_tokens(tender.get("title") or "Tender Response", tokens))
     if not title_style:
-        tr.font.name = 'Arial'; tr.bold = True; tr.font.size = Pt(24); tr.font.color.rgb = INK
+        tr.font.name = 'Arial'
+        tr.bold = True
+        tr.font.size = Pt(24)
+        tr.font.color.rgb = INK
     tp.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     meta = []
@@ -271,8 +288,12 @@ def build_templated_submission(template_bytes: bytes, tender: dict, questions: l
     if tender.get("client") or tender.get("customer"):
         meta.append(f"Prepared for: {tender.get('client') or tender.get('customer')}")
     for m in meta:
-        mp = doc.add_paragraph(); mp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = mp.add_run(_apply_tokens(m, tokens)); r.font.name = 'Arial'; r.font.size = Pt(12); r.font.color.rgb = INK
+        mp = doc.add_paragraph()
+        mp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r = mp.add_run(_apply_tokens(m, tokens))
+        r.font.name = 'Arial'
+        r.font.size = Pt(12)
+        r.font.color.rgb = INK
 
     _page_break(doc)
 
@@ -281,7 +302,10 @@ def build_templated_submission(template_bytes: bytes, tender: dict, questions: l
     _no_number(cp)
     cr = cp.add_run("Contents")
     if not h_cover:
-        cr.font.name = 'Arial'; cr.bold = True; cr.font.size = Pt(18); cr.font.color.rgb = INK
+        cr.font.name = 'Arial'
+        cr.bold = True
+        cr.font.size = Pt(18)
+        cr.font.color.rgb = INK
     _add_toc(doc, "1-3")
     _page_break(doc)
 
@@ -293,7 +317,10 @@ def build_templated_submission(template_bytes: bytes, tender: dict, questions: l
         _no_number(hp)
         hr = hp.add_run(_apply_tokens(_q_heading(q, idx), tokens))
         if not h_section:
-            hr.font.name = 'Arial'; hr.bold = True; hr.font.size = Pt(14); hr.font.color.rgb = INK
+            hr.font.name = 'Arial'
+            hr.bold = True
+            hr.font.size = Pt(14)
+            hr.font.color.rgb = INK
         _add_body_text(doc, ans, body_style, tokens)
         _add_question_figures(doc, q.get("figures"), fig_ctr, tokens)
 
@@ -311,9 +338,13 @@ def build_templated_submission(template_bytes: bytes, tender: dict, questions: l
 def _plain_doc(brand: dict | None):
     doc = Document()
     sec = doc.sections[0]
-    sec.top_margin = Cm(2.2); sec.bottom_margin = Cm(2.2)
-    sec.left_margin = Cm(2.2); sec.right_margin = Cm(2.2)
-    st = doc.styles['Normal']; st.font.name = 'Arial'; st.font.size = Pt(11)
+    sec.top_margin = Cm(2.2)
+    sec.bottom_margin = Cm(2.2)
+    sec.left_margin = Cm(2.2)
+    sec.right_margin = Cm(2.2)
+    st = doc.styles['Normal']
+    st.font.name = 'Arial'
+    st.font.size = Pt(11)
     return doc
 
 
@@ -324,27 +355,40 @@ def build_itt_plain(tender: dict, questions: list, brand: dict | None = None,
     accent = RGBColor(0x2F, 0x54, 0x96)
     tp = doc.add_paragraph()
     tr = tp.add_run(_apply_tokens(tender.get("title") or "Tender Response", tokens))
-    tr.font.name = 'Arial'; tr.bold = True; tr.font.size = Pt(18); tr.font.color.rgb = accent
+    tr.font.name = 'Arial'
+    tr.bold = True
+    tr.font.size = Pt(18)
+    tr.font.color.rgb = accent
     if tender.get("issuer") or tender.get("reference"):
         sp = doc.add_paragraph()
         r = sp.add_run(_apply_tokens(" · ".join(
             [x for x in [tender.get("issuer"), tender.get("reference") or tender.get("ref")] if x]), tokens))
-        r.font.name = 'Arial'; r.font.size = Pt(10); r.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
+        r.font.name = 'Arial'
+        r.font.size = Pt(10)
+        r.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
     doc.add_paragraph()
 
     fig_ctr = [0]
     for idx, (q, ans) in enumerate(_answered(questions), start=1):
         hp = doc.add_paragraph()
         hr = hp.add_run(_apply_tokens(_q_heading(q, idx), tokens))
-        hr.font.name = 'Arial'; hr.bold = True; hr.font.size = Pt(13); hr.font.color.rgb = accent
+        hr.font.name = 'Arial'
+        hr.bold = True
+        hr.font.size = Pt(13)
+        hr.font.color.rgb = accent
         hp.paragraph_format.space_before = Pt(10)
         if q.get("weighting"):
             wp = doc.add_paragraph()
             wr = wp.add_run(f"Weighting: {q.get('weighting')}%")
-            wr.font.name = 'Arial'; wr.italic = True; wr.font.size = Pt(9); wr.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
+            wr.font.name = 'Arial'
+            wr.italic = True
+            wr.font.size = Pt(9)
+            wr.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
         _add_body_text(doc, ans, 'Normal', tokens)
         _add_question_figures(doc, q.get("figures"), fig_ctr, tokens)
-    buf = io.BytesIO(); doc.save(buf); return buf.getvalue()
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
 
 
 # ───────────────────────── traceability matrix ─────────────────────────
@@ -356,17 +400,33 @@ def build_traceability(tender: dict, questions: list, brand: dict | None = None,
     accent = RGBColor(0x2F, 0x54, 0x96)
     tp = doc.add_paragraph()
     tr = tp.add_run("Evidence Traceability Matrix")
-    tr.font.name = 'Arial'; tr.bold = True; tr.font.size = Pt(17); tr.font.color.rgb = accent
+    tr.font.name = 'Arial'
+    tr.bold = True
+    tr.font.size = Pt(17)
+    tr.font.color.rgb = accent
     sp = doc.add_paragraph()
     sr = sp.add_run(_apply_tokens(tender.get("title") or "", tokens) + " — maps each answer to its supporting knowledge-base sources.")
-    sr.font.name = 'Arial'; sr.font.size = Pt(10); sr.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
+    sr.font.name = 'Arial'
+    sr.font.size = Pt(10)
+    sr.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
     doc.add_paragraph()
 
-    table = doc.add_table(rows=1, cols=3); table.style = 'Table Grid'; table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table = doc.add_table(rows=1, cols=3)
+    table.style = 'Table Grid'
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
     for j, h in enumerate(["Question", "Response summary", "Supporting sources"]):
         c = table.rows[0].cells[j]
-        tcPr = c._tc.get_or_add_tcPr(); shd = OxmlElement('w:shd'); shd.set(qn('w:val'), 'clear'); shd.set(qn('w:fill'), '2F5496'); tcPr.append(shd)
-        c.text = ''; r = c.paragraphs[0].add_run(h); r.font.name = 'Arial'; r.bold = True; r.font.size = Pt(9.5); r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        tcPr = c._tc.get_or_add_tcPr()
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'), 'clear')
+        shd.set(qn('w:fill'), '2F5496')
+        tcPr.append(shd)
+        c.text = ''
+        r = c.paragraphs[0].add_run(h)
+        r.font.name = 'Arial'
+        r.bold = True
+        r.font.size = Pt(9.5)
+        r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
 
     for idx, (q, ans) in enumerate(_answered(questions), start=1):
         cells = table.add_row().cells
@@ -383,19 +443,26 @@ def build_traceability(tender: dict, questions: list, brand: dict | None = None,
         for c in cites:
             parts.append(f"[{c.get('index')}] {c.get('title', '')}".strip())
         # de-dupe while preserving order
-        seen = set(); uniq = []
+        seen = set()
+        uniq = []
         for p in parts:
             if p and p not in seen:
-                seen.add(p); uniq.append(p)
+                seen.add(p)
+                uniq.append(p)
         src = "; ".join(uniq) if uniq else "Author knowledge / to be cited"
         cells[2].text = src
         for cc in cells:
             for pp in cc.paragraphs:
                 for rr in pp.runs:
-                    rr.font.name = 'Arial'; rr.font.size = Pt(9)
+                    rr.font.name = 'Arial'
+                    rr.font.size = Pt(9)
     for r in table.rows:
-        r.cells[0].width = Cm(4.6); r.cells[1].width = Cm(8.0); r.cells[2].width = Cm(4.6)
-    buf = io.BytesIO(); doc.save(buf); return buf.getvalue()
+        r.cells[0].width = Cm(4.6)
+        r.cells[1].width = Cm(8.0)
+        r.cells[2].width = Cm(4.6)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
 
 
 _TOKEN_RE = re.compile(r"\{\{\s*[A-Za-z0-9_ .\-]+\s*\}\}")

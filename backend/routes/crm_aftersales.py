@@ -511,9 +511,11 @@ async def _compute_quote(org_id, lines, contract_type="gold", pricing_level="sta
 
     health, reasons = "READY_TO_ISSUE", []
     if not has_customer:
-        health = "BLOCKED"; reasons.append("Customer required")
+        health = "BLOCKED"
+        reasons.append("Customer required")
     if not has_site:
-        health = "BLOCKED"; reasons.append("Site required")
+        health = "BLOCKED"
+        reasons.append("Site required")
     rrp_needed = [p for p in priced if p["status"] == "RRP_REQUIRED"]
     if rrp_needed:
         health = "REVIEW_REQUIRED"
@@ -535,7 +537,8 @@ async def _compute_quote(org_id, lines, contract_type="gold", pricing_level="sta
         health = "REVIEW_REQUIRED" if health != "BLOCKED" else health
         reasons.append(f"{discount:g}% discount requires {approval_role['label']}")
     if not lines:
-        health = "BLOCKED"; reasons.append("Add at least one equipment line")
+        health = "BLOCKED"
+        reasons.append("Add at least one equipment line")
 
     return {
         "lines": priced,
@@ -664,7 +667,7 @@ async def evaluate_supportability(body: dict, user=Depends(get_crm_user)):
     of = _of(user)
     model = (body.get("model") or "").strip()
     console = (body.get("console_type") or "").strip()
-    manufacturer = (body.get("manufacturer") or "Pulse Fitness").strip()
+    (body.get("manufacturer") or "Pulse Fitness").strip()
 
     # 1. Exact decision memory (model + console).
     mem = None
@@ -3261,7 +3264,7 @@ async def build_warranty_proposal(company_id: str, body: WarrantyProposalIn, use
     """One-click: build a maintenance proposal for a customer's warranty-expiring
     assets, reusing the SAME deterministic auto-quoter."""
     of = _of(user)
-    org_id = _org(user)
+    _org(user)
     company = await db.crm2_companies.find_one({"id": company_id, **of}, {"_id": 0})
     if not company:
         raise HTTPException(404, "Company not found")
@@ -3323,7 +3326,7 @@ async def rpi_reviews(window_days: int = 60, user=Depends(get_crm_user)):
             "review": review,
         })
     rows.sort(key=lambda r: r["days_to_anniversary"])
-    return {"reviews": rows, "due_count": sum(1 for r in rows if r["due"] and not (r["review"] or {}).get("status") == "approved")}
+    return {"reviews": rows, "due_count": sum(1 for r in rows if r["due"] and (r["review"] or {}).get("status") != "approved")}
 
 
 class RpiSetIn(BaseModel):
@@ -3355,7 +3358,8 @@ async def set_rpi_review(contract_id: str, body: RpiSetIn, user=Depends(require_
         doc["id"] = existing["id"]
         await db.crm2_afs_rpi_reviews.update_one({"id": existing["id"]}, {"$set": doc})
     else:
-        doc["id"] = _id(); doc["created_at"] = _now()
+        doc["id"] = _id()
+        doc["created_at"] = _now()
         await db.crm2_afs_rpi_reviews.insert_one(doc)
     await record_audit(entity_type="afs_rpi", entity_id=doc["id"], action="propose", user=user,
                        extra={"contract": contract_id, "rpi_pct": body.rpi_pct, "proposed": proposed})
@@ -3518,7 +3522,7 @@ async def dismiss_afs_alert(activity_id: str, user=Depends(require_crm_perm("tas
 
 def _gbp(v):
     try:
-        return "£{:,.2f}".format(float(v or 0))
+        return f"£{float(v or 0):,.2f}"
     except (ValueError, TypeError):
         return "£0.00"
 
@@ -3868,7 +3872,8 @@ def _text_to_html(text):
     for ln in (text or "").split("\n"):
         s = ln.strip()
         if not s:
-            flush(); continue
+            flush()
+            continue
         if s.startswith(("- ", "* ", "• ")):
             bullets.append(s[2:].strip())
         else:
@@ -4100,7 +4105,7 @@ async def retry_signed_document(agreement_id: str, user=Depends(require_crm_perm
     ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **_of(user)}, _PUBLIC)
     if not ag or (ag.get("signature") or {}).get("method") != "customer_esignature":
         raise HTTPException(404, "No customer e-signature on this agreement")
-    if not (ag.get("signed_document") or {}).get("status") == "verified":
+    if (ag.get("signed_document") or {}).get("status") != "verified":
         if not await store_signed_copy(_org(user), agreement_id):
             raise HTTPException(502, "Signed agreement still could not be stored — try again shortly.")
     activation = {"activated": False}

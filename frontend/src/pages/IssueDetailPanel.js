@@ -11,7 +11,7 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import {
  FileText, Upload, Send, Plus, Trash2,
- Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck, Phone, Mail,
+ Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck,
  ChevronDown, ChevronUp, Receipt, Timer, AlertTriangle, Users,
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';

@@ -4,7 +4,7 @@
  * checks; export for Health & Safety. Reuses staff_members (drivers) and
  * engineer vehicle_reg (import) — no data is duplicated.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Truck, Plus, ShieldAlert, FileDown, FileText, FileArchive, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
@@ -406,7 +406,7 @@ function DefectTracker({ headers }) {
 
       {booking && (
         <Modal onClose={() => setBooking(null)} testId="defect-booking-modal">
-          <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-slate-900">Book in repair — {booking.reg_no}</h3><button onClick={() => setBooking(null)} className="text-slate-400"><X size={18} /></button></div>
+          <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-slate-900 dark:text-zinc-100">Book in repair — {booking.reg_no}</h3><button onClick={() => setBooking(null)} className="text-slate-400"><X size={18} /></button></div>
           <BookingForm onSubmit={(ref, dt) => setState(booking.id, 'booked_in', { booking_ref: ref, booking_date: dt })} />
         </Modal>
       )}
@@ -423,7 +423,7 @@ function BookingForm({ onSubmit }) {
         <input value={ref} onChange={(e) => setRef(e.target.value)} data-testid="defect-booking-ref" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="e.g. Vanarama ref" /></label>
       <label className="block"><span className="text-xs text-slate-500">Booking date</span>
         <input type="date" value={dt} onChange={(e) => setDt(e.target.value)} data-testid="defect-booking-date" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-      <div className="flex justify-end"><button onClick={() => onSubmit(ref, dt)} data-testid="defect-booking-save" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: 'var(--color-brand-cyan)' }}>Save booking</button></div>
+      <div className="flex justify-end"><button onClick={() => onSubmit(ref, dt)} data-testid="defect-booking-save" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-900 dark:text-zinc-100" style={{ background: 'var(--color-brand-cyan)' }}>Save booking</button></div>
     </div>
   );
 }
@@ -436,7 +436,7 @@ function Modal({ children, onClose, testId, wide, themed }) {
   }, []);
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-start sm:items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onClose} data-testid={testId}>
-      <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} my-4 sm:my-8 max-h-[92vh] overflow-y-auto rounded-2xl p-5 shadow-2xl ${themed ? '' : 'bg-white'}`}
+      <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} my-4 sm:my-8 max-h-[92vh] overflow-y-auto rounded-2xl p-5 shadow-2xl ${themed ? '' : 'bg-white dark:bg-zinc-900'}`}
         style={themed ? { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' } : undefined}
         onClick={(e) => e.stopPropagation()}>{children}</div>
     </div>,
@@ -724,14 +724,14 @@ function ImportModal({ headers, onClose, onDone }) {
   };
   return (
     <Modal onClose={onClose} testId="vehicle-import-modal" wide>
-      <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Link2 size={18} /> Import vehicles</h3><button onClick={onClose} className="text-slate-400"><X size={18} /></button></div>
+      <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-slate-900 flex items-center gap-2 dark:text-zinc-100"><Link2 size={18} /> Import vehicles</h3><button onClick={onClose} className="text-slate-400"><X size={18} /></button></div>
 
-      <div className="rounded-xl border border-slate-200 p-4 mb-4" data-testid="import-csv-block">
+      <div className="rounded-xl border border-slate-200 p-4 mb-4 dark:border-zinc-800" data-testid="import-csv-block">
         <div className="font-semibold text-slate-800 text-sm mb-1">Bulk import from spreadsheet (CSV)</div>
         <p className="text-xs text-slate-500 mb-3">Download the template, fill in every column (reg, make/model, vehicle type, supplier, odometer, the driver's name and/or email, MOT/tax/insurance/service dates), then upload. Assign the vehicle to a person by putting their <strong>name</strong> in the <code>driver_names</code> column (or their email in <code>driver_emails</code>) — both are matched to your staff.</p>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={downloadTemplate} data-testid="import-template-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border border-slate-300 text-slate-700"><FileDown size={13} /> Download CSV template</button>
-          <label className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 text-slate-900 cursor-pointer" style={{ background: 'var(--color-brand-cyan)' }} data-testid="import-csv-label">
+          <label className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 text-slate-900 dark:text-slate-900 cursor-pointer" style={{ background: 'var(--color-brand-cyan)' }} data-testid="import-csv-label">
             <Plus size={13} /> Upload CSV
             <input type="file" accept=".csv,text/csv" className="hidden" data-testid="import-csv-input" onChange={(e) => uploadCsv(e.target.files[0])} />
           </label>
@@ -752,7 +752,7 @@ function ImportModal({ headers, onClose, onDone }) {
       ) : (
         <div className="space-y-2">
           {cands.map((c) => (
-            <label key={c.reg_no} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer" data-testid={`import-cand-${c.reg_no}`}>
+            <label key={c.reg_no} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer dark:border-zinc-800" data-testid={`import-cand-${c.reg_no}`}>
               <input type="checkbox" checked={!!sel[c.reg_no]} onChange={(e) => setSel((p) => ({ ...p, [c.reg_no]: e.target.checked }))} className="h-4 w-4" />
               <span className="font-bold uppercase text-slate-800">{c.reg_no}</span>
               <span className="text-xs text-slate-400">{c.engineer_name}</span>
@@ -761,7 +761,7 @@ function ImportModal({ headers, onClose, onDone }) {
         </div>
       )}
       {cands && cands.length > 0 && (
-        <div className="mt-4 flex justify-end"><button onClick={doImport} disabled={busy} data-testid="import-confirm" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: 'var(--color-brand-cyan)' }}>Import selected</button></div>
+        <div className="mt-4 flex justify-end"><button onClick={doImport} disabled={busy} data-testid="import-confirm" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-900 dark:text-zinc-100" style={{ background: 'var(--color-brand-cyan)' }}>Import selected</button></div>
       )}
     </Modal>
   );
@@ -778,7 +778,7 @@ function CheckDetailModal({ checkId, headers, onClose, onReviewed }) {
   return (
     <Modal onClose={onClose} testId="check-detail-modal" wide>
       <div className="flex items-center justify-between mb-3">
-        <div><h3 className="font-bold text-slate-900 uppercase">{d.details?.reg_no}</h3>
+        <div><h3 className="font-bold text-slate-900 uppercase dark:text-zinc-100">{d.details?.reg_no}</h3>
           <div className="text-xs text-slate-500">{d.driver_name} · week {fmtD(d.week_commencing)} · {vtLabel(d)}</div></div>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadCheckPdf(checkId, headers)} data-testid="check-detail-pdf" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> PDF</button>
@@ -825,12 +825,12 @@ function CheckDetailModal({ checkId, headers, onClose, onReviewed }) {
         ))}
       </div>
       {d.status === 'submitted' ? (
-        <div className="mt-4 border-t border-slate-100 pt-3">
+        <div className="mt-4 border-t border-slate-100 pt-3 dark:border-zinc-800">
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Review note (optional)" data-testid="check-review-notes" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <div className="mt-2 flex justify-end"><button onClick={review} disabled={busy} data-testid="check-review-btn" className="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold text-white bg-emerald-600">{busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Mark reviewed</button></div>
         </div>
       ) : d.manager_review ? (
-        <div className="mt-4 text-xs text-emerald-700 border-t border-slate-100 pt-3">Reviewed by {d.manager_review.reviewer}{d.manager_review.notes ? ` — “${d.manager_review.notes}”` : ''}</div>
+        <div className="mt-4 text-xs text-emerald-700 border-t border-slate-100 pt-3 dark:border-zinc-800">Reviewed by {d.manager_review.reviewer}{d.manager_review.notes ? ` — “${d.manager_review.notes}”` : ''}</div>
       ) : null}
     </Modal>
   );
