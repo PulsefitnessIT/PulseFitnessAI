@@ -62,7 +62,7 @@ export default function DeactivateEngineerModal({ engineer, jobs, engineers, onC
         {err && <p className="text-sm text-red-600 mt-3" data-testid="deactivate-error">{err}</p>}
         <div className="flex justify-end gap-2 mt-4">
           <Btn onClick={onClose}>Cancel</Btn>
-          <Btn variant="primary" disabled={!ready || busy} onClick={submit} data-testid="deactivate-confirm">Deactivate engineer</Btn>
+          <Btn variant="danger" disabled={!ready || busy} onClick={submit} data-testid="deactivate-confirm">Deactivate engineer</Btn>
         </div>
       </div>
     </div>

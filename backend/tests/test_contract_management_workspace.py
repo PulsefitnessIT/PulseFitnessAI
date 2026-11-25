@@ -47,7 +47,7 @@ def _me(key):
     ("sales", "sales_manager", True, False),
     ("asm", "aftersales_manager", True, True),
     ("fin", "finance", False, True),
-    ("none", "sales_manager", False, False),
+    ("none", "none", False, False),  # iter321 least-privilege: no implicit role
     ("admin", "admin", True, True),
 ])
 def test_workspace_flags_on_auth_me(key, role, crm, cm):
@@ -68,7 +68,7 @@ def _call(tok, method, path):
 GATES = [
     ("PUT", "/crm/v2/aftersales/settings", {"admin"}),
     ("POST", "/crm/v2/aftersales/build-custom-quote", {"coord", "asm", "admin"}),
-    ("POST", "/crm/v2/aftersales/finance/sync/none/mark-synced", {"fin", "admin"}),
+    ("POST", "/crm/v2/aftersales/finance/sync/none/mark-synced", {"admin"}),  # finance.post is a per-person extra grant (iter320)
     ("POST", "/crm/v2/aftersales/rpi/reviews/none/approve", {"sales", "asm", "admin"}),
     ("POST", "/crm/mod-quote/ai-match", {"sales", "asm", "admin"}),
     ("PUT", "/crm/mod-quote/rate-card/none", {"admin"}),

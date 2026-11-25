@@ -2203,7 +2203,8 @@ async def update_provider_engineer(supplier_id: str, engineer_id: str, data: dic
             from utils.bfpo_coverage import validate_allocation
             fields["bfpo_territory_ids"], fields["bfpo_site_ids"] = await validate_allocation(
                 data["territory_ids"] if "territory_ids" in data else eng.get("bfpo_territory_ids"),
-                data["site_ids"] if "site_ids" in data else eng.get("bfpo_site_ids"))
+                data["site_ids"] if "site_ids" in data else eng.get("bfpo_site_ids"),
+                eng.get("bfpo_territory_ids") or [], eng.get("bfpo_site_ids") or [])
 
     if fields:
         await db.users.update_one({"id": engineer_id}, {"$set": fields})

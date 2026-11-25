@@ -216,7 +216,7 @@ const EMAIL_STATE = {
   cancelled: ['neutral', 'Customer email cancelled'],
 };
 
-function FollowupCard({ f, caps, onOpen, onDone }) {
+function FollowupCard({ f, caps, sendingOn, onOpen, onDone }) {
   const [outcome, setOutcome] = useState('');
   const [busy, setBusy] = useState(false);
   const [tone, label] = EMAIL_STATE[f.email_status] || ['neutral', f.email_status || '—'];
@@ -248,7 +248,7 @@ function FollowupCard({ f, caps, onOpen, onDone }) {
         <StatusChip status={tone === 'ok' ? 'accepted' : tone === 'bad' ? 'declined' : tone === 'warn' ? 'pending_approval' : 'draft'} label={label} />
         {f.email_sent_at && <span className="text-xs mq-muted">sent {new Date(f.email_sent_at).toLocaleString('en-GB')} to {f.contact_email}</span>}
         {f.email_reason && f.email_status !== 'sent' && <span className="text-xs mq-muted">{f.email_reason}</span>}
-        {caps?.manager && ['awaiting_approval', 'failed'].includes(f.email_status) && (
+        {caps?.manager && sendingOn && ['awaiting_approval', 'failed'].includes(f.email_status) && (
           <>
             <Btn size="sm" disabled={busy} onClick={() => decide('release')} data-testid="mq-followup-release">Release email</Btn>
             <Btn size="sm" variant="ghost" disabled={busy} onClick={() => decide('cancel')} data-testid="mq-followup-cancel-email">Don't send</Btn>
@@ -268,6 +268,8 @@ function Followups({ caps, onOpen }) {
   const [items, setItems] = useState(null);
   const [everyone, setEveryone] = useState(false);
   const [running, setRunning] = useState(false);
+  const [sendingOn, setSendingOn] = useState(false);
+  useEffect(() => { mq.get('/followup-emails').then((r) => setSendingOn(r.data.approved && r.data.live_switch_on)).catch(() => {}); }, []);
   const load = useCallback(() => mq.get('/followups', { params: { everyone } }).then((r) => setItems(r.data.items)).catch((e) => { notify.error(errText(e)); setItems([]); }), [everyone]);
   useEffect(() => { load(); }, [load]);
   const runNow = async () => {
@@ -286,7 +288,7 @@ function Followups({ caps, onOpen }) {
           </>
         )}
       </div>
-      {!items ? <Skeleton /> : items.map((f) => <FollowupCard key={f.id} f={f} caps={caps} onOpen={onOpen} onDone={load} />)}
+      {!items ? <Skeleton /> : items.map((f) => <FollowupCard key={f.id} f={f} caps={caps} sendingOn={sendingOn} onOpen={onOpen} onDone={load} />)}
       {items && !items.length && <Empty icon={Mail} testid="mq-followups-empty" title="No follow-ups due" sub="Follow-ups appear here 2, 4 and 6 weeks after a quotation is published, until it is authorised, accepted or withdrawn." />}
     </div>
   );

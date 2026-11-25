@@ -152,8 +152,8 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
           <div className="font-semibold mb-2">Follow-ups</div>
           <div className="flex flex-wrap gap-2">
             {g.chase_schedule.map((c) => (
-              <StatusChip key={c.n} status={c.status === 'done' ? 'accepted' : c.status === 'cancelled' ? 'withdrawn' : 'pending_approval'}
-                label={`${c.weeks} weeks · ${new Date(c.due).toLocaleDateString('en-GB')} · ${c.status === 'done' ? 'chased' : c.status === 'cancelled' ? 'not needed' : 'scheduled'}`} />
+              <StatusChip key={c.n} status={['done', 'task_created'].includes(c.status) ? 'accepted' : c.status === 'cancelled' ? 'withdrawn' : 'pending_approval'}
+                label={`${c.weeks} weeks · ${new Date(c.due).toLocaleDateString('en-GB')} · ${['done', 'task_created'].includes(c.status) ? 'chased' : c.status === 'cancelled' ? 'not needed' : 'scheduled'}`} />
             ))}
           </div>
         </div>

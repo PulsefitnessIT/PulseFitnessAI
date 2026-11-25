@@ -165,6 +165,7 @@ async def _scoped_case_query(user: dict, *, read: bool = True) -> dict:
     scope = await _engineer_scope(user)
     if scope["unrestricted"]:
         return q
+    q["management_hold"] = {"$ne": True}
     ors = [{"assigned_engineer_id": user["id"]}]
     if scope["territory_ids"]:
         ors.append({"territory_id": {"$in": scope["territory_ids"]}})
@@ -480,12 +481,18 @@ async def _op_update(case: dict, user: dict, update_type: str, body: str, extra:
 @router.post("/jobs/{case_id}/accept")
 async def bfpo_accept(case_id: str, data: dict = Body(default={}), user=Depends(_require_bfpo)):
     case = await _get_scoped_case(user, case_id, read=False)
-    await db.svc_cases.update_one(
-        {"id": case_id},
+    if case.get("management_hold"):
+        raise HTTPException(409, "This job is held for management review — MOD Operations will allocate it")
+    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"]:
+        raise HTTPException(409, "This job is already assigned to another engineer")
+    res = await db.svc_cases.update_one(
+        {"id": case_id, "management_hold": {"$ne": True}, "assigned_engineer_id": {"$in": [None, "", user["id"]]}},
         {"$set": {"assigned_engineer_id": user["id"],
                   "assigned_engineer_name": user.get("full_name") or user.get("email"),
                   "updated_at": _now()}},
     )
+    if not res.matched_count:
+        raise HTTPException(409, "This job was just taken or put on hold — refresh the list")
     if case.get("status") in (NEW, "triaged"):
         try:
             await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
