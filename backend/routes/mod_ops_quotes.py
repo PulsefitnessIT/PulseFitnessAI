@@ -7,11 +7,12 @@ Quote documents live in crm2_quotes (quote_kind="mod_sor") so CRM sees them nati
 from __future__ import annotations
 
 import hashlib
+import re
 import io
 import os
 import uuid
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -122,7 +123,7 @@ def _address_lines(o: dict) -> list[str]:
 async def search_customers(q: str = "", user=Depends(_sales)):
     flt = {"account_type": {"$in": ["mod_site", "mod_org"]}}
     if q.strip():
-        flt["name"] = {"$regex": q.strip()[:60].replace("(", r"\(").replace(")", r"\)"), "$options": "i"}
+        flt["name"] = {"$regex": re.escape(q.strip()[:60]), "$options": "i"}
     out = []
     async for o in db.organizations.find(flt, {"_id": 0}).sort("name", 1).limit(40):
         comp = await db.crm2_companies.find_one({"linked_organization_id": o["id"]}, {"_id": 0, "id": 1, "name": 1, "account_ref": 1, "sage_account_ref": 1})
@@ -245,6 +246,16 @@ async def _resolve_site(customer: dict) -> dict:
     return {**customer, "site_id": site["id"], "crm_company_id": (comp or {}).get("id")}
 
 
+async def _check_equipment_ownership(site_id: str, rows: list[dict]):
+    ids = [r["equipment_id"] for r in rows if r.get("equipment_id")]
+    if not ids:
+        return
+    owned = {e["id"] async for e in db.equipment.find({"id": {"$in": ids}, "organization_id": site_id}, {"_id": 0, "id": 1})}
+    foreign = [r["description"] for r in rows if r.get("equipment_id") and r["equipment_id"] not in owned]
+    if foreign:
+        raise HTTPException(422, f"These items are not on this site's equipment register: {', '.join(foreign[:5])}")
+
+
 async def _make_quotes(group: dict, rows: list[dict], options: list[str], callout_qty: int, user: dict, version: int,
                        batch: str) -> list[str]:
     """Insert one quote per option in 'staging' status; caller promotes the batch once the group is saved."""
@@ -291,6 +302,7 @@ async def create_group(body: GroupIn, user=Depends(_sales)):
         if prior:
             return await get_group(prior["id"], user)
     customer = await _resolve_site(body.customer.model_dump())
+    await _check_equipment_ownership(customer["site_id"], [r.model_dump() for r in body.rows])
     gid = str(uuid.uuid4())
     group = {"id": gid, "organization_id": user.get("organization_id"), "customer": customer,
              "crm_company_id": customer["crm_company_id"], "mod_site_id": customer["site_id"],
@@ -325,7 +337,7 @@ async def list_groups(status: str = "", q: str = "", site_id: str = "", user=Dep
     if site_id:
         flt["mod_site_id"] = site_id
     if q.strip():
-        rx = {"$regex": q.strip()[:60], "$options": "i"}
+        rx = {"$regex": re.escape(q.strip()[:60]), "$options": "i"}
         ids = [x["mod_group_id"] async for x in db.crm2_quotes.find({"quote_number": rx, "mod_group_id": {"$exists": True}}, {"mod_group_id": 1})]
         flt["$or"] = [{"customer.name": rx}, {"id": {"$in": ids}}]
     groups = await db.mod_quote_groups.find(flt, {"_id": 0, "rows": 0}).sort("updated_at", -1).limit(200).to_list(200)
@@ -358,20 +370,28 @@ async def revise_group(gid: str, body: GroupIn, user=Depends(_sales)):
     if body.customer.site_id != g["mod_site_id"]:
         raise HTTPException(409, "A quotation group cannot be moved to a different MOD establishment — create a new quotation for that site")
     customer = await _resolve_site(body.customer.model_dump())
+    await _check_equipment_ownership(customer["site_id"], [r.model_dump() for r in body.rows])
     issued = g["status"] not in ("draft", "pending_approval")
     version = g["revision"] + 1 if issued else g["revision"]
     newg = {**g, "customer": customer, "rows": [r.model_dump() for r in body.rows], "options": opts,
             "callout_qty": body.callout_qty, "notes": body.notes, "crm_company_id": customer["crm_company_id"]}
-    old_ids = [x["id"] for x in await _quotes(gid)]
     batch = str(uuid.uuid4())
+    seq = g.get("edit_seq") or 0
     await _make_quotes(newg, newg["rows"], opts, body.callout_qty, user, version, batch)
-    res = await db.mod_quote_groups.update_one({"id": gid, "revision": g["revision"], "status": g["status"]},
-                                               {"$set": {"revising_batch": batch}})
+    res = await db.mod_quote_groups.update_one({"id": gid, "revision": g["revision"], "status": g["status"],
+                                                "edit_seq": {"$in": [seq] if seq else [None, 0]}, "revising_batch": {"$in": [None]}},
+                                               {"$set": {"revising_batch": batch, "edit_seq": seq + 1}})
     if res.modified_count != 1:
         await _fail_batch(batch)
         raise HTTPException(409, "This quotation group was changed by someone else — reload and try again")
-    await db.crm2_quotes.update_many({"id": {"$in": old_ids}},
-                                     {"$set": {"status": "superseded", "customer_visible": False, "superseded_at": _now()}})
+    old_ids = [x["id"] for x in await _quotes(gid)]
+    try:
+        await db.crm2_quotes.update_many({"id": {"$in": old_ids}},
+                                         {"$set": {"status": "superseded", "customer_visible": False, "superseded_at": _now()}})
+    except Exception:
+        await _fail_batch(batch)
+        await db.mod_quote_groups.update_one({"id": gid, "revising_batch": batch}, {"$set": {"revising_batch": None}})
+        raise
     if issued:
         await _event(gid, "superseded", user, version=g["revision"])
         await db.mod_quote_authorisations.update_many({"group_id": gid, "status": "submitted"},
@@ -387,7 +407,7 @@ async def revise_group(gid: str, body: GroupIn, user=Depends(_sales)):
 
 async def _set_status(gid: str, status: str, quote_filter: dict | None = None, extra: dict | None = None):
     await db.mod_quote_groups.update_one({"id": gid}, {"$set": {"status": status, "updated_at": _now(), **(extra or {})}})
-    await db.crm2_quotes.update_many({"mod_group_id": gid, "status": {"$ne": "superseded"}, **(quote_filter or {})},
+    await db.crm2_quotes.update_many({"mod_group_id": gid, "status": {"$nin": list(HIDDEN_STATUSES)}, **(quote_filter or {})},
                                      {"$set": {"status": status, "updated_at": _now()}})
 
 
@@ -407,7 +427,7 @@ class CommercialException(BaseModel):
     reason: str = Field(..., min_length=10, max_length=500)
     original_rate: float
     proposed_rate: float
-    valid_until: str
+    valid_until: date
 
 
 class ApproveIn(BaseModel):
@@ -454,9 +474,9 @@ async def approve_group(gid: str, body: ApproveIn, user=Depends(require_operator
             raise HTTPException(422, f"Line {e.line_no}: original rate must be the quoted £{line['unit_price']:.2f}")
         if float(e.proposed_rate) != float(line["unit_price"]):
             raise HTTPException(422, f"Line {e.line_no}: to quote a different rate, revise the quotation — exceptions approve the quoted rate only")
-        if e.valid_until < _today():
+        if e.valid_until.isoformat() < _today():
             raise HTTPException(422, f"Line {e.line_no}: exception validity has already passed")
-        staged.setdefault(e.quote_id, []).append({**e.model_dump(), "description": line["description"],
+        staged.setdefault(e.quote_id, []).append({**e.model_dump(mode="json"), "description": line["description"],
                                                   "item_code": line["item_code"], "authorised_by": who, "authorised_at": when})
     for qid, lst in staged.items():
         await db.crm2_quotes.update_one({"id": qid}, {"$set": {"commercial_exceptions": lst}})
@@ -504,7 +524,7 @@ def assert_quote_current(q: dict, g: dict):
 
 
 class ExtendIn(BaseModel):
-    valid_until: str
+    valid_until: date
     reason: str = Field(..., min_length=10)
 
 
@@ -514,11 +534,12 @@ async def extend_validity(gid: str, body: ExtendIn, user=Depends(require_operato
     g = await _group(gid)
     if g["status"] in ("accepted", "handed_over", "withdrawn"):
         raise HTTPException(409, f"Quotation is {g['status']}")
-    if body.valid_until <= _today():
+    new_until = body.valid_until.isoformat()
+    if new_until <= _today():
         raise HTTPException(422, "New validity date must be in the future")
     res = await db.crm2_quotes.update_many({"mod_group_id": gid, "customer_visible": True, "status": {"$nin": list(HIDDEN_STATUSES)}},
-                                           {"$set": {"valid_until": body.valid_until}})
-    await _event(gid, "validity_extended", user, version=g["revision"], detail={"valid_until": body.valid_until, "reason": body.reason})
+                                           {"$set": {"valid_until": new_until}})
+    await _event(gid, "validity_extended", user, version=g["revision"], detail={"valid_until": new_until, "reason": body.reason})
     return {"ok": True, "updated": res.modified_count}
 
 
@@ -550,6 +571,17 @@ class PublishIn(BaseModel):
     quote_ids: list[str]
 
 
+async def _put_with_retry(path: str, data: bytes, attempts: int = 3):
+    import asyncio
+    for i in range(attempts):
+        try:
+            return put_object(path, data, "application/pdf")
+        except Exception:
+            if i == attempts - 1:
+                raise
+            await asyncio.sleep(0.5 * (i + 1))
+
+
 @router.post("/groups/{gid}/publish")
 async def publish(gid: str, body: PublishIn, user=Depends(_sales)):
     g = await db.mod_quote_groups.find_one_and_update({"id": gid, "status": "approved"}, {"$set": {"status": "publishing"}},
@@ -578,7 +610,7 @@ async def publish(gid: str, body: PublishIn, user=Depends(_sales)):
             q["published_at"] = _now()
             pdf = render_mod_quote_pdf(_pdf_payload(q, g))
             path = f"mod_quotes/{gid}/{q['id']}_v{q['version']}.pdf"
-            put_object(path, pdf, "application/pdf")
+            await _put_with_retry(path, pdf)
             rendered.append((q, path, hashlib.sha256(pdf).hexdigest()))
         for q, path, sha in rendered:
             await db.crm2_quotes.update_one({"id": q["id"], "published_pdf_path": {"$exists": False}}, {"$set": {
@@ -755,7 +787,7 @@ async def verify_authorisation(aid: str, body: VerifyIn, user=Depends(require_op
         raise HTTPException(409, "Already accepted")
     await db.crm2_quotes.update_one({"id": q["id"]}, {"$set": {"status": "accepted", "accepted_at": _now(),
                                                                 "accepted_evidence_id": aid}})
-    await db.crm2_quotes.update_many({"mod_group_id": g["id"], "id": {"$ne": q["id"]}, "status": {"$ne": "superseded"}},
+    await db.crm2_quotes.update_many({"mod_group_id": g["id"], "id": {"$ne": q["id"]}, "status": {"$nin": list(HIDDEN_STATUSES)}},
                                      {"$set": {"status": "not_selected", "customer_visible": True}})
     await db.mod_quote_authorisations.update_one({"id": aid}, {"$set": {"status": "verified", "reviewed_by": user.get("full_name") or user.get("email"),
                                                                          "reviewed_at": _now(), "review_notes": body.notes}})
@@ -846,8 +878,8 @@ async def rates_import_preview(file: UploadFile = File(...), user=Depends(requir
 
 
 class RatesApproveIn(BaseModel):
-    effective_from: str
-    expires_on: str | None = None
+    effective_from: date
+    expires_on: date | None = None
     confirm: bool = False
 
 
@@ -861,21 +893,22 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
     if not pl or pl["status"] != "preview":
         raise HTTPException(409, "Price list is not awaiting approval")
     card = {str(c["item_no"]): c for c in (await _card_by_id()).values()}
-    version = f"SOR-{body.effective_from}-{pid[:6]}"
+    eff, exp = body.effective_from.isoformat(), (body.expires_on.isoformat() if body.expires_on else None)
+    version = f"SOR-{eff}-{pid[:6]}"
     for e in pl["entries"]:
         c = card.get(e["item_no"])
         if not c:
             continue
         await db.mod_sor_rate_card_history.insert_one({"id": str(uuid.uuid4()), "rate_card_id": c["id"], "before": c,
                                                        "price_list_id": pid, "changed_by": user.get("id"), "at": _now()})
-        approval = {"source": f"Schedule B import {pl['filename']} (sha256 {pl['sha256'][:12]})", "effective_from": body.effective_from,
-                    "expires_on": body.expires_on, "approved_by": user.get("full_name") or user.get("email"),
+        approval = {"source": f"Schedule B import {pl['filename']} (sha256 {pl['sha256'][:12]})", "effective_from": eff,
+                    "expires_on": exp, "approved_by": user.get("full_name") or user.get("email"),
                     "approved_at": _now(), "version": version}
         await db.mod_sor_rate_card.update_one({"id": c["id"]}, {"$set": {
             **apply_entry(c, e, approval), "price_list_version": version, "updated_at": _now()}})
     await db.mod_sor_price_lists.update_many({"status": "live"}, {"$set": {"status": "superseded"}})
     await db.mod_sor_price_lists.update_one({"id": pid}, {"$set": {"status": "live", "version": version,
-                                                                   "effective_from": body.effective_from,
+                                                                   "effective_from": eff,
                                                                    "approved_by": user.get("full_name") or user.get("email"), "approved_at": _now()}})
     return {"ok": True, "version": version}
 
@@ -918,7 +951,7 @@ async def get_handover(hid: str, user=Depends(_sales)):
 
 
 class SetupIn(BaseModel):
-    start_date: str
+    start_date: date
     notes: str = ""
 
 
@@ -927,6 +960,7 @@ async def setup_handover(hid: str, body: SetupIn, user=Depends(require_operator_
     """Manager action: create the Type A annual contract and/or Type B one-off record from the accepted scope.
     Idempotent. Proposes (does not confirm) the annual visit; no bookings, invoices or Sicon writes."""
     _need(user, PERM_APPROVE)
+    start = body.start_date.isoformat()
     h = await db.mod_quote_handovers.find_one({"id": hid}, {"_id": 0})
     if not h:
         raise HTTPException(404, "Handover not found")
@@ -943,12 +977,12 @@ async def setup_handover(hid: str, body: SetupIn, user=Depends(require_operator_
         doc = {"id": str(uuid.uuid4()), "organization_id": user.get("organization_id"), "contract_type": ct,
                "source_handover_id": hid, "quote_id": h["source_quote_id"], "quote_number": h["source_quote_number"],
                "mod_site_id": h["mod_site_id"], "mod_site_name": h["mod_site_name"], "currency": "GBP",
-               "coverage": cov, "equipment_count": sum(int(c["qty"]) for c in cov), "start_date": body.start_date,
+               "coverage": cov, "equipment_count": sum(int(c["qty"]) for c in cov), "start_date": start,
                "created_by": user.get("id"), "created_by_name": who, "created_at": now, "updated_at": now,
                "sicon_sync_state": "not_synchronised", "notes": body.notes}
         if ct == "A":
             doc.update({"status": "active", "activated_at": now, "term_months": 12, "annual_value": h["annual_type_a_value"],
-                        "annual_visit": {"status": "pending_confirmation", "proposed_date": body.start_date[:10], "scheduled_date": None,
+                        "annual_visit": {"status": "pending_confirmation", "proposed_date": start, "scheduled_date": None,
                                          "engineer": None, "notes": None, "confirmed_by": None, "confirmed_at": None, "created_at": now}})
         else:
             doc.update({"status": "one_off_awaiting_booking", "one_off_value": h["one_off_type_b_value"], "annual_obligation": False})
@@ -957,7 +991,7 @@ async def setup_handover(hid: str, body: SetupIn, user=Depends(require_operator_
         except DuplicateKeyError:
             doc = await db.mod_service_contracts.find_one({"source_handover_id": hid, "contract_type": ct}, {"_id": 0})
         records.append({"id": doc["id"], "contract_type": ct, "status": doc["status"]})
-    await db.mod_quote_handovers.update_one({"id": hid}, {"$set": {"status": "setup_complete", "start_date": body.start_date,
+    await db.mod_quote_handovers.update_one({"id": hid}, {"$set": {"status": "setup_complete", "start_date": start,
                                                                     "service_records": records, "setup_by": who, "setup_at": now}})
     await _event(h["group_id"], "operations_setup_complete", user, h["source_quote_id"], None, {"records": records})
     return {"ok": True, "records": records}

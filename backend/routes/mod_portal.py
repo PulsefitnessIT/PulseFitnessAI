@@ -539,7 +539,8 @@ async def mod_site_quotes(user: dict = Depends(get_current_user)):
     org = await _require_mod_site(user)
     rows = await db.crm2_quotes.find(_visible_quote_filter(org["id"]), {"_id": 0, "signature": 0, "esign_token": 0}).sort("created_at", -1).to_list(200)
     quotes = [{
-        "id": q.get("id"), "quote_number": q.get("quote_number"), "title": q.get("title"),
+        "id": q.get("id"), "quote_number": q.get("sage_quote_number") or q.get("quote_number"),
+        "internal_ref": q.get("quote_number"), "title": q.get("title"),
         "mod_contract_type": q.get("mod_contract_type"), "mod_quote_type": q.get("mod_quote_type"),
         "mod_group_id": q.get("mod_group_id"), "status": q.get("status"), "esign_status": q.get("esign_status"),
         "subtotal": q.get("subtotal"), "vat_amount": q.get("vat_amount"), "total": q.get("total"),

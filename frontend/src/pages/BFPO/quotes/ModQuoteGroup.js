@@ -26,6 +26,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [notifyForm, setNotifyForm] = useState({ to: '', confirm_to: '', attach_pdfs: false });
   const [sageRef, setSageRef] = useState({});
+  const [ext, setExt] = useState(null);
   const load = useCallback(() => mq.get(`/groups/${groupId}`).then((r) => { setG(r.data); setSel(r.data.quotes.map((q) => q.id)); })
     .catch((e) => notify.error(errText(e))), [groupId]);
   useEffect(() => { load(); }, [load]);
@@ -44,12 +45,8 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
       proposed_rate: ln.unit_price, valid_until: exc[excKey(ln)].valid_until || new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
     })),
   });
-  const extend = () => {
-    const d = window.prompt('New "valid until" date (YYYY-MM-DD):');
-    if (!d) return;
-    const r = window.prompt('Reason for extending (recorded in the audit history):');
-    if (r) act(() => mq.post(`/groups/${g.id}/extend-validity`, { valid_until: d, reason: r }), 'Validity extended');
-  };
+  const extend = () => setExt({ valid_until: '', reason: '' });
+  const saveExtend = () => act(async () => { await mq.post(`/groups/${g.id}/extend-validity`, ext); setExt(null); }, 'Validity extended');
   const sendNotify = () => act(async () => {
     const r = await mq.post(`/groups/${g.id}/notify`, { ...notifyForm, resend: g.notified_revision === g.revision });
     setNotifyOpen(false);
@@ -110,6 +107,14 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
         </div>
       )}
 
+      {ext && (
+        <div className="rounded-xl p-4 mt-4 flex flex-wrap items-end gap-2 max-w-2xl" style={card} data-testid="mq-extend-form">
+          <label className="text-sm" style={muted}>New valid-until date<input type="date" value={ext.valid_until} onChange={(e) => setExt({ ...ext, valid_until: e.target.value })} className="block rounded px-2 py-1 mt-1" style={inputStyle} data-testid="mq-extend-date" /></label>
+          <label className="text-sm flex-1 min-w-[220px]" style={muted}>Reason (recorded in history)<input value={ext.reason} onChange={(e) => setExt({ ...ext, reason: e.target.value })} className="block w-full rounded px-2 py-1 mt-1" style={inputStyle} data-testid="mq-extend-reason" /></label>
+          <Btn icon={CheckCircle2} primary disabled={busy || !ext.valid_until || ext.reason.length < 10} onClick={saveExtend} data-testid="mq-extend-save">Extend</Btn>
+          <Btn icon={XCircle} onClick={() => setExt(null)} data-testid="mq-extend-cancel">Cancel</Btn>
+        </div>
+      )}
       {notifyOpen && (
         <div className="rounded-xl p-4 mt-4 space-y-2 max-w-xl" style={card} data-testid="mq-notify-form">
           <div className="font-semibold text-sm">Tell the customer their quotations are ready in MODService</div>

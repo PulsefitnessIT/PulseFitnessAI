@@ -103,3 +103,20 @@ REACT_APP_SENTRY_TRACES_RATE=0.05
 - **Uptime monitoring**: UptimeRobot / BetterStack on `/api/health` — 2 minutes of config, free tier covers 50 monitors. Not code — pure ops.
 - **Backup RPO/RTO**: get Emergent Support to confirm MongoDB backup cadence in writing. Target: RPO ≤ 1hr, RTO ≤ 4hr.
 - **Pen-test**: before first £50k+ enterprise contract. 2-week lead time. Budget £2–4k with a UK firm (e.g. NCC Group, Pentest Ltd).
+
+## Status update — 25 Nov 2026 (Founder stabilisation sprint)
+Status labels: **Dev** = working in development · **Preview-tested** = automated + browser tests passed in preview · **Pilot-ready** = ready for an internal pilot · **Customer-approved** · **Production** · **Blocked-external**.
+
+| Area | Status | Evidence / blocker |
+|---|---|---|
+| MOD Operations → Quotations (builder, groups, revisions, approval, publish) | Preview-tested, Pilot-ready with restrictions | tests/test_mod_ops_quotes.py 13/13, test_mod_quotes_http.py 13/13, test_mod_quotes_stabilisation_iter316.py 17/17; browser test reports 315/316 |
+| Per-type (A/B) rate verification + call-out verification + structured commercial exceptions | Preview-tested | Approved MOD price list not yet imported in production (management) |
+| MODService quotation access (publish, PDF, ZIP, expiry, authorisation) | Preview-tested | Official validity period unapproved (30 days provisional) |
+| MOD Service Operations handover set-up (Type A annual contract / Type B one-off record) | Preview-tested | Annual visit proposed only; booking stays with Service Desk |
+| CRM MOD Quotations tab (read-only) | Preview-tested | — |
+| Legacy CRM MOD quote creation + rate-card writes | Retired (HTTP 410) | Historical quotes, PDFs and legacy e-sign still served |
+| Customer notification email | Dev (dry-run by default) | Live send needs `MOD_QUOTE_NOTIFY_LIVE=true` + approval |
+| Contracts & Renewals / Maintenance Master | Preview-tested, Pilot-ready with restrictions | Real-data reconciliation + coordinator acceptance outstanding |
+| Sicon/Sage write-back | Blocked-external | `SICON_ALLOW_WRITES=false` retained |
+| Wider platform regression | 2443 passed / 159 failed / 41 errors / 26 skipped | memory/TEST_FAILURE_TRIAGE.md — failures pre-date this sprint (identical on baseline commit) |
+| CI dependency install | Fixed locally | yarn.lock regenerated (Yarn 1.22.22, frozen install passes); backend via `backend/scripts/ci_install_backend.sh` (public Emergent index, no credentials). GitHub Actions run not observable from this environment |

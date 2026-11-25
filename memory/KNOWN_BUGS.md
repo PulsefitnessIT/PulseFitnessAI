@@ -186,3 +186,8 @@ _Last refreshed: Iter 220m · May 26, 2026_
 - Found a bug? Add a P0/P1 entry above with reporter + repro steps.
 - Fixed a bug? Move it to "Recently fixed" with the iter tag.
 - Hit a footgun more than once? Add it to "Recurring footguns".
+
+## Open — 25 Nov 2026
+- Regression suite: 200 pre-existing failures/errors classified in memory/TEST_FAILURE_TRIAGE.md (account lockouts in shared preview, missing seeded fixtures e.g. `raf.demoairstation@mod.pulse.gym`, outdated source-text assertions, sync MagicMocks). Owner: QA. Severity: medium (test infrastructure) — auth/isolation suites cannot be fully evidenced until the lockout/seed issues are fixed.
+- Git history still contains the removed Schedule B workbook, reference quote renders and a Maintenance Master copy (memory/SECURITY_REPO_AUDIT.md) — history rewrite awaiting approval.
+- Legacy test files for the retired CRM MOD quote generator are skipped with a documented reason; equivalent coverage in tests/test_mod_ops_quotes.py.

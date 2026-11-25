@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="16" time="13.775" timestamp="2026-11-25T09:28:40.243051+00:00" hostname="agent-env-5f3a6e50-70cd-47b2-8f5d-2dbbd87be14c"><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_crm_legacy_generate_retired" time="6.060" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_invalid_site_rejected" time="0.110" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_create_and_refs" time="0.098" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_revise_cannot_change_site" time="0.105" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_idempotency_sequential" time="0.171" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_idempotency_concurrent" time="0.227" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_concurrent_revise_no_duplicates" time="0.291"><failure message="AssertionError: duplicate current options after concurrent revise: ['A', 'A', 'A', 'B', 'B', 'B'] codes=[200, 200, 200]&#10;assert ['A', 'A', 'A', 'B', 'B', 'B'] == ['A', 'B']&#10;  &#10;  At index 1 diff: 'A' != 'B'&#10;  Left contains 4 more items, first extra item: 'A'&#10;  Use -v to get more diff">mgr = &lt;requests.sessions.Session object at 0xfdc5515485d0&gt;
+
+    def test_concurrent_revise_no_duplicates(mgr):
+        g = _create(mgr)
+        out = []
+    
+        def go(q):
+            rows = [dict(r) for r in ROWS]
+            rows[0]["qty"] = q
+            out.append(mgr.put(f"{MQ}/groups/{g['id']}", json={"customer": CUSTOMER, "rows": rows, "options": ["A", "B"]}))
+        ts = [threading.Thread(target=go, args=(q,)) for q in (3, 4, 5)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+        cur = mgr.get(f"{MQ}/groups/{g['id']}").json()["quotes"]
+        types = [q["mod_quote_type"] for q in cur]
+        S["race"] = {"codes": [r.status_code for r in out], "types": types}
+&gt;       assert sorted(types) == ["A", "B"], f"duplicate current options after concurrent revise: {types} codes={S['race']['codes']}"
+E       AssertionError: duplicate current options after concurrent revise: ['A', 'A', 'A', 'B', 'B', 'B'] codes=[200, 200, 200]
+E       assert ['A', 'A', 'A', 'B', 'B', 'B'] == ['A', 'B']
+E         
+E         At index 1 diff: 'A' != 'B'
+E         Left contains 4 more items, first extra item: 'A'
+E         Use -v to get more diff
+
+tests/test_mod_quotes_stabilisation_iter316.py:165: AssertionError</failure></testcase><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_sage_ref_rules" time="0.518" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_validity_settings" time="0.482" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_publish_and_sage_locked" time="1.557" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_customer_sees_coverage_and_expiry_flag" time="0.423" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_extend_validity_validation" time="0.380"><failure message="AssertionError: non-date valid_until accepted: 200&#10;assert 200 == 422&#10; +  where 200 = &lt;Response [200]&gt;.status_code">mgr = &lt;requests.sessions.Session object at 0xfdc5515485d0&gt;
+rep = &lt;requests.sessions.Session object at 0xfdc55376bad0&gt;
+
+    def test_extend_validity_validation(mgr, rep):
+        gid = S["g"]["id"]
+        assert rep.post(f"{MQ}/groups/{gid}/extend-validity", json={"valid_until": "2099-01-01", "reason": "TEST extension reason"}).status_code == 403
+        assert mgr.post(f"{MQ}/groups/{gid}/extend-validity", json={"valid_until": "2020-01-01", "reason": "TEST extension reason"}).status_code == 422
+        assert mgr.post(f"{MQ}/groups/{gid}/extend-validity", json={"valid_until": "2099-01-01", "reason": "short"}).status_code == 422
+        bad = mgr.post(f"{MQ}/groups/{gid}/extend-validity", json={"valid_until": "not-a-date", "reason": "TEST extension reason"})
+        S["bad_date_status"] = bad.status_code
+        good = (date.today() + timedelta(days=45)).isoformat()
+        r = mgr.post(f"{MQ}/groups/{gid}/extend-validity", json={"valid_until": good, "reason": "TEST extension reason"})
+        assert r.status_code == 200 and r.json()["updated"] &gt;= 1
+&gt;       assert bad.status_code == 422, f"non-date valid_until accepted: {bad.status_code}"
+E       AssertionError: non-date valid_until accepted: 200
+E       assert 200 == 422
+E        +  where 200 = &lt;Response [200]&gt;.status_code
+
+tests/test_mod_quotes_stabilisation_iter316.py:212: AssertionError</failure></testcase><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_expired_quote_cannot_be_authorised" time="0.076" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_notify_dry_run" time="0.204" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_accept_and_handover_setup" time="0.511" /><testcase classname="tests.test_mod_quotes_stabilisation_iter316" name="test_handover_setup_rejects_bad_date" time="2.129"><failure message="AssertionError: start_date 'rubbish' accepted: 200 {&quot;ok&quot;:true,&quot;records&quot;:[{&quot;id&quot;:&quot;a10e337e-635d-419e-8cf6-15a69331082e&quot;,&quot;contract_type&quot;:&quot;A&quot;,&quot;status&quot;:&quot;active&quot;}]}&#10;assert 200 == 422&#10; +  where 200 = &lt;Response [200]&gt;.status_code">mgr = &lt;requests.sessions.Session object at 0xfdc5515485d0&gt;
+
+    def test_handover_setup_rejects_bad_date(mgr):
+        g = _create(mgr)
+        pub = _publish(mgr, g)
+        q = pub["quotes"][0]
+        r = _cust_session().post(f"{API}/mod/site/quotes/{q['id']}/authorise", data={"authorising_officer": "TEST_y", "authorisation_date": "2026-01-10"})
+        assert r.status_code == 200
+        hid = mgr.post(f"{MQ}/authorisations/{r.json()['authorisation']['id']}/verify", json={"accept": True}).json()["handover_id"]
+        r = mgr.post(f"{MQ}/handovers/{hid}/setup", json={"start_date": "rubbish"})
+&gt;       assert r.status_code == 422, f"start_date 'rubbish' accepted: {r.status_code} {r.text[:200]}"
+E       AssertionError: start_date 'rubbish' accepted: 200 {"ok":true,"records":[{"id":"a10e337e-635d-419e-8cf6-15a69331082e","contract_type":"A","status":"active"}]}
+E       assert 200 == 422
+E        +  where 200 = &lt;Response [200]&gt;.status_code
+
+tests/test_mod_quotes_stabilisation_iter316.py:270: AssertionError</failure></testcase></testsuite></testsuites>

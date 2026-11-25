@@ -103,6 +103,7 @@ async def client():
                       ("mod_quote_authorisations", "group_id"), ("mod_quote_handovers", "group_id")):
         await db[coll].delete_many({key: {"$in": gids}})
     await db.mod_quote_groups.delete_many({"id": {"$in": gids}})
+    await db.crm2_quotes.delete_many({"mod_site_id": SITE_A, "status": "failed_staging"})
     await db.organizations.delete_many({"id": {"$in": [OP_ORG, SITE_A, SITE_B]}})
     for e in snapshot:
         await db.mod_sor_rate_card.replace_one({"id": e["id"]}, e)
@@ -419,3 +420,10 @@ async def test_legacy_mod_quote_creation_retired(client):
     finally:
         app.dependency_overrides.pop(get_crm_user, None)
         _who["user"] = STAFF
+
+
+async def test_foreign_equipment_rejected(client):
+    await _import_rates(client)
+    rows = [dict(ROWS[0], equipment_id=f"not-on-site-{RUN}")]
+    r = await client.post("/api/mod-ops/quotes/groups", json={"customer": _customer(), "rows": rows, "options": ["A"]})
+    assert r.status_code == 422 and "equipment register" in r.text

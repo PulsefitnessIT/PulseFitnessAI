@@ -128,3 +128,7 @@ Earlier campaigns live alongside it:
 ## License & contact
 
 Proprietary · GymAxis Ltd · support@gymaxisai.com
+
+## MOD quotations (Nov 2026)
+MOD quotations are created only in **MOD Operations → Quotations** (`/bfpo?view=quotations`). Runbook: `memory/MOD_QUOTATIONS_RUNBOOK.md`. Status of every module: `memory/PRODUCTION_READINESS.md`.
+CI backend install: `bash backend/scripts/ci_install_backend.sh`.

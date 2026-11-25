@@ -80,6 +80,7 @@ export default function ModPublishedQuotes({ API, headers, groups, onChanged }) 
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div>
                 <div className="text-white font-bold text-sm">Maintenance quotations — compare your options</div>
+                <div className="text-[11px] text-white/60">{g.quotes.map((q) => q.quote_number).join(' · ')}{g.published_at ? ` · issued ${new Date(g.published_at).toLocaleDateString('en-GB')}` : ''}</div>
                 <div className="text-[11px] text-white/50">Downloading or viewing does not accept a quotation.</div>
               </div>
               <button type="button" onClick={() => save(API, headers, `/mod/site/quote-groups/${g.id}/zip`, 'Pulse-Fitness-Quotations.zip').catch(() => notify.error('Download failed'))}
