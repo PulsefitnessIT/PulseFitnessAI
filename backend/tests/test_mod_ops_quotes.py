@@ -87,6 +87,7 @@ async def client(monkeypatch):
     from routes.mod_ops_quotes import _ensure_rate_card
     await _ensure_rate_card()
     snapshot = await db.mod_sor_rate_card.find({}, {"_id": 0}).to_list(200)
+    live_lists = [x["id"] async for x in db.mod_sor_price_lists.find({"status": "live"}, {"id": 1})]
     await db.organizations.insert_many([
         {"id": OP_ORG, "name": "Test Operator", "is_operator_company": True, "account_type": "full"},
         {"id": SITE_A, "name": f"HMNB Clyde Test {RUN}", "account_type": "mod_site", "address_line1": "Faslane",
@@ -109,6 +110,8 @@ async def client(monkeypatch):
     for e in snapshot:
         await db.mod_sor_rate_card.replace_one({"id": e["id"]}, e)
     await db.mod_sor_price_lists.delete_many({"uploaded_by": STAFF["full_name"]})
+    if live_lists:
+        await db.mod_sor_price_lists.update_many({"id": {"$in": live_lists}}, {"$set": {"status": "live"}})
 
 
 async def _import_rates(c, overrides=None, skip=None):

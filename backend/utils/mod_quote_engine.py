@@ -39,10 +39,45 @@ def _clean_name(s: str) -> str:
     return re.sub(r"\s+", " ", str(s or "")).strip().rstrip(",").strip()
 
 
+def _parse_pricing_schedule(ws) -> dict | None:
+    """LSLDC0186 'Pricing Schedule' layout (Item no / TL Number / Supplier Part Number / Year N Price).
+    Uses the latest 'Year N Price' column — the current contractual price."""
+    for r in range(1, min(ws.max_row, 30) + 1):
+        vals = [str(c.value or "").strip().lower() for c in ws[r]]
+        if "item no" in vals and any(v.startswith("supplier part number") for v in vals):
+            cols = {"uid": vals.index("item no")}
+            years = {}
+            for i, v in enumerate(vals):
+                if v.startswith("tl number"):
+                    cols["tl"] = i
+                elif v.startswith("supplier part number"):
+                    cols["sage"] = i
+                elif v.startswith("short item description"):
+                    cols["name"] = i
+                elif v.startswith("extended item description"):
+                    cols["ext"] = i
+                m = re.fullmatch(r"year (\d+) price", v)
+                if m:
+                    years[int(m.group(1))] = i
+            if not years:
+                raise ValueError("Could not find a 'Year N Price' column in the Pricing Schedule")
+            year = max(years)
+            cols["price"] = years[year]
+            return {"header_row": r, "cols": cols, "price_year": year}
+    return None
+
+
 def parse_schedule_b(content: bytes) -> dict:
-    """Read the LSLDC0223 Schedule B 'Tender SOR' sheet: one row per A/B rate entry."""
+    """Read a MOD Schedule B workbook: one row per A/B rate entry.
+
+    Supports the LSLDC0223 'Tender SOR' sheet and the LSLDC0186 'Pricing Schedule' (latest year's price)."""
     import openpyxl
     wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    ps = next((w for w in wb.worksheets if "pricing schedule" in w.title.lower()), None)
+    layout = _parse_pricing_schedule(ps) if ps is not None else None
+    if layout:
+        return _finish_schedule_b(ps, layout["header_row"], layout["cols"], _pricing_schedule_rows(ps, layout),
+                                  price_year=layout["price_year"])
     ws = wb["Tender SOR"] if "Tender SOR" in wb.sheetnames else wb.worksheets[0]
     header_row, cols = None, {}
     for r in range(1, min(ws.max_row, 30) + 1):
@@ -71,7 +106,31 @@ def parse_schedule_b(content: bytes) -> dict:
                 cols["price"] = i
     if "price" not in cols:
         raise ValueError("Could not find the 'Year 1 Price' column")
-    entries, issues = [], []
+    return _finish_schedule_b(ws, header_row, cols, _tender_rows(ws, header_row, cols))
+
+
+def _pricing_schedule_rows(ws, layout: dict) -> list[dict]:
+    cols, out = layout["cols"], []
+    for r in ws.iter_rows(min_row=layout["header_row"] + 1, values_only=True):
+        raw = str(r[cols["uid"]] or "").strip().upper()
+        ext = str(r[cols.get("ext", cols["name"])] or "")
+        m = re.fullmatch(r"(\d+)([A-Z]*)", raw)
+        if not m:
+            continue
+        sfx = m.group(2) or ("B" if "type b only" in ext.lower() else "")
+        if sfx not in ("A", "B"):
+            continue
+        raw_price = r[cols["price"]]
+        price = None if raw_price in (None, "", "POA") else float(raw_price)
+        out.append({"uid": f"{m.group(1)}{sfx}", "item_no": m.group(1), "service_type": sfx, "layout": "pricing_schedule",
+                    "name": _clean_name(r[cols["name"]]).rstrip(","), "sage_code": str(r[cols["sage"]] or "").strip(),
+                    "tl_ref": str(r[cols["tl"]] or "").strip(), "extended_description": _clean_name(ext),
+                    "uom": "Each", "price": price, "is_poa": price is None})
+    return out
+
+
+def _tender_rows(ws, header_row: int, cols: dict) -> list[dict]:
+    entries = []
     for r in ws.iter_rows(min_row=header_row + 1, values_only=True):
         uid = str(r[cols["uid"]] or "").strip()
         m = re.fullmatch(r"(\d+)([A-Z]+)", uid)
@@ -90,6 +149,11 @@ def parse_schedule_b(content: bytes) -> dict:
             "uom": str(r[cols["uom"]] or "Each").strip() if "uom" in cols else "Each",
             "price": price, "is_poa": price is None,
         })
+    return entries
+
+
+def _finish_schedule_b(ws, header_row: int, cols: dict, entries: list[dict], price_year: int | None = None) -> dict:
+    issues: list[dict] = []
     by_sage: dict[str, list[str]] = {}
     for e in entries:
         by_sage.setdefault(e["sage_code"], []).append(e["uid"])
@@ -99,28 +163,54 @@ def parse_schedule_b(content: bytes) -> dict:
                            "message": f"Sage item code {code} is used by {', '.join(uids)} — explicit mapping required"})
     for e in entries:
         e["ambiguous_sage_code"] = len(by_sage.get(e["sage_code"], [])) > 1
-        hist = HISTORICAL_PRINTED_REFS.get(e["uid"])
+        hist = None if e.get("layout") == "pricing_schedule" else HISTORICAL_PRINTED_REFS.get(e["uid"])
         if hist and hist[0] != e["tl_ref"]:
             issues.append({"kind": "reference_conflict", "uid": e["uid"], "schedule_b_ref": e["tl_ref"],
                            "printed_ref": hist[0],
                            "message": f"{e['uid']}: Schedule B lists {e['tl_ref']} but issued quotations print {hist[0]}"})
     synthetic = any("synthetic test data" in str(c.value or "").lower()
                     for row in ws.iter_rows(min_row=1, max_row=min(header_row, 10)) for c in row)
-    return {"sheet": ws.title, "entries": entries, "issues": issues, "synthetic": synthetic}
+    return {"sheet": ws.title, "entries": entries, "issues": issues, "synthetic": synthetic, "price_year": price_year}
 
 
 def synthetic_rates_allowed() -> bool:
     return os.environ.get("MOD_RATES_ALLOW_SYNTHETIC", "").lower() == "true"
 
 
+def _norm(txt: str) -> str:
+    t = re.sub(r"type [abc] (service|only)|non[- ]?powered|powered|[^a-z0-9]+", lambda m: {
+        "non-powered": " np ", "non powered": " np ", "nonpowered": " np ", "powered": " p "}.get(m.group(0), " "),
+        str(txt or "").lower())
+    return " ".join(sorted(t.split()))
+
+
+def match_card(e: dict, card: list[dict]) -> list[dict]:
+    """Rate-card entries a Schedule B row prices. Pricing Schedule rows match on Sage item code
+    (falling back to the equipment description); Tender SOR rows match on item number."""
+    if e.get("layout") != "pricing_schedule":
+        return [c for c in card if str(c.get("item_no")) == e["item_no"]]
+    key = "a" if e["service_type"] == "A" else "b"
+    want = _norm(schedule_label(e))
+    named = [c for c in card if c.get("kind") in ("service", "call_out") and _norm(c.get("label")) == want]
+    if named:
+        return named
+    return [c for c in card if c.get(f"sage_code_{key}") == e["sage_code"]]
+
+
+def schedule_label(e: dict) -> str:
+    variant = re.sub(r",?\s*type [abc] (service|only)\s*$", "", e.get("extended_description") or "", flags=re.I).strip(" ,")
+    return f"{e['name']} — {variant}" if variant else e["name"]
+
+
 def diff_against_card(entries: list[dict], card: list[dict]) -> list[dict]:
-    by_item = {str(c.get("item_no")): c for c in card}
     out = []
     for e in entries:
-        cur = by_item.get(e["item_no"])
+        hits = match_card(e, card)
+        cur = hits[0] if hits else None
         t = e["service_type"].lower() if e["service_type"] in ("A", "B") else "b"
         old = cur.get(f"type_{t}_price") if cur else None
         out.append({**e, "rate_card_id": cur["id"] if cur else None, "current_price": old,
+                    "matched": [c.get("label") for c in hits],
                     "change": "new" if not cur else ("same" if old == e["price"] else "changed")})
     return out
 
@@ -131,13 +221,14 @@ def apply_entry(card_entry: dict, e: dict, approval: dict | None = None) -> dict
     Verification is per service type: only the imported type's rate is (re)verified."""
     t = e["service_type"]
     key = "a" if t == "A" else "b"
-    hist = HISTORICAL_PRINTED_REFS.get(e["uid"])
+    hist = None if e.get("layout") == "pricing_schedule" else HISTORICAL_PRINTED_REFS.get(e["uid"])
     if hist:
         printed_ref, printed_desc, src = hist[0], f"{hist[0]} - {hist[1]}", "issued_quotation"
     else:
         tail = "Type B Only" if card_entry.get("kind") == "call_out" else f"Type {t} Service"
         printed_ref, printed_desc, src = e["tl_ref"], f"{e['tl_ref']} - {e['name']} - {tail}", "schedule_b_unverified"
-    upd = {
+    upd = {"label": schedule_label(e)} if e.get("layout") == "pricing_schedule" and card_entry.get("kind") == "service" else {}
+    upd |= {
         f"sage_code_{key}": e["sage_code"], f"schedule_b_uid_{key}": e["uid"],
         f"tl_ref_{key}": e["tl_ref"], f"printed_ref_{key}": printed_ref,
         f"printed_desc_{key}": printed_desc, f"printed_ref_source_{key}": src,
@@ -151,8 +242,8 @@ def apply_entry(card_entry: dict, e: dict, approval: dict | None = None) -> dict
         upd[f"poa_{key}"] = False
         upd[f"type_{key}_price"] = e["price"]
         upd[f"price_status_{key}"] = "verified" if approval else "unverified"
-    if approval and approval.get("synthetic"):
-        upd[f"rate_{key}_synthetic"] = True
+    if approval:
+        upd[f"rate_{key}_synthetic"] = bool(approval.get("synthetic"))
     upd[f"rate_{key}"] = {
         "amount": e["price"], "currency": "GBP", "source": (approval or {}).get("source"),
         "schedule_b_uid": e["uid"], "schedule_b_ref": e["tl_ref"], "sage_code": e["sage_code"],

@@ -244,9 +244,8 @@ async def run_integrity_boot() -> dict:
     test_marked = 0
     for k in ("a", "b"):
         res = await db.mod_sor_rate_card.update_many(
-            {f"rate_{k}_synthetic": {"$ne": True}, "$or": [
-                {f"rate_{k}.approved_by": {"$regex": r"\(test\)\s*$"}},
-                {f"rate_{k}.source": {"$regex": r"^(SYNTHETIC TEST DATA|Schedule B import sor\.xlsx )"}}]},
+            {f"rate_{k}_synthetic": {"$ne": True},
+             f"rate_{k}.source": {"$regex": r"^(SYNTHETIC TEST DATA|Schedule B import sor\.xlsx )"}},
             {"$set": {f"rate_{k}_synthetic": True}})
         test_marked += res.modified_count
     _ = _re

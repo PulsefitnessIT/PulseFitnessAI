@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, FileCheck2, ListChecks, Tags, Download, Upload, FileText, Truck, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Plus, Search, FileCheck2, ListChecks, Tags, Download, Upload, FileText, Truck, AlertTriangle, ShieldCheck, ShieldAlert, PhoneCall, CheckCircle2, Mail } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { mq, errText, gbp, downloadBlob, TYPE_LABEL } from './modQuotesApi';
 import { Btn, StatusChip, Banner, Empty, Skeleton, Field } from './MqUi';
@@ -208,6 +208,72 @@ function Handovers({ caps, onOpen }) {
   );
 }
 
+const EMAIL_STATE = {
+  sent: ['ok', 'Chase email sent with PDFs'], dry_run: ['warn', 'Email not sent — customer emails are switched off'],
+  no_customer_email: ['bad', 'No customer email held'], no_published_quotes: ['neutral', 'No published quotations'],
+};
+
+function FollowupCard({ f, onOpen, onDone }) {
+  const [outcome, setOutcome] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [tone, label] = EMAIL_STATE[f.customer_email] || ['neutral', f.customer_email];
+  const overdue = f.due < new Date().toISOString().slice(0, 10);
+  const save = async () => {
+    setBusy(true);
+    try { await mq.post(`/followups/${f.id}/done`, { outcome }); notify.success('Follow-up recorded'); onDone(); } catch (e) { notify.error(errText(e)); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mq-card p-5" data-testid={`mq-followup-${f.id}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <button type="button" className="font-semibold text-left hover:underline" onClick={() => onOpen(f.group_id)} data-testid="mq-followup-open">{f.customer_name}</button>
+          <div className="text-xs mq-muted mt-0.5">Follow-up {f.chase_no} of 3 · {f.weeks} weeks after publication · due {new Date(f.due).toLocaleDateString('en-GB')}</div>
+        </div>
+        <StatusChip status={overdue ? 'expired' : 'pending_approval'} label={overdue ? 'Overdue' : 'Due'} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+        <Field label="Quotation">{(f.quote_refs || []).join(', ') || '—'}</Field>
+        <Field label="Contact">{f.contact_name || '—'}</Field>
+        <Field label="Email">{f.contact_email || '—'}</Field>
+        <Field label="Owner">{f.assigned_name || '—'}</Field>
+      </div>
+      <div className="mt-3"><StatusChip status={tone === 'ok' ? 'accepted' : tone === 'bad' ? 'declined' : tone === 'warn' ? 'pending_approval' : 'draft'} label={label} /></div>
+      <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t" style={{ borderColor: 'var(--theme-border)' }}>
+        <input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="What happened? e.g. Spoke to Sgt Smith — PO expected next week" aria-label="Chase outcome"
+          className="mq-input flex-1 min-w-[220px] h-10 px-3 text-sm" data-testid="mq-followup-outcome" />
+        <Btn icon={CheckCircle2} variant="primary" loading={busy} disabled={outcome.trim().length < 3} onClick={save} data-testid="mq-followup-done">Record &amp; close</Btn>
+      </div>
+    </div>
+  );
+}
+
+function Followups({ caps, onOpen }) {
+  const [items, setItems] = useState(null);
+  const [everyone, setEveryone] = useState(false);
+  const [running, setRunning] = useState(false);
+  const load = useCallback(() => mq.get('/followups', { params: { everyone } }).then((r) => setItems(r.data.items)).catch((e) => { notify.error(errText(e)); setItems([]); }), [everyone]);
+  useEffect(() => { load(); }, [load]);
+  const runNow = async () => {
+    setRunning(true);
+    try { const r = await mq.post('/followups/run'); notify.success(`${r.data.processed} follow-up(s) raised${r.data.live_email ? '' : ' — customer emails are switched off'}`); load(); } catch (e) { notify.error(errText(e)); } finally { setRunning(false); }
+  };
+  return (
+    <div className="space-y-3" data-testid="mq-followups">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex-1" />
+        {caps.manager && (
+          <>
+            <button type="button" className="mq-chip-btn" aria-pressed={everyone} onClick={() => setEveryone(!everyone)} data-testid="mq-followups-everyone">Everyone's follow-ups</button>
+            <Btn icon={PhoneCall} size="sm" loading={running} onClick={runNow} data-testid="mq-followups-run">Check for due follow-ups now</Btn>
+          </>
+        )}
+      </div>
+      {!items ? <Skeleton /> : items.map((f) => <FollowupCard key={f.id} f={f} onOpen={onOpen} onDone={load} />)}
+      {items && !items.length && <Empty icon={Mail} testid="mq-followups-empty" title="No follow-ups due" sub="Follow-ups appear here 2, 4 and 6 weeks after a quotation is published, until it is authorised, accepted or withdrawn." />}
+    </div>
+  );
+}
+
 const RATE_LABEL = { 'n/a': 'Not applicable', verified: 'Approved', unverified: 'Not approved', test_data: 'Test data', poa: 'POA', historical: 'Historical — confirm', expired: 'Expired', placeholder: 'Placeholder' };
 
 function RateCell({ r }) {
@@ -284,17 +350,17 @@ function Pricing() {
       </div>
       {preview && (
         <div className="mq-card p-5 space-y-3" data-testid="mq-sor-preview">
-          <div className="font-semibold">Import preview — not live until approved</div>
+          <div className="font-semibold">Import preview — not live until approved{preview.price_year ? ` · using Year ${preview.price_year} prices` : ''}</div>
           {preview.synthetic && <Banner tone="bad" icon={ShieldAlert} testid="mq-sor-synthetic">This workbook is marked <b>SYNTHETIC TEST DATA</b>. It cannot replace the live Schedule of Rates.</Banner>}
           {preview.issues.length > 0 && (
             <Banner icon={AlertTriangle} testid="mq-sor-issues"><ul className="space-y-1">{preview.issues.map((i) => <li key={i.message}>{i.message}</li>)}</ul></Banner>
           )}
           <div className="overflow-x-auto max-h-96">
             <table className="mq-table mq-table--dense text-xs">
-              <thead><tr><th>ID</th><th>Item</th><th>Sage code</th><th>Schedule B ref</th><th className="mq-num">Current</th><th className="mq-num">New</th><th>Change</th></tr></thead>
+              <thead><tr><th>ID</th><th>Item</th><th>Sage code</th><th>Schedule B ref</th><th>Updates</th><th className="mq-num">Current</th><th className="mq-num">New</th><th>Change</th></tr></thead>
               <tbody>{preview.rows.map((r) => (
                 <tr key={r.uid}>
-                  <td>{r.uid}</td><td>{r.name}</td><td>{r.sage_code}{r.ambiguous_sage_code ? ' (shared)' : ''}</td><td>{r.tl_ref}</td>
+                  <td>{r.uid}</td><td>{r.name}{r.extended_description ? <div className="mq-muted">{r.extended_description}</div> : null}</td><td>{r.sage_code}{r.ambiguous_sage_code ? ' (shared)' : ''}</td><td>{r.tl_ref}</td><td className="mq-muted">{(r.matched || []).join(', ') || 'New rate-card entry'}</td>
                   <td className="mq-num">{r.current_price ?? '—'}</td><td className="mq-num">{r.is_poa ? 'POA' : r.price}</td>
                   <td><StatusChip status={r.change === 'changed' ? 'pending_approval' : r.change === 'new' ? 'approved' : 'draft'} label={r.change} /></td>
                 </tr>))}</tbody>
@@ -329,6 +395,7 @@ function Pricing() {
 const SECTIONS = {
   quotes: ['All quotations', ListChecks, 'Prepare, approve and publish MOD service quotations.'],
   auth: ['Customer authorisations', FileCheck2, 'Customer purchase-order authorisations awaiting manager verification.'],
+  followups: ['Follow-ups', PhoneCall, 'Each published quotation is chased 2, 4 and 6 weeks after publication: the customer is emailed the quotation PDFs and the quote owner gets a reminder here.'],
   handover: ['Service handover', Truck, 'Accepted quotations passed to MOD Service Operations for contract set-up.'],
   pricing: ['Schedule of Rates', Tags, 'The Schedule B price list used for every MOD quotation.'],
 };
@@ -350,7 +417,7 @@ export default function ModQuotations() {
     body = <ModQuoteGroup key={mode.id} groupId={mode.id} caps={caps} onBack={() => setMode({ view: 'list' })}
       onEdit={() => mq.get(`/groups/${mode.id}`).then((r) => setMode({ view: 'wizard', group: r.data }))} />;
   } else {
-    const keys = ['quotes', 'auth', 'handover', ...(caps.pricing ? ['pricing'] : [])];
+    const keys = ['quotes', 'followups', 'auth', 'handover', ...(caps.pricing ? ['pricing'] : [])];
     const [, , desc] = SECTIONS[tab];
     body = (
       <>
@@ -366,6 +433,7 @@ export default function ModQuotations() {
         </div>
         <p className="text-sm mq-muted mt-3 mb-5" data-testid="mq-section-desc">{desc}</p>
         {tab === 'quotes' && <GroupList onOpen={(id) => setMode({ view: 'group', id })} onNew={() => setMode({ view: 'wizard' })} />}
+        {tab === 'followups' && <Followups caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
         {tab === 'auth' && <Authorisations caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
         {tab === 'handover' && <Handovers caps={caps} onOpen={(id) => setMode({ view: 'group', id })} />}
         {tab === 'pricing' && <Pricing />}

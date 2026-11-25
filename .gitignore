@@ -169,3 +169,6 @@ backend/tests/fixtures/mod_quotes/
 test_reports/mm_tmp/
 memory/test_credentials_bfpo.md
 .lintfix/
+
+# Commercially sensitive source documents (never commit)
+restricted/

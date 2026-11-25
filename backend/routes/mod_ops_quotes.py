@@ -23,9 +23,10 @@ from routes.bfpo import _require_staff
 from routes.crm_auth import get_crm_user
 from routes.crm_mod_quote import _ensure_rate_card
 from utils.database import db, get_object, put_object
+from utils.mod_quote_chase import chase_schedule, run_chases
 from utils.mod_quote_engine import (QUOTE_TYPES, TYPE_LABELS, apply_entry, build_quote, diff_against_card,
                                     parse_equipment_file, parse_schedule_b, suggest_coverage,
-                                    rate_is_verified, synthetic_rates_allowed)
+                                    rate_is_verified, synthetic_rates_allowed, match_card, schedule_label)
 from utils.mod_quote_pdf import render_mod_quote_pdf
 from utils.mod_sor_data import match_by_mod_code, match_equipment
 
@@ -33,8 +34,8 @@ router = APIRouter(prefix="/mod-ops/quotes", tags=["mod-ops-quotes"])
 
 PERM_SALES, PERM_APPROVE, PERM_PRICING = "sales", "manager", "pricing"
 CUSTOMER_VISIBLE = ("published", "customer_review", "authorisation_submitted", "accepted", "handed_over")
-DEFAULT_VALIDITY = {"id": "validity", "days": 30, "status": "provisional",
-                    "note": "Provisional internal setting — official MOD validity period not yet approved"}
+DEFAULT_VALIDITY = {"id": "validity", "days": 365, "status": "approved",
+                    "note": "Approved by Pulse Fitness 25/11/2026 — Schedule B Year 4 prices are fixed for a year"}
 HIDDEN_STATUSES = ("superseded", "staging", "failed_staging")
 
 
@@ -631,9 +632,54 @@ async def publish(gid: str, body: PublishIn, user=Depends(_sales)):
         raise
     await db.crm2_quotes.update_many({"mod_group_id": gid, "status": "approved", "id": {"$nin": body.quote_ids}},
                                      {"$set": {"status": "approved_not_published"}})
-    await db.mod_quote_groups.update_one({"id": gid}, {"$set": {"status": "published", "published_at": _now(), "updated_at": _now()}})
+    await db.mod_quote_groups.update_one({"id": gid}, {"$set": {"status": "published", "published_at": _now(), "updated_at": _now(),
+                                                                "chase_schedule": chase_schedule(date.today())}})
     await _crm_activity(g, "MOD quotations published to MODService", ", ".join(q["quote_number"] for q in qs), user)
     return await get_group(gid, user)
+
+
+def _can(user: dict, perm: str) -> bool:
+    try:
+        _need(user, perm)
+        return True
+    except HTTPException:
+        return False
+
+
+@router.get("/followups")
+async def list_followups(status: str = "open", everyone: bool = False, user=Depends(_sales)):
+    q: dict = {"organization_id": user.get("organization_id")} if not user.get("is_master_admin") else {}
+    if status:
+        q["status"] = status
+    if not (everyone and _can(user, PERM_APPROVE)):
+        q["assigned_to"] = user.get("id")
+    items = await db.mod_quote_followups.find(q, {"_id": 0}).sort("due", 1).to_list(500)
+    return {"items": items}
+
+
+class FollowupDoneIn(BaseModel):
+    outcome: str = Field(..., min_length=3, max_length=500)
+
+
+@router.post("/followups/{fid}/done")
+async def followup_done(fid: str, body: FollowupDoneIn, user=Depends(_sales)):
+    f = await db.mod_quote_followups.find_one({"id": fid}, {"_id": 0})
+    if not f:
+        raise HTTPException(404, "Follow-up not found")
+    if f["assigned_to"] != user.get("id") and not _can(user, PERM_APPROVE):
+        raise HTTPException(403, "Only the quote owner or a MOD Sales Manager can close this follow-up")
+    res = await db.mod_quote_followups.update_one({"id": fid, "status": "open"}, {"$set": {
+        "status": "done", "outcome": body.outcome.strip(), "done_by": user.get("full_name") or user.get("email"), "done_at": _now()}})
+    if not res.modified_count:
+        raise HTTPException(409, "This follow-up is already closed")
+    await _event(f["group_id"], "follow_up_recorded", user, detail={"chase": f["chase_no"], "outcome": body.outcome.strip()})
+    return {"ok": True}
+
+
+@router.post("/followups/run")
+async def followups_run(user=Depends(_sales)):
+    _need(user, PERM_APPROVE)
+    return await run_chases()
 
 
 class SageRefIn(BaseModel):
@@ -662,7 +708,7 @@ async def set_sage_ref(qid: str, body: SageRefIn, user=Depends(_sales)):
 class NotifyIn(BaseModel):
     to: str = ""
     confirm_to: str = ""
-    attach_pdfs: bool = False
+    attach_pdfs: bool = True
     resend: bool = False
 
 
@@ -683,10 +729,12 @@ async def notify_customer(gid: str, body: NotifyIn, user=Depends(_sales)):
     live = os.environ.get("MOD_QUOTE_NOTIFY_LIVE", "").lower() == "true"
     portal = os.environ.get("MOD_PORTAL_URL", "").rstrip("/")
     rows = "".join(f"<li>{q['quote_number']} — {TYPE_LABELS[q['mod_quote_type']]}: £{q['total']:,.2f} inc. VAT</li>" for q in qs)
-    html = (f"<p>Dear {g['customer'].get('contact_name') or 'Customer'},</p><p>Your Pulse Fitness maintenance quotations "
-            f"for {g['customer']['name']} are ready to review in MODService.</p><ul>{rows}</ul>"
-            f"<p><a href=\"{portal}\">Open MODService</a> to compare the options, download them for authorisation and "
-            f"tell us which option you would like to pursue. Downloading a quotation does not commit you to it.</p>"
+    portal_line = (f"<p>If your unit uses MODService you can also compare the options and authorise online at "
+                   f"<a href=\"{portal}\">{portal}</a>. Downloading a quotation does not commit you to it.</p>") if portal else ""
+    attached = "Copies are attached to this email." if body.attach_pdfs else ""
+    html = (f"<p>Dear {g['customer'].get('contact_name') or 'Customer'},</p><p>Please find below your Pulse Fitness "
+            f"maintenance quotation(s) for {g['customer']['name']}. {attached}</p><ul>{rows}</ul>{portal_line}"
+            f"<p>To proceed, reply with your purchase order or authorisation and tell us which option you would like.</p>"
             f"<p>Pulse Fitness MOD Sales</p>")
     import base64
     atts = [{"filename": pdf_filename(q, g), "content": base64.b64encode(await quote_pdf_bytes(q, g)).decode()} for q in qs] if body.attach_pdfs else []
@@ -876,9 +924,9 @@ async def rates_import_preview(file: UploadFile = File(...), user=Depends(requir
     await db.mod_sor_price_lists.insert_one({
         "id": pid, "status": "preview", "filename": file.filename, "sha256": hashlib.sha256(content).hexdigest(),
         "entries": parsed["entries"], "issues": parsed["issues"], "uploaded_by": user.get("full_name") or user.get("email"),
-        "uploaded_at": _now(), "synthetic": parsed["synthetic"]})
+        "uploaded_at": _now(), "synthetic": parsed["synthetic"], "price_year": parsed.get("price_year")})
     return {"price_list_id": pid, "rows": diff_against_card(parsed["entries"], card), "issues": parsed["issues"],
-            "synthetic": parsed["synthetic"]}
+            "synthetic": parsed["synthetic"], "price_year": parsed.get("price_year")}
 
 
 class RatesApproveIn(BaseModel):
@@ -898,27 +946,44 @@ async def rates_approve(pid: str, body: RatesApproveIn, user=Depends(require_ope
         raise HTTPException(409, "Price list is not awaiting approval")
     if pl.get("synthetic") and not synthetic_rates_allowed():
         raise HTTPException(409, "This workbook is marked SYNTHETIC TEST DATA and cannot replace the live Schedule of Rates")
-    card = {str(c["item_no"]): c for c in (await _card_by_id()).values()}
+    card = list((await _card_by_id()).values())
     eff, exp = body.effective_from.isoformat(), (body.expires_on.isoformat() if body.expires_on else None)
     version = f"SOR-{eff}-{pid[:6]}"
+    created: dict[str, dict] = {}
     for e in pl["entries"]:
-        c = card.get(e["item_no"])
-        if not c:
-            continue
-        await db.mod_sor_rate_card_history.insert_one({"id": str(uuid.uuid4()), "rate_card_id": c["id"], "before": c,
-                                                       "price_list_id": pid, "changed_by": user.get("id"), "at": _now()})
-        approval = {"source": f"Schedule B import {pl['filename']} (sha256 {pl['sha256'][:12]})", "effective_from": eff,
-                    "expires_on": exp, "approved_by": user.get("full_name") or user.get("email"),
-                    "approved_at": _now(), "version": version, "synthetic": bool(pl.get("synthetic"))}
-        if approval["synthetic"]:
-            approval["source"] = "SYNTHETIC TEST DATA — " + approval["source"]
-        await db.mod_sor_rate_card.update_one({"id": c["id"]}, {"$set": {
-            **apply_entry(c, e, approval), "price_list_version": version, "updated_at": _now()}})
+        hits = match_card(e, card) or ([created[e["item_no"]]] if e["item_no"] in created else [])
+        if not hits and e.get("layout") == "pricing_schedule" and e["service_type"] in ("A", "B"):
+            new = {"id": str(uuid.uuid4()), "item_no": f"{e['item_no']}-{pid[:4]}", "kind": "service",
+                   "label": schedule_label(e),
+                   "equipment_type": e["name"], "currency": "GBP", "is_poa": False, "match_keywords": [],
+                   "sort_order": 100 + int(e["item_no"]), "created_from_price_list": pid, "created_at": _now()}
+            await db.mod_sor_rate_card.insert_one(dict(new))
+            created[e["item_no"]] = new
+            card.append(new)
+            hits = [new]
+        for c in hits:
+            await _apply_rate(c, e, pl, pid, eff, exp, version, user)
+    await _finish_approve(pid, eff, version, user)
+    return {"ok": True, "version": version, "created_entries": len(created)}
+
+
+async def _apply_rate(c, e, pl, pid, eff, exp, version, user):
+    await db.mod_sor_rate_card_history.insert_one({"id": str(uuid.uuid4()), "rate_card_id": c["id"], "before": c,
+                                                   "price_list_id": pid, "changed_by": user.get("id"), "at": _now()})
+    approval = {"source": f"Schedule B import {pl['filename']} (sha256 {pl['sha256'][:12]})", "effective_from": eff,
+                "expires_on": exp, "approved_by": user.get("full_name") or user.get("email"),
+                "approved_at": _now(), "version": version, "synthetic": bool(pl.get("synthetic"))}
+    if approval["synthetic"]:
+        approval["source"] = "SYNTHETIC TEST DATA — " + approval["source"]
+    await db.mod_sor_rate_card.update_one({"id": c["id"]}, {"$set": {
+        **apply_entry(c, e, approval), "price_list_version": version, "updated_at": _now()}})
+
+
+async def _finish_approve(pid, eff, version, user):
     await db.mod_sor_price_lists.update_many({"status": "live"}, {"$set": {"status": "superseded"}})
     await db.mod_sor_price_lists.update_one({"id": pid}, {"$set": {"status": "live", "version": version,
                                                                    "effective_from": eff,
                                                                    "approved_by": user.get("full_name") or user.get("email"), "approved_at": _now()}})
-    return {"ok": True, "version": version}
 
 
 @router.get("/rates/price-lists")

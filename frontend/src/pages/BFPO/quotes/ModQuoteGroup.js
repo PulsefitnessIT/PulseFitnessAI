@@ -87,7 +87,7 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
           {g.status === 'approved' && <Btn icon={Globe2} variant="primary" loading={busy} disabled={!sel.length} data-testid="mq-publish"
             onClick={() => window.confirm(`Publish ${sel.length} quotation(s) to the MODService portal for ${c.name}?`) && act(() => mq.post(`/groups/${g.id}/publish`, { quote_ids: sel }), 'Published to MODService')}>Publish to MODService</Btn>}
           {canNotify && <Btn icon={Mail} variant={['published'].includes(g.status) && g.notified_revision !== g.revision ? 'primary' : 'secondary'} disabled={busy} data-testid="mq-notify"
-            onClick={() => { setNotifyForm({ to: c.contact_email || '', confirm_to: '', attach_pdfs: false }); setNotifyOpen(true); }}>
+            onClick={() => { setNotifyForm({ to: c.contact_email || '', confirm_to: '', attach_pdfs: true }); setNotifyOpen(true); }}>
             {g.notified_revision === g.revision ? 'Resend notification' : 'Notify customer'}</Btn>}
           {['draft', 'pending_approval', 'approved', 'published', 'customer_review'].includes(g.status) &&
             <Btn icon={Pencil} disabled={busy} onClick={onEdit} data-testid="mq-edit">{g.status === 'draft' || g.status === 'pending_approval' ? 'Edit draft' : 'Create revision'}</Btn>}
@@ -134,10 +134,21 @@ export default function ModQuoteGroup({ groupId, caps, onBack, onEdit }) {
           <div className="font-semibold">Tell the customer their quotations are ready in MODService</div>
           <input value={notifyForm.to} onChange={(e) => setNotifyForm({ ...notifyForm, to: e.target.value })} placeholder="Recipient email" aria-label="Recipient email" className="mq-input w-full h-10 px-3 text-sm" data-testid="mq-notify-to" />
           <input value={notifyForm.confirm_to} onChange={(e) => setNotifyForm({ ...notifyForm, confirm_to: e.target.value })} placeholder="Re-type recipient email to confirm" aria-label="Confirm recipient email" className="mq-input w-full h-10 px-3 text-sm" data-testid="mq-notify-confirm" />
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={notifyForm.attach_pdfs} onChange={(e) => setNotifyForm({ ...notifyForm, attach_pdfs: e.target.checked })} data-testid="mq-notify-attach" /> Also attach the quotation PDFs</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={notifyForm.attach_pdfs} onChange={(e) => setNotifyForm({ ...notifyForm, attach_pdfs: e.target.checked })} data-testid="mq-notify-attach" /> Attach the quotation PDFs (needed for customers without MODService)</label>
           <div className="flex gap-2 justify-end">
             <Btn variant="ghost" onClick={() => setNotifyOpen(false)} data-testid="mq-notify-cancel">Cancel</Btn>
             <Btn icon={Mail} variant="primary" loading={busy} onClick={sendNotify} data-testid="mq-notify-send">Send notification</Btn>
+          </div>
+        </div>
+      )}
+      {(g.chase_schedule || []).length > 0 && (
+        <div className="mq-card p-5 mt-4" data-testid="mq-chase-schedule">
+          <div className="font-semibold mb-2">Follow-ups</div>
+          <div className="flex flex-wrap gap-2">
+            {g.chase_schedule.map((c) => (
+              <StatusChip key={c.n} status={c.status === 'done' ? 'accepted' : c.status === 'cancelled' ? 'withdrawn' : 'pending_approval'}
+                label={`${c.weeks} weeks · ${new Date(c.due).toLocaleDateString('en-GB')} · ${c.status === 'done' ? 'chased' : c.status === 'cancelled' ? 'not needed' : 'scheduled'}`} />
+            ))}
           </div>
         </div>
       )}

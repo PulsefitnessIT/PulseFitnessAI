@@ -239,6 +239,11 @@ async def _daily_checks_all(run_id: str) -> None:
             results.append(await run_daily_checks(org_id, actor="Daily checks (7am)"))
         except Exception as e:  # keep other orgs running
             results.append({"organization_id": org_id, "error": str(e)})
+    try:
+        from utils.mod_quote_chase import run_chases
+        results.append({"mod_quote_chases": await run_chases()})
+    except Exception as e:  # MOD chases must never block Contract Management checks
+        results.append({"mod_quote_chases_error": str(e)})
     await db.cm_daily_check_runs.update_one({"run_id": run_id}, {"$set": {"status": "done", "results": results}})
 
 
