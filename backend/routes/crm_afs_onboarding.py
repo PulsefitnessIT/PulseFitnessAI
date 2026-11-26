@@ -699,7 +699,18 @@ async def _customer_candidates(op_org: str, customer: str) -> list:
                     "sites": await db.sites.count_documents({"organization_id": lo}) if lo else 0,
                     "equipment": await db.equipment.count_documents({"organization_id": lo}) if lo else 0})
     out.sort(key=lambda x: (x["match"] != "exact", x.get("name") or ""))
-    return out[:8]
+    out = out[:8]
+    # Customer organisations from the shared identity service (Sage imports, manual adds) with no CRM mirror yet.
+    from utils import customer_identity as CI
+    linked = {c.get("linked_organization_id") for c in out if c.get("linked_organization_id")}
+    for sug in await CI.duplicate_suggestions(customer):
+        if sug["id"] in linked or sug["id"] == op_org:
+            continue
+        out.append({"id": f"org:{sug['id']}", "name": sug.get("name"), "match": "similar", "kind": "organisation",
+                    "linked_organization_id": sug["id"],
+                    "sites": await db.sites.count_documents({"organization_id": sug["id"]}),
+                    "equipment": await db.equipment.count_documents({"organization_id": sug["id"]})})
+    return out[:12]
 
 
 @router.get("/{import_id}/reconcile")
@@ -732,11 +743,26 @@ async def commit(import_id: str, data: dict = Body(default={}), user=Depends(req
 
     # 0) Customer reconciliation — link an existing CRM company or explicitly create.
     company = None
-    if data.get("company_id"):
+    if str(data.get("company_id") or "").startswith("org:"):
+        data["customer_org_id"] = data.pop("company_id")[4:]
+    if data.get("customer_org_id"):
+        if data["customer_org_id"] == op_org or not await db.organizations.find_one(
+                {"id": data["customer_org_id"]}, {"_id": 1}):
+            raise HTTPException(404, "Selected customer not found")
+        company = await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": data["customer_org_id"]},
+                                                   {"_id": 0}) or {"linked_organization_id": data["customer_org_id"]}
+    elif data.get("account_ref"):
+        from utils import customer_identity as CI
+        hits = [o for o in await CI.find_orgs_by_ref(data["account_ref"], data.get("sage_company") or "") if o != op_org]
+        if len(hits) == 1:
+            data["customer_org_id"] = hits[0]
+            company = await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": hits[0]},
+                                                       {"_id": 0}) or {"linked_organization_id": hits[0]}
+    if company is None and data.get("company_id"):
         company = await db.crm2_companies.find_one({"id": data["company_id"], "organization_id": op_org}, {"_id": 0})
         if not company:
             raise HTTPException(404, "Selected customer not found")
-    elif not data.get("create_new_customer"):
+    elif company is None and not data.get("create_new_customer"):
         cands = await _customer_candidates(op_org, customer)
         if cands:
             raise HTTPException(409, {"code": "customer_match_required", "candidates": cands,
@@ -764,8 +790,10 @@ async def _shared_customer(name: str, ref: str, user: dict, data: dict) -> str:
         org_id, _ = await CI.provision_customer_org({"name": name}, source="afs_estate_onboarding", actor=user.get("email"),
                                                     ref=ref, confirmed_new=bool(data.get("confirm_new_customer") or data.get("create_new_customer")))
     except CI.DuplicateSuspected as e:
-        raise HTTPException(409, {"message": "This customer may already exist. Pick the existing customer, or confirm it is new.",
-                                  "suggestions": e.suggestions})
+        raise HTTPException(409, {"code": "customer_match_required", "suggestions": e.suggestions,
+                                  "message": "This customer may already exist. Pick the existing customer, or confirm it is new.",
+                                  "candidates": [{"id": f"org:{x['id']}", "name": x.get("name"), "match": "similar",
+                                                  "kind": "organisation", "linked_organization_id": x["id"]} for x in e.suggestions]})
     await CI.mark_complete(org_id)
     return org_id
 
@@ -776,22 +804,37 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
     reused = {"customer": bool(company), "sites": 0, "equipment": 0}
 
     # 1+2) Customer org + CRM company (reuse when linked).
-    if company:
+    if company and company.get("id"):
         crm_company_id = company["id"]
         customer = company.get("name") or customer
         cust_org_id = company.get("linked_organization_id")
         if not cust_org_id:
-            cust_org_id = await _shared_customer(customer, company.get("account_number") or "", user, {**data, "confirm_new_customer": True})
+            # Shared matching: account number first, then duplicate review (no forced create).
+            cust_org_id = await _shared_customer(customer, company.get("account_number") or company.get("sage_customer_id") or "",
+                                                 user, data)
             await db.crm2_companies.update_one({"id": crm_company_id}, {"$set": {
                 "linked_organization_id": cust_org_id, "updated_at": _now()}})
-    else:
-        cust_org_id = await _shared_customer(customer, data.get("account_ref") or "", user, data)
+    elif company:
+        cust_org_id = company["linked_organization_id"]
+        org = await db.organizations.find_one({"id": cust_org_id}, {"_id": 0, "name": 1})
+        customer = (org or {}).get("name") or customer
         crm_company_id = _id()
         await db.crm2_companies.insert_one({
             "id": crm_company_id, "organization_id": op_org, "name": customer,
             "type": "customer", "linked_organization_id": cust_org_id,
             "is_operator_company": False, "created_via": "afs_estate_onboarding",
             "created_at": _now(), "updated_at": _now()})
+    else:
+        cust_org_id = await _shared_customer(customer, data.get("account_ref") or "", user, data)
+        existing = await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": cust_org_id},
+                                                    {"_id": 0, "id": 1})
+        crm_company_id = existing["id"] if existing else _id()
+        if not existing:
+            await db.crm2_companies.insert_one({
+                "id": crm_company_id, "organization_id": op_org, "name": customer,
+                "type": "customer", "linked_organization_id": cust_org_id,
+                "is_operator_company": False, "created_via": "afs_estate_onboarding",
+                "created_at": _now(), "updated_at": _now()})
 
     # 3) Sites — reuse an existing site (same name or site code) before creating.
     existing_sites = await db.sites.find({"organization_id": cust_org_id},

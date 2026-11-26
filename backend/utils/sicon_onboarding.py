@@ -91,11 +91,23 @@ async def classify_customer(org_id: str, cid, code: Optional[str], name: Optiona
         pid = await links.get_pulse_id(links.ENTITY_CUSTOMER, cid, org_id)
         if pid:
             return {"bucket": "matched", "pulse_id": pid}
+    linked_org = None
     if code:
-        rows = await db.crm2_companies.find({"organization_id": org_id, "sage_customer_id": code},
-                                            {"_id": 0, "id": 1}).to_list(3)
+        # Shared customer identity (same matching as Sage imports): account ref -> one customer organisation.
+        from utils import customer_identity as CI
+        hits = [o for o in await CI.find_orgs_by_ref(code) if o != org_id]
+        if len(hits) == 1:
+            linked_org = hits[0]
+            row = await db.crm2_companies.find_one({"organization_id": org_id, "linked_organization_id": linked_org},
+                                                   {"_id": 0, "id": 1})
+            if row:
+                return {"bucket": "matched", "pulse_id": row["id"], "linked_org": linked_org}
+        ref = CI.clean_ref(code)
+        rows = await db.crm2_companies.find(
+            {"organization_id": org_id, "$or": [{"sage_customer_id": code}, {"account_number": ref}, {"sage_account_refs": ref}]},
+            {"_id": 0, "id": 1}).to_list(3)
         if len(rows) == 1:
-            return {"bucket": "matched", "pulse_id": rows[0]["id"]}
+            return {"bucket": "matched", "pulse_id": rows[0]["id"], "linked_org": linked_org}
         if len(rows) > 1:
             return {"bucket": "conflict", "reasons": [f"{len(rows)} Pulse customers share Sage code '{code}'"],
                     "candidates": [r["id"] for r in rows]}
@@ -106,7 +118,7 @@ async def classify_customer(org_id: str, cid, code: Optional[str], name: Optiona
         if rows:
             return {"bucket": "conflict", "reasons": ["A Pulse customer with the same name exists but has no Sage code"],
                     "candidates": [r["id"] for r in rows]}
-    return {"bucket": "new"}
+    return {"bucket": "new", "linked_org": linked_org}
 
 
 async def sync_customer(org_id: str, cid, code, name, apply: bool, run_id: str) -> Dict[str, Any]:
@@ -122,6 +134,8 @@ async def sync_customer(org_id: str, cid, code, name, apply: bool, run_id: str) 
         diff = _has_diff(existing, incoming)
         if apply:
             setdoc = await gap_fill(org_id, "customer", ext, cls["pulse_id"], existing, incoming, run_id)
+            if cls.get("linked_org") and not existing.get("linked_organization_id"):
+                setdoc = {**(setdoc or {}), "linked_organization_id": cls["linked_org"], "linked_at": _now()}
             if setdoc:
                 await db.crm2_companies.update_one({"id": cls["pulse_id"]}, {"$set": {**setdoc, "updated_at": _now()}})
             if cid is not None:
@@ -132,6 +146,8 @@ async def sync_customer(org_id: str, cid, code, name, apply: bool, run_id: str) 
         doc = {"id": str(uuid.uuid4()), "organization_id": org_id,
                "name": name or f"Sicon customer {code or cid}", "type": "customer", "status": "active",
                "sage_customer_id": code or "", "sicon_customer_id": cid, "country": "United Kingdom",
+               "account_number": (code or "").strip().upper(), "sage_account_refs": [(code or "").strip().upper()] if code else [],
+               "linked_organization_id": cls.get("linked_org"), "linked_at": _now() if cls.get("linked_org") else None,
                "source": "sicon_import", "tags": ["sicon"], "created_at": _now(), "updated_at": _now()}
         await db.crm2_companies.insert_one(doc)
         if cid is not None:

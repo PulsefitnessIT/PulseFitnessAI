@@ -739,7 +739,7 @@ async def _crm_company(op: dict, org_id: str, ref: str, user: dict, job: dict) -
     """Internal Pulse CRM company for this customer — matched by link or account number, never by name."""
     c = await db.crm2_companies.find_one({"organization_id": op["id"], "linked_organization_id": org_id}, {"_id": 0, "id": 1})
     if not c and ref and not (job.get("source_company") or ""):
-        c = await db.crm2_companies.find_one({"organization_id": op["id"], "account_number": ref,
+        c = await db.crm2_companies.find_one({"organization_id": op["id"], "$or": [{"account_number": ref}, {"sage_customer_id": ref}],
                                               "linked_organization_id": {"$in": [None, ""]}}, {"_id": 0, "id": 1})
         if c:
             await _log(job["id"], org_id, "crm2_companies", {"id": c["id"]}, before={"linked_organization_id": None, "linked_at": None})

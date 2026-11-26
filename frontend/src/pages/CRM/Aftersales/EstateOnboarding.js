@@ -693,7 +693,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                   <label key={m.id} className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: c.text }} data-testid={`afs-onb-match-${m.id}`}>
                     <input type="radio" name="afs-match" checked={matchChoice === m.id} onChange={() => setMatchChoice(m.id)} />
                     <span className="font-semibold">{m.name}</span>
-                    <span style={{ color: c.textDim }}>{m.match === 'exact' ? 'Exact name match' : 'Similar name'} · {m.sites} sites · {m.equipment} equipment</span>
+                    <span style={{ color: c.textDim }}>{m.kind === 'organisation' ? 'Existing customer organisation' : (m.match === 'exact' ? 'Exact name match' : 'Similar name')}{m.sites != null ? ` · ${m.sites} sites · ${m.equipment} equipment` : ''}</span>
                   </label>
                 ))}
                 <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: c.text }} data-testid="afs-onb-match-new">
