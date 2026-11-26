@@ -39607,3 +39607,11 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Plaintext reveal and email of passwords retired; plaintext no longer stored.
 - Docs: memory/PLATFORM_DATA_ARCHITECTURE.md (data ownership, flow matrix, gaps for Releases B–E).
 - NOT DONE: Releases B–E (estate and equipment/contract identity, activation and invitations, MFA, site-specific gym floor, shared person id, consent unification, product events, LITE→PRO testing, purchasing, cancellation).
+
+## Nov 2026: Shared customer matching for the Sicon sync and Aftersales estate onboarding (iterations 333–335, all passing)
+- Sicon sync (utils/sicon_onboarding.py) matches customers by Sage account ref through customer_identity.find_orgs_by_ref, then uses the org's CRM mirror. New CRM companies are linked to the org and carry account_number/sage_account_refs. Sicon never creates orgs. The Sage import _crm_company also links old Sicon CRM companies (matched on sage_customer_id).
+- Aftersales estate onboarding: reconcile/commit offer eligible Pulse-managed customer orgs ('org:<id>'), only in the Pulse operator workspace. Eligible means a LITE org or one already mirrored; never operator, platform-admin, full or other-tenant orgs. Other tenants get no cross-tenant matching, and their new orgs are stamped created_by_org_id.
+- Commit options: company_id + customer_org_id; account_ref auto-link; 409 with candidates when several orgs match; billing_frequency checked before any write; the link is written after the claim.
+- Fixed a master admin CRM token loop: /crm/auth/me returns home_organization_id, and the UnifiedAuthProvider guard compares it.
+- Fixed stale match choices in EstateOnboarding reset.
+- Remaining: Release A gap is the legacy bulk-import Undo safety. Releases B–E are still to do.

@@ -127,6 +127,7 @@ def lite_org_doc(org_id: str, fields: dict, *, ref: str = "", company: str = "",
         "primary_contact_name": fields.get("primary_contact_name", ""), "primary_contact_email": fields.get("primary_contact_email", ""),
         "features": {}, "notes": fields.get("notes", ""),
         "created_via": source, "created_via_job_id": job_id, "created_at": _now(),
+        **({"created_by_org_id": fields["created_by_org_id"]} if fields.get("created_by_org_id") else {}),
     }
 
 

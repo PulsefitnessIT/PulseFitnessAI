@@ -58,3 +58,7 @@ Last updated: Nov 2026, Release A. This document covers what exists today and th
 - Every import can be undone from Import History (preview first).
 - Removed documents are archived in `customer_import_rollback_archive`.
 - No destructive migration has been run. The only index change is that the staging unique index was replaced by the company-scoped one.
+
+
+## Update (Nov 2026)
+The Sicon sync and Aftersales estate onboarding now resolve customers through utils/customer_identity.py, the same matching that Sage imports use. Org-level matching is limited to the Pulse operator workspace and eligible Pulse-managed customer orgs (see crm_afs_onboarding._eligible_customer_org).

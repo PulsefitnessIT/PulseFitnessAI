@@ -839,7 +839,7 @@ async def _shared_customer(name: str, ref: str, user: dict, data: dict, op_org: 
     operator = await _is_operator(op_org)
     try:
         org_id, created = await CI.provision_customer_org(
-            {"name": name}, source="afs_estate_onboarding", actor=user.get("email"), ref=ref if operator else "",
+            {"name": name, **({} if operator else {"created_by_org_id": op_org})}, source="afs_estate_onboarding", actor=user.get("email"), ref=ref if operator else "",
             confirmed_new=(not operator) or bool(data.get("confirm_new_customer") or data.get("create_new_customer")))
     except ValueError as e:
         raise HTTPException(409, {"code": "customer_match_required", "message": str(e), "candidates": []})
@@ -848,8 +848,6 @@ async def _shared_customer(name: str, ref: str, user: dict, data: dict, op_org: 
                                   "message": "This customer may already exist. Pick the existing customer, or confirm it is new.",
                                   "candidates": [{"id": f"org:{x['id']}", "name": x.get("name"), "match": "similar",
                                                   "kind": "organisation", "linked_organization_id": x["id"]} for x in e.suggestions]})
-    if created and not operator:
-        await db.organizations.update_one({"id": org_id}, {"$set": {"created_by_org_id": op_org}})
     if not created and not await _eligible_customer_org(op_org, org_id):
         raise HTTPException(409, "That account number belongs to an organisation you cannot link to — check the account reference.")
     await CI.mark_complete(org_id)
@@ -875,7 +873,7 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
             # Shared matching: account number first, then duplicate review (no forced create).
             cust_org_id = await _shared_customer(customer, company.get("account_number") or company.get("sage_customer_id") or "",
                                                  user, data, op_org)
-            await db.crm2_companies.update_one({"id": crm_company_id}, {"$set": {
+            await db.crm2_companies.update_one({"id": crm_company_id, "linked_organization_id": {"$in": [None, ""]}}, {"$set": {
                 "linked_organization_id": cust_org_id, "updated_at": _now()}})
     elif company:
         cust_org_id = company["linked_organization_id"]
