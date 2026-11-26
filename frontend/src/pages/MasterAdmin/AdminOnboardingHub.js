@@ -14,6 +14,7 @@ import PulseOnboardingWizard from '../PulseOnboardingWizard';
 import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
 import AdminOnboardingPackets from './AdminOnboardingPackets';
 import AdminBulkImports from './AdminBulkImports';
+import SageSiconImport from './CustomerImport/SageSiconImport';
 import MODBulkImport from './MODBulkImport';
 import MODEstateWizard from './MODEstateWizard';
 import MODSiteOnboarding from './MODSiteOnboarding';
@@ -30,6 +31,7 @@ const TABS = [
   { id: 'site',         group: 'Customers', label: 'Onboard Site',        icon: Building2,       description: 'Step-through wizard for a single brand-new customer site.' },
   { id: 'head-office',  group: 'Customers', label: 'Head Office (multi-site)', icon: Building,   description: 'Create a corporate Head Office and N sites under it in one pass — for chains and multi-location operators.' },
   { id: 'packets',      group: 'Customers', label: 'Onboarding Packets',  icon: Clipboard,       description: 'Shareable self-service forms for customers to complete themselves.' },
+  { id: 'sage-import',  group: 'Customers', label: 'Sage & Sicon Customer Import', icon: Building2, description: 'Import the Sage 200 customer accounts and Sicon contacts. Upload, review matches and relationships, approve, then import. New customers get LITE only. No logins or emails.' },
   { id: 'imports',      group: 'Customers', label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of sites, equipment and customers.' },
   { id: 'mod-estate',   group: 'Customers', label: 'MOD Estate Setup',    icon: ShieldCheck,     description: 'Guided MOD setup — three independent service Head Offices (Army / RAF / Navy), global sites per service, external suppliers for overseas bases, and a whole-of-MOD reporting view.' },
   { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (CSV bulk)', icon: FileSpreadsheet, description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
@@ -98,6 +100,7 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
       {tab === 'head-office' && <HeadOfficeOnboardingWizard onComplete={onComplete} />}
       {tab === 'packets'     && <AdminOnboardingPackets />}
       {tab === 'imports'     && <AdminBulkImports API={_api} />}
+      {tab === 'sage-import' && <SageSiconImport />}
       {tab === 'mod-estate'  && <MODEstateWizard />}
       {tab === 'mod-imports' && <MODBulkImport API={_api} />}
       {tab === 'mod-equipment' && <MODSiteOnboarding />}

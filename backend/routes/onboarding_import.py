@@ -213,8 +213,9 @@ async def analyze(import_type: str = Form(...), file: UploadFile = File(...), us
     columns = reader.fieldnames or []
     rows = []
     for i, r in enumerate(reader):
-        if i >= _MAX_ROWS:
-            break
+        if i >= _MAX_ROWS:  # never silently truncate — the admin must split the file
+            raise HTTPException(413, f"This file has more than {_MAX_ROWS:,} rows. Split it into smaller files, or use "
+                                     "Import Centre → Sage Customer Accounts for full customer exports.")
         rows.append({k: (v or "").strip() for k, v in r.items() if k})
     return {
         "import_type": import_type,
@@ -454,7 +455,7 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
     import re as _re
     from routes.master_admin import (
         _normalize_modules, _derive_portal_type, merge_address,
-        _ensure_primary_contact_user, log_activity,
+        log_activity,
     )
     from utils.sites_isolation import get_primary_site_id
 
@@ -474,14 +475,17 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
             report["errors"].append({"row": idx + 1, "errors": errs})
             continue
         name = (doc.get("name") or "").strip()
-        key = name.lower()
+        key = (doc.get("customer_account_number") or "").strip().upper() or name.lower()
         if key in seen_names:
             report["skipped"] += 1
             continue
         seen_names.add(key)
 
+        acct = (doc.get("customer_account_number") or "").strip()
+        # Account number is the identity when present; organisations are never matched by name alone.
         existing = await db.organizations.find_one(
-            {"name": {"$regex": f"^{_re.escape(name)}$", "$options": "i"}},
+            {"$or": [{"customer_account_number": acct}, {"sage_customer_number": acct}, {"sage_account_refs": acct}]}
+            if acct else {"name": {"$regex": f"^{_re.escape(name)}$", "$options": "i"}},
             {"_id": 0, "id": 1},
         )
         try:
@@ -520,16 +524,13 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
                 "features": {},
                 "created_via": "customer_orgs_import",
             }
+            org_doc["onboarding_status"] = "pending_activation"
+            org_doc["portal_access"] = "not_activated"
             await db.organizations.insert_one(org_doc)
-            # Best-effort owner provisioning so they can log in later.
-            try:
-                await _ensure_primary_contact_user(org_doc, user)
-            except Exception:
-                logger.warning("primary contact provisioning failed for %s", name)
+            # Importing never creates logins or sends emails — owners are invited separately once verified.
             if operator_org_id:
                 await _ensure_crm_company_mirror(operator_org_id, org_id, doc, operator_site_id, user)
-            # Optional welcome email with a secure set-password link.
-            if body.send_welcome:
+            if False:
                 cemail = org_doc["primary_contact_email"]
                 if cemail:
                     owner_u = (await db.users.find_one({"email": cemail}, {"_id": 0, "id": 1, "full_name": 1})

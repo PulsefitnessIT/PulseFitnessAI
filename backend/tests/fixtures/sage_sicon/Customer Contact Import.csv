@@ -1,0 +1,9 @@
+﻿MetaDataDescription,CustomerCode,IsDefaultContact,Salutation,FirstName,MiddleName,LastName,TelephoneCountryCode,TelephoneAreaCode,TelephoneNumber,IsDefaultTelephoneNumber,MobileCountryCode,MobileAreaCode,MobileNumber,IsDefaultMobileNumber,FaxCountryCode,FaxAreaCode,FaxNumber,IsDefaultFax,Email,IsDefaultEmail,Website,IsDefaultWebsite,ContactRole,ContactRolePreferred
+Description,Customer Code,Is Default Contact,Salutation,First Name,Middle Name,Last Name,Telephone Country Code,Telephone Area Code,Telephone Number,Is Default Telephone Number,Mobile Country Code,Mobile Area Code,Mobile Number,Is Default Mobile Number,Fax Country Code,Fax Area Code,Fax Number,Is Default Fax,Email,Is Default Email,Website,Is Default Website,Contact Role,Contact Role Preferred
+Mandatory,Yes,,,,,,,,,,,,,,,,,,,,,,,
+Default Value,,,,,,,,,,,,,,,,,,,,,,,,
+Max Length,8,,,,,,,,,,,,,,,,,,,,,,,
+Comments,"SL Account Customer Code, Max 8 chars in this field.","IsDefaultContact Status, Available values: True/False",,,,,,,,"Is Default Telephone Number Status, Available values: True/False",,,,"Is Default Mobile Number Status, Available values: True/False",,,,"Is Default Fax Number Status, Available values: True/False",,"Is Default Email Status, Available values: True/False",,"Is Default Website Status, Available values: True/False",,"Contact Role Preferred, Available values: True/False"
+Sample Data,CUS001,TRUE,Mr.,Jim,J,Halp,44,0113,333333,TRUE,44,0113,444444,FALSE,55,6666,,FALSE,Jim@Halp.com,TRUE,Jim.com,TRUE,Account,TRUE
+Sample Data,CUS001,FALSE,Mr.,Micheal,,Scotty,353,01200,555555,FALSE,353,01200,777777,TRUE,,,,FALSE,,TRUE,,TRUE,Managing Director,FALSE
+Sample Data,CUS002,TRUE,Mr.,Dwight,,Scrant,,,,TRUE,,,,FALSE,,,,FALSE,,TRUE,,TRUE,Account,TRUE
