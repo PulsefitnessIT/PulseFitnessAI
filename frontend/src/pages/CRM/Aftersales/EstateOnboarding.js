@@ -67,6 +67,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
   const [billFreq, setBillFreq] = useState('');
   const [matchCands, setMatchCands] = useState(null); // existing-customer candidates awaiting a decision
   const [matchChoice, setMatchChoice] = useState('');
+  const [prevCompany, setPrevCompany] = useState('');
 
   // multi-file merge
   const [mergeSummary, setMergeSummary] = useState(null);
@@ -134,7 +135,10 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
         if (rc.data.decision_required) { setMatchCands(rc.data.candidates || []); setBusy(false); return; }
       } catch { /* commit below still enforces the decision */ }
     }
-    const decision = matchChoice === '__new__' ? { create_new_customer: true } : (matchChoice ? { company_id: matchChoice } : {});
+    const isOrg = matchChoice.startsWith('org:');
+    const decision = matchChoice === '__new__' ? { create_new_customer: true }
+      : isOrg && prevCompany ? { company_id: prevCompany, customer_org_id: matchChoice.slice(4) }
+        : (matchChoice ? { company_id: matchChoice } : {});
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/commit`,
         { site_frequencies: siteFreq, billing_frequency: billFreq || null, ...decision }, { headers: headers() });
@@ -144,7 +148,11 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
       setStep('done');
     } catch (e) {
       const d = e?.response?.data?.detail;
-      if (d && d.code === 'customer_match_required') setMatchCands(d.candidates || []);
+      if (d && d.code === 'customer_match_required') {
+        if (matchChoice && !isOrg && matchChoice !== '__new__') setPrevCompany(matchChoice);
+        setMatchCands(d.candidates || []); setMatchChoice('');
+        if (d.message) setErr(d.message);
+      }
       else setErr(typeof d === 'string' ? d : `${d?.message || 'Commit failed.'}${d?.suggestions ? ` Similar: ${d.suggestions.map((x) => x.name).join(', ')}` : ''}`);
     } finally { setBusy(false); }
   };
@@ -687,7 +695,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
           {matchCands && (
             <Card c={c} isDark={isDark} testId="afs-onb-match">
               <p className="text-sm font-bold mb-1" style={{ color: c.text }}>Is this an existing customer?</p>
-              <p className="text-xs mb-3" style={{ color: c.textDim }}>Link the existing CRM customer so sites and equipment are reused instead of duplicated.</p>
+              <p className="text-xs mb-3" style={{ color: c.textDim }}>Link the existing customer so sites and equipment are reused instead of duplicated.</p>
               <div className="space-y-1.5">
                 {matchCands.map(m => (
                   <label key={m.id} className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: c.text }} data-testid={`afs-onb-match-${m.id}`}>
@@ -782,7 +790,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
             </div>
           )}
           <p className="text-xs mb-3" style={{ color: c.textDim }}>
-            Find these under <strong>Contracts &amp; Renewals</strong> as drafts, and the equipment under the new customer's register.
+            Find these under <strong>Contracts &amp; Renewals</strong> as drafts, and the equipment under the customer's register.
             Review and activate them to switch on service schedules, billing and compliance.
           </p>
           <button data-testid="afs-onb-restart" onClick={reset}

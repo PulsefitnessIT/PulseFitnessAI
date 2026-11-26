@@ -1,0 +1,43 @@
+{
+  "summary": "I tested the shared customer matching (Sage identity) across Aftersales Estate Onboarding reconcile and commit, the Sicon classify/sync functions, the Sage _crm_company linking, and the /crm estate onboarding wizard UI, running as owner@isodemo.com (iso-demo-org). Every requested feature works: org: candidates, linking to an existing org, auto-link by account_ref, linking a CRM company by its account_number, the 409 customer_match_required response with the import status restored, create_new_customer creating a LITE org with no users, 404 guards, Sicon idempotency with no orgs created, and Sage linking a Sicon CRM company. I found 1 high-priority security issue (customer organisations can be read and written across tenants), 1 duplicate CRM company on the 409-then-retry path, and 1 older partial-write bug. The new API suite passed 9 of 11 tests; both failures are these defects. The existing regression suites (release_a, sage_sicon_customer_import, shared_customer_matching) passed 16 of 16. In the UI, the match card shows 'Existing customer organisation', Commit stays disabled until a choice is made, and the commit links to the chosen org.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/crm/v2/aftersales/onboarding/{id}/reconcile + POST /{id}/commit (customer_org_id / company_id='org:<id>')", "issue": "Customer organisations are exposed across tenants. _customer_candidates calls CI.duplicate_suggestions, which searches ALL organisations. Logged in as iso-demo-org, I saw these as candidates: 'Pulse Fitness Ltd', 'Pulse Fitness AI Admin' (the platform admin org), 'Pulse Fitness MOD Aftersales', the SDDEMO service-provider orgs, and an account_type=full operator org I created for the test. Commit only rejects op_org and non-existent ids, so a CRM user can write sites, equipment and contracts into another tenant's or the platform's organisation. Test: test_other_tenant_org_listed_and_linkable.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /{id}/commit company_id=<unlinked CRM company> -> 409 -> retry company_id='org:<id>'", "issue": "The retry succeeds but creates a second crm2_companies record with the same name, and the CRM company the user originally picked stays unlinked. Confirmed in a test: 2 'Pangolin' CRM companies, and the original has linked_organization_id=None. The UI swaps company_id for the org choice, so the CRM company context is lost. Commit should accept company_id + customer_org_id together and link the chosen org onto the chosen CRM company."},
+      {"endpoint": "POST /{id}/commit billing_frequency invalid", "issue": "Older bug: billing_frequency is validated only after sites and equipment are inserted. The request returns 400 and the status is restored, but the orphan site and equipment stay in the database. Confirmed: 1 site + 1 equipment left. On the create_new path, an orphan org would also be left. Move this validation before the claim."},
+      {"endpoint": "POST /{id}/commit account_ref", "issue": "Found in code review, not tested: if the account_ref resolves to more than 1 org, it falls through to provision_customer_org, which raises ValueError -> 500. It should return 409 with the conflicting candidates instead."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Match card retry after 409", "issue": "Choosing an org candidate sends only company_id='org:..', so a CRM company the user selected earlier is not linked, which leads to the duplicate CRM company above.", "affected_selectors": ["afs-onb-match-org:<id>", "afs-onb-commit"]}
+    ],
+    "design_issues": [
+      {"screen": "Estate onboarding match card / done step", "issues": ["The card text says 'Link the existing CRM customer' even when the candidate is an organisation with no CRM record.", "The done step says 'equipment under the new customer's register' even when the estate was linked to an existing customer.", "Org candidates are always labelled match='similar', even when the name matches exactly."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_afs_shared_customer_matching_api.py", "/app/test_reports/pytest/afs_shared_matching.xml"],
+  "action_items": [
+    "HIGH: Limit org candidates in _customer_candidates and the customer_org_id/account_ref resolution in commit to Pulse-managed customer orgs the operator may use (e.g. lite/imported customers, or orgs linked to op_org). Never offer the platform admin, operator, service-provider or other-tenant orgs. Enforce the same check in commit, not only in reconcile.",
+    "Allow commit with company_id=<CRM company> + customer_org_id=<org> so the chosen org is linked onto the existing CRM company, with no second crm2_companies record. Update EstateOnboarding.js so a 409 retry keeps the original CRM company choice.",
+    "Validate billing_frequency (and any other input) before the atomic claim and before any writes in _do_commit.",
+    "Handle the case where account_ref matches more than 1 org (return 409 with candidates, not 500).",
+    "Small copy fixes on the match card and done step for org candidates."
+  ],
+  "critical_code_review_comments": [
+    "crm_afs_onboarding.py: 1176 lines; consider splitting reconciliation/commit into its own module.",
+    "duplicate_suggestions is platform-wide by design for master-admin Sage imports; reusing it inside a tenant-scoped CRM route needs a tenant filter.",
+    "find_orgs_by_ref in Sicon classify always uses company='' (default Sage company). Orgs imported under a non-default Sage company will never match Sicon customer codes. Confirm this is intended.",
+    "Inserting an organisation automatically creates a 'tenant-<org_id>' crm2_companies mirror in the platform admin org; test cleanup must remove it (my suite does)."
+  ],
+  "updated_files": ["/app/backend/tests/test_afs_shared_customer_matching_api.py"],
+  "success_rate": {"backend": "82% (9/11 new; 16/16 existing regression)", "frontend": "100% for the requested wizard match/commit flow"},
+  "seed_data_creation": "None kept. All TEST_<tag> orgs, CRM companies (including tenant-* mirrors), imports, sites, equipment, contracts, PPM runs and refs were deleted by id; I checked that 0 remain.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run with: export MONGO_URL/DB_NAME from backend/.env; pytest tests/test_afs_shared_customer_matching_api.py -p no:xdist. CRM user: owner@isodemo.com / IsoDemo123! (iso-demo-org). UI path: /login -> /crm -> crm-mode-business -> crm-nav-aftersales -> afs-tab-onboarding. The 2 failing tests (test_other_tenant_org_listed_and_linkable, test_invalid_billing_frequency_no_partial_writes) are intentional defect probes and should pass once the fixes land.",
+  "rca of the issue": "Cross-tenant exposure: _customer_candidates appends CI.duplicate_suggestions(customer), which runs a name/postcode regex over db.organizations with no tenant or account_type filter. commit's customer_org_id branch only checks that the org exists and is not op_org. Duplicate CRM company: _do_commit's 'elif company' branch (an org with no CRM mirror) always inserts a new crm2_companies record, because the 409 retry drops the original company_id."
+}

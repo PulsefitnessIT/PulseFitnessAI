@@ -43,13 +43,19 @@ async def _run():
         res2 = await SO.sync_customer(op, None, ref_b, "Bravo from Sicon", True, "run-test")
         assert res2["bucket"] == "matched" and res2["pulse_id"] == res["pulse_id"]
 
-        # C: Aftersales candidates include customer organisations from the shared identity service.
-        await db.crm2_companies.delete_many({"organization_id": op, "linked_organization_id": org_b})
-        cands = await AFS._customer_candidates(op, f"Zebra Bravo {tag} Leisure")
-        assert any(c["id"] == f"org:{org_b}" and c.get("kind") == "organisation" for c in cands), cands
-        # orgs already represented by a CRM candidate are not listed twice
-        cands_a = await AFS._customer_candidates(op, "Alpha mirror")
-        assert not any(c["id"] == f"org:{org_a}" for c in cands_a)
+        # C: Aftersales candidates include eligible Pulse-managed customer orgs — only for the Pulse operator.
+        real_op = (await db.organizations.find_one({"is_operator_company": True}, {"_id": 0, "id": 1}))["id"]
+        other = f"tst-full-{tag}"
+        await db.organizations.insert_one({"id": other, "name": f"Zebra Bravo {tag} Leisure Ltd", "account_type": "full"})
+        created.append(other)
+        cands = await AFS._customer_candidates(real_op, f"Zebra Bravo {tag} Leisure")
+        ids = {c["id"] for c in cands}
+        assert f"org:{org_b}" in ids and f"org:{other}" not in ids, cands
+        assert not await AFS._eligible_customer_org(real_op, other)
+        assert not await AFS._eligible_customer_org(real_op, real_op)
+        # another tenant never sees organisations
+        assert not any(c.get("kind") == "organisation" for c in await AFS._customer_candidates(op, f"Zebra Bravo {tag} Leisure"))
+        assert not await AFS._eligible_customer_org(op, org_b)
     finally:
         await db.crm2_companies.delete_many({"organization_id": op})
         await db.customer_account_refs.delete_many({"ref": {"$in": [ref_a, ref_b]}})

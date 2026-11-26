@@ -678,6 +678,25 @@ def annual_term_end(start_iso: str) -> Optional[str]:
     return (_add_years(d, 1) - timedelta(days=1)).isoformat()
 
 
+async def _is_operator(op_org: str) -> bool:
+    """Pulse-internal workspace (master admins' CRM sessions are scoped to the operator company)."""
+    return bool(await db.organizations.find_one({"id": op_org, "is_operator_company": True}, {"_id": 1}))
+
+
+async def _eligible_customer_org(op_org: str, org_id: str) -> bool:
+    """Only Pulse-managed customer organisations may be linked by the Pulse operator — never the platform,
+    operator, service-provider or another tenant's organisation."""
+    if not org_id or org_id == op_org or not await _is_operator(op_org):
+        return False
+    o = await db.organizations.find_one({"id": org_id}, {"_id": 0, "is_operator_company": 1, "account_type": 1})
+    if not o or o.get("is_operator_company") or await db.users.find_one(
+            {"organization_id": org_id, "is_master_admin": True}, {"_id": 1}):
+        return False
+    if await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": org_id}, {"_id": 1}):
+        return True
+    return o.get("account_type") == "lite"
+
+
 async def _customer_candidates(op_org: str, customer: str) -> list:
     target = _norm_name(customer)
     if not target:
@@ -703,10 +722,11 @@ async def _customer_candidates(op_org: str, customer: str) -> list:
     # Customer organisations from the shared identity service (Sage imports, manual adds) with no CRM mirror yet.
     from utils import customer_identity as CI
     linked = {c.get("linked_organization_id") for c in out if c.get("linked_organization_id")}
-    for sug in await CI.duplicate_suggestions(customer):
-        if sug["id"] in linked or sug["id"] == op_org:
+    for sug in (await CI.duplicate_suggestions(customer) if await _is_operator(op_org) else []):
+        if sug["id"] in linked or not await _eligible_customer_org(op_org, sug["id"]):
             continue
-        out.append({"id": f"org:{sug['id']}", "name": sug.get("name"), "match": "similar", "kind": "organisation",
+        out.append({"id": f"org:{sug['id']}", "name": sug.get("name"), "kind": "organisation",
+                    "match": "exact" if _norm_name(sug.get("name")) == target else "similar",
                     "linked_organization_id": sug["id"],
                     "sites": await db.sites.count_documents({"organization_id": sug["id"]}),
                     "equipment": await db.equipment.count_documents({"organization_id": sug["id"]})})
@@ -743,17 +763,38 @@ async def commit(import_id: str, data: dict = Body(default={}), user=Depends(req
 
     # 0) Customer reconciliation — link an existing CRM company or explicitly create.
     company = None
+    freq = (data.get("billing_frequency") or "").strip().lower() or None
+    if freq and freq not in BILLING_FREQUENCIES:
+        raise HTTPException(400, f"billing_frequency must be one of {list(BILLING_FREQUENCIES)}")
     if str(data.get("company_id") or "").startswith("org:"):
         data["customer_org_id"] = data.pop("company_id")[4:]
     if data.get("customer_org_id"):
-        if data["customer_org_id"] == op_org or not await db.organizations.find_one(
-                {"id": data["customer_org_id"]}, {"_id": 1}):
+        if not await _eligible_customer_org(op_org, data["customer_org_id"]):
             raise HTTPException(404, "Selected customer not found")
-        company = await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": data["customer_org_id"]},
-                                                   {"_id": 0}) or {"linked_organization_id": data["customer_org_id"]}
-    elif data.get("account_ref"):
+        picked = None
+        if data.get("company_id"):
+            picked = await db.crm2_companies.find_one({"id": data["company_id"], "organization_id": op_org}, {"_id": 0})
+            if not picked:
+                raise HTTPException(404, "Selected customer not found")
+            if picked.get("linked_organization_id") not in (None, "", data["customer_org_id"]):
+                raise HTTPException(409, "That CRM customer is already linked to a different organisation.")
+            if not picked.get("linked_organization_id"):
+                await db.crm2_companies.update_one({"id": picked["id"], "linked_organization_id": {"$in": [None, ""]}},
+                                                   {"$set": {"linked_organization_id": data["customer_org_id"], "linked_at": _now()}})
+                picked["linked_organization_id"] = data["customer_org_id"]
+        company = picked or await db.crm2_companies.find_one(
+            {"organization_id": op_org, "linked_organization_id": data["customer_org_id"]}, {"_id": 0}) \
+            or {"linked_organization_id": data["customer_org_id"]}
+    elif data.get("account_ref") and await _is_operator(op_org):
         from utils import customer_identity as CI
-        hits = [o for o in await CI.find_orgs_by_ref(data["account_ref"], data.get("sage_company") or "") if o != op_org]
+        hits = [o for o in await CI.find_orgs_by_ref(data["account_ref"], data.get("sage_company") or "")
+                if await _eligible_customer_org(op_org, o)]
+        if len(hits) > 1:
+            raise HTTPException(409, {"code": "customer_match_required",
+                                      "message": f"Account {data['account_ref']} matches {len(hits)} customers — pick one.",
+                                      "candidates": [{"id": f"org:{o}", "kind": "organisation", "match": "exact",
+                                                      "name": (await db.organizations.find_one({"id": o}, {"_id": 0, "name": 1}) or {}).get("name")}
+                                                     for o in hits]})
         if len(hits) == 1:
             data["customer_org_id"] = hits[0]
             company = await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": hits[0]},
@@ -783,17 +824,24 @@ async def commit(import_id: str, data: dict = Body(default={}), user=Depends(req
         raise
 
 
-async def _shared_customer(name: str, ref: str, user: dict, data: dict) -> str:
-    """Estate onboarding uses the same customer identity service as the Import Centre (no duplicate customers)."""
+async def _shared_customer(name: str, ref: str, user: dict, data: dict, op_org: str = "") -> str:
+    """Estate onboarding uses the same customer identity service as the Import Centre (no duplicate customers).
+    Platform-wide matching is only for the Pulse operator; other tenants never see or reuse other organisations."""
     from utils import customer_identity as CI
+    operator = await _is_operator(op_org)
     try:
-        org_id, _ = await CI.provision_customer_org({"name": name}, source="afs_estate_onboarding", actor=user.get("email"),
-                                                    ref=ref, confirmed_new=bool(data.get("confirm_new_customer") or data.get("create_new_customer")))
+        org_id, created = await CI.provision_customer_org(
+            {"name": name}, source="afs_estate_onboarding", actor=user.get("email"), ref=ref if operator else "",
+            confirmed_new=(not operator) or bool(data.get("confirm_new_customer") or data.get("create_new_customer")))
+    except ValueError as e:
+        raise HTTPException(409, {"code": "customer_match_required", "message": str(e), "candidates": []})
     except CI.DuplicateSuspected as e:
         raise HTTPException(409, {"code": "customer_match_required", "suggestions": e.suggestions,
                                   "message": "This customer may already exist. Pick the existing customer, or confirm it is new.",
                                   "candidates": [{"id": f"org:{x['id']}", "name": x.get("name"), "match": "similar",
                                                   "kind": "organisation", "linked_organization_id": x["id"]} for x in e.suggestions]})
+    if not created and not await _eligible_customer_org(op_org, org_id):
+        raise HTTPException(409, "That account number belongs to an organisation you cannot link to — check the account reference.")
     await CI.mark_complete(org_id)
     return org_id
 
@@ -811,7 +859,7 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
         if not cust_org_id:
             # Shared matching: account number first, then duplicate review (no forced create).
             cust_org_id = await _shared_customer(customer, company.get("account_number") or company.get("sage_customer_id") or "",
-                                                 user, data)
+                                                 user, data, op_org)
             await db.crm2_companies.update_one({"id": crm_company_id}, {"$set": {
                 "linked_organization_id": cust_org_id, "updated_at": _now()}})
     elif company:
@@ -825,7 +873,7 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
             "is_operator_company": False, "created_via": "afs_estate_onboarding",
             "created_at": _now(), "updated_at": _now()})
     else:
-        cust_org_id = await _shared_customer(customer, data.get("account_ref") or "", user, data)
+        cust_org_id = await _shared_customer(customer, data.get("account_ref") or "", user, data, op_org)
         existing = await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": cust_org_id},
                                                     {"_id": 0, "id": 1})
         crm_company_id = existing["id"] if existing else _id()
