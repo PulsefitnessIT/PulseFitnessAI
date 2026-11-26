@@ -39615,3 +39615,19 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Fixed a master admin CRM token loop: /crm/auth/me returns home_organization_id, and the UnifiedAuthProvider guard compares it.
 - Fixed stale match choices in EstateOnboarding reset.
 - Remaining: Release A gap is the legacy bulk-import Undo safety. Releases B–E are still to do.
+
+## 26 Nov 2026: Release A blockers and Release B core (iterations 336–337 at 100%)
+- Sicon links scoped by connection company, with an audited migration for legacy links.
+- Reservation concurrency fix.
+- Sage 200 pull now goes through an Import Centre job, reading all pages.
+- Sicon equipment resolved to the right customer and operational site.
+- Serial-number hygiene.
+- Sicon runs report partial status and missing resources.
+- Preview→apply fingerprints.
+- Manual-customer reconciliation.
+- One auto onboarding project per customer, with progress from real data.
+- Delegated staff permissions and a confidential Sage endpoint.
+- Complete Customer Estate embedded in the Import Centre.
+- Onboarding projects are closed to tenant service-desk users.
+- Details: memory/PLATFORM_DATA_ARCHITECTURE.md (Release A/B section).
+- Env: SICON_SAGE_COMPANY="Pulse Fitness".

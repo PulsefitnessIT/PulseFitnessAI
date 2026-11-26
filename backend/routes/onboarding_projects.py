@@ -28,13 +28,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _require_pulse_or_master(user: dict) -> None:
-    """Pulse admins, or Service Desk agents who are Pulse staff. Onboarding projects hold every customer's data, so a
-    customer tenant's own service-desk user must never read them."""
+async def _require_pulse_or_master(user: dict) -> None:
+    """Pulse admins, or Service Desk agents who belong to a Pulse organisation (operator company / platform admin org).
+    Onboarding projects hold every customer's data, so a customer tenant's own service-desk user must never read them."""
     _base_require(user)
-    if user.get("is_service_desk") and not (user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin")
-                                            or user.get("role") == PULSE_ROLE or user.get("is_pulse_admin")
-                                            or user.get("is_pulse_staff")):
+    if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin") or user.get("role") == PULSE_ROLE \
+            or user.get("is_pulse_admin"):
+        return
+    org = user.get("organization_id")
+    pulse = org and (await db.organizations.find_one({"id": org, "is_operator_company": True}, {"_id": 1})
+                     or await db.users.find_one({"organization_id": org, "is_master_admin": True}, {"_id": 1}))
+    if not pulse:
         raise HTTPException(status_code=403, detail="Pulse Fitness staff access required")
 
 
@@ -268,7 +272,7 @@ async def estate_progress(org_id: str) -> list[dict]:
 
 @router.get("/onboarding/projects/{project_id}/estate-progress")
 async def project_estate_progress(project_id: str, user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     doc = await db.onboarding_projects.find_one({"id": project_id}, {"_id": 0, "organization_id": 1})
     if not doc:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -277,7 +281,7 @@ async def project_estate_progress(project_id: str, user: dict = Depends(get_curr
 
 @router.get("/onboarding/customer-types")
 async def list_customer_types(user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     return {"types": CUSTOMER_TYPES}
 
 
@@ -290,7 +294,7 @@ async def list_projects(
     owner: Optional[str] = Query(None),
     user: dict = Depends(get_current_user),
 ) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     q: dict = {}
     if status:
         q["status"] = status
@@ -304,7 +308,7 @@ async def list_projects(
 
 @router.post("/onboarding/projects")
 async def create_project(body: ProjectCreate, user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     if body.customer_type not in CUSTOMER_TYPE_IDS:
         raise HTTPException(status_code=400, detail="Unknown customer type")
 
@@ -350,7 +354,7 @@ async def create_project(body: ProjectCreate, user: dict = Depends(get_current_u
 
 @router.get("/onboarding/projects/{project_id}")
 async def get_project(project_id: str, user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     doc = await db.onboarding_projects.find_one({"id": project_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -359,7 +363,7 @@ async def get_project(project_id: str, user: dict = Depends(get_current_user)) -
 
 @router.patch("/onboarding/projects/{project_id}")
 async def update_project(project_id: str, body: ProjectUpdate, user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     doc = await db.onboarding_projects.find_one({"id": project_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -402,7 +406,7 @@ async def update_project(project_id: str, body: ProjectUpdate, user: dict = Depe
 
 @router.patch("/onboarding/projects/{project_id}/checklist/{step_id}")
 async def update_step(project_id: str, step_id: str, body: StepUpdate, user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     doc = await db.onboarding_projects.find_one({"id": project_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -426,7 +430,7 @@ async def update_step(project_id: str, step_id: str, body: StepUpdate, user: dic
 
 @router.post("/onboarding/projects/{project_id}/go-live")
 async def approve_go_live(project_id: str, user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     doc = await db.onboarding_projects.find_one({"id": project_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -464,7 +468,7 @@ async def archive_project(
     permanent: bool = Query(False),
     user: dict = Depends(get_current_user),
 ) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     doc = await db.onboarding_projects.find_one({"id": project_id}, {"_id": 0, "id": 1})
     if not doc:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -508,7 +512,7 @@ async def purge_archived_projects(user: dict = Depends(get_current_user)) -> dic
 
 @router.get("/onboarding/dashboard")
 async def dashboard(user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     docs = await db.onboarding_projects.find({"status": {"$ne": "archived"}}).to_list(1000)
     active = [d for d in docs if d.get("status") != "complete"]
     blocked = []
@@ -544,14 +548,14 @@ _SETTINGS_ID = "onboarding-settings"
 
 @router.get("/onboarding/settings")
 async def get_settings(user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     doc = await db.onboarding_settings.find_one({"id": _SETTINGS_ID}, {"_id": 0})
     return doc or {"id": _SETTINGS_ID, "customer_portal_enabled": False}
 
 
 @router.patch("/onboarding/settings")
 async def update_settings(body: dict, user: dict = Depends(get_current_user)) -> dict:
-    _require_pulse_or_master(user)
+    await _require_pulse_or_master(user)
     allowed = {"customer_portal_enabled"}
     updates = {k: v for k, v in (body or {}).items() if k in allowed}
     updates["updated_at"] = _now()

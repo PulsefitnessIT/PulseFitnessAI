@@ -72,3 +72,8 @@ Old bookmarks redirect to Import Centre: `?tab=site | head-office | sage-import 
 - Shared asset and contract identity services across the Aftersales and bulk engines.
 - MOD kiosk policy review.
 - Delegated permissions for Aftersales and Service Desk.
+
+## Nov 2026
+- **Complete Customer Estate:** now runs the Aftersales estate wizard inside the Import Centre (same engine, CRM cross-login token).
+- **Legacy `crm_sage200` customer sync:** now delegates to an Import Centre job and no longer writes `crm_contacts`.
+- **New Onboarding tab:** Staff Permissions (delegated Pulse staff).

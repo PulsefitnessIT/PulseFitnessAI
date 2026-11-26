@@ -1,0 +1,32 @@
+{
+  "summary": "Retest of the iteration_336 fixes. All 5 fix groups verified at backend and UI level. Backend: test_release_ab_api_iter336.py, test_release_ab_identity.py and test_release_ab_onboarding.py pass 17/17, including the 3 previously failing defect tests (sync never reassigns after conflict, scoped link leaves Review Centre, tenant service-desk 403). New suite test_release_ab_iter337.py passes 10/10: no reassignment after conflict, failed or ignored, while reassign=True still reassigns and only 1 link doc exists; re-sync with the same id stays linked; a set_status placeholder can still be linked; 'unscoped' is written and read back consistently (connection_company monkeypatched to None, because SICON_COMPANY_ID=2 is set in the process env); connection_company ignores the disabled platform 'sicon' integration; GET /config returns 'Pulse Fitness' and gives 403 to a tenant; E2E: an HTTP file import with the default company is stored as source_company 'PULSE FITNESS', the org gets sage_company 'PULSE FITNESS', and Sicon onboarding (FakeSicon, preview then apply) resolves customerCode to that same org, creates the equipment there with a scoped link and no held conflict; owner@isodemo.com gets 403 on projects list, customer-types, estate-progress and project detail, while master admin and a TEST_ Pulse staff user (is_service_desk + is_pulse_staff) get 200. Regressions pass 65/65: sage_sicon_customer_import, sage_sicon_import_independent, sicon_onboarding_jun2026, customer_import_release_a and the 3 AFS shared-customer suites. UI (Playwright, minted token + ga_session cookie): ci-company-input is prefilled 'Pulse Fitness' (shown uppercased), maxlength=40, labelled 'Sage company these accounts belong to'. Uploading a Sage CSV that matches a TEST_ manual org gives a ci-row-reconcile select. After linking, the select stays visible with the linked org selected, the row shows 'Link to existing customer', and ci-sum-existing goes from 0 to 1. The job is stored with source_company PULSE FITNESS. With seeded TEST_ runs, the Sicon sync card shows sicon-sync-retrieved '... 3 equipment held (customer not found) · 3 changed since preview (in review)' and sicon-sync-missing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "routes/onboarding_projects._require_pulse_or_master", "issue": "The gate relies on the stored is_pulse_staff flag, not on org membership. (1) A Service Desk agent in the Pulse operator org (3ece2d0c…) with is_service_desk=true but no delegated permissions (is_pulse_staff false) now gets 403 on /api/onboarding/projects. Verified with a TEST_ user. This may be a regression for Pulse's own desk agents, since is_pulse_staff is only set when permissions are delegated (customer_account_import.py:1588). (2) A user moved to a tenant org (iso-demo-org) who keeps a stale is_pulse_staff=true still gets 200. Verified with a TEST_ user. Suggest checking organization_id in (operator org, platform org) instead of, or as well as, the flag."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Sicon Sync card", "issues": ["The 'To review' column still shows 0 for Equipment while held_no_customer equipment exists. The count only appears in the small grey sicon-sync-retrieved footer line, so it is easy to miss."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_release_ab_iter337.py", "/app/backend/tests/test_release_ab_api_iter336.py", "/app/test_reports/pytest/iter337.xml"],
+  "action_items": [
+    "Decide whether Pulse operator-org Service Desk agents without delegated permissions should see onboarding projects. If yes, gate on organization_id membership (operator or platform org), not only on is_pulse_staff. Either way, also check org membership so a stale is_pulse_staff flag on a tenant user is not honoured.",
+    "Optional: add held_no_customer to the Equipment 'To review' cell, or highlight it, in the Sicon sync counts table."
+  ],
+  "critical_code_review_comments": [
+    "sicon_links.upsert_link: the guard now fires for any existing pulse_entity_id regardless of status. Correct. The conflict path also overwrites status_reason on every re-sync, which is fine.",
+    "import_config returns the raw SICON_SAGE_COMPANY, and the frontend uppercases it only through CSS. The value sent is 'Pulse Fitness' and the backend create_job uppercases it, which is consistent. But the CSS 'uppercase' class means the user sees uppercase while the input value is mixed case. This is harmless.",
+    "customer_account_import.py is 1610 lines and should be split (routes vs planning vs commit)."
+  ],
+  "updated_files": ["/app/backend/tests/test_release_ab_iter337.py"],
+  "success_rate": {"backend": "100% (92/92 executed, incl. regressions; 1 path covered via monkeypatch)", "frontend": "100% (company input, reconcile select persistence, existing-org summary count, sicon-sync-retrieved held/changed counts)"},
+  "seed_data_creation": "None persistent. Created and removed: TEST_ users (desk/sd), TEST_org_recon_* org, TST*/T* import jobs (rolled back or discarded, then deleted by id), TEST_run_pv_337 and TEST_run_ap_337 sicon_sync_runs, and TST links. All removed by id or tag.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Sage AccountNumber and ShortName are limited to 8 characters, or the row becomes 'invalid'. In tests, use the AccountName key, not Name. SICON_COMPANY_ID=2 is set in the process env, so connection_company is '2' for any org. Sicon onboarding E2E: tests/test_release_ab_iter337.py::test_file_import_then_sicon_onboarding_resolves_same_customer. Never query equipment with {'$in': [..., None]}: it matches seed docs that have no sicon_equipment_id. UI: put the minted token in localStorage 'token' and in the ga_session cookie, then open /master-admin?section=onboarding&tab=import-centre&type=sage_accounts and click ic-accounts-file or ic-accounts-sicon. The Sicon card reads /api/sicon/read/onboarding/latest for the admin's org d19de469-645a-4b66-93b1-52455a643f5b."
+}

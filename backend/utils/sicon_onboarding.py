@@ -291,6 +291,8 @@ class _Run:
                               [], self.run_id)
         self.counts.setdefault(entity + "s" if entity != "equipment" else entity, {}).setdefault("changed_since_preview", 0)
         self.counts[entity + "s" if entity != "equipment" else entity]["changed_since_preview"] += 1
+        self.counts[entity + "s" if entity != "equipment" else entity]["conflicts"] = \
+            self.counts[entity + "s" if entity != "equipment" else entity].get("conflicts", 0) + 1
         return False
 
     def tally(self, entity: str, res: Dict[str, Any]) -> None:
@@ -343,6 +345,7 @@ async def _equipment_phase(run: _Run, client) -> None:
                                               [f"Customer '{norm.get('sicon_customer_code') or '?'}' is not a single Pulse customer "
                                                "under the configured Sage company — import the customer account first"], [], run.run_id)
                     run.counts["equipment"]["held_no_customer"] = run.counts["equipment"].get("held_no_customer", 0) + 1
+                    run.counts["equipment"]["conflicts"] += 1  # queued for review
                     continue
                 site_id = await run.operational_site(dest, norm.get("sicon_sub_location_id"), norm.get("location_full")) \
                     if dest != run.org_id else None

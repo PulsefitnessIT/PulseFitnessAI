@@ -173,3 +173,9 @@ Pick **Sicon Customer Contacts**, then upload, review, approve and run, as above
 - **Inactive customers:** company-code sign-up is refused for imported customers that are not yet activated.
 - **Passwords:** Reveal password and emailing credentials are retired.
 - Full architecture and remaining gaps: `memory/PLATFORM_DATA_ARCHITECTURE.md`.
+
+## Nov 2026 (Release A/B)
+- **Sage company on upload:** the field is prefilled from `/config` (live Sicon = "Pulse Fitness"). Always use it, so Sicon matching finds the same customers.
+- **Manual customers:** the next Sage import offers `possible_existing_customer`. Choose link (keeps the permanent id) or create new.
+- **Sage 200 API pull:** creates an Import Centre job (source `sage_200_api`) with the same review, approve and Undo as a file.
+- **Onboarding projects:** each new customer gets one project automatically. Undo archives it. Backfill: `POST /onboarding-projects/backfill?apply=true`.

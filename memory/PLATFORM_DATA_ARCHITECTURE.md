@@ -62,3 +62,54 @@ Last updated: Nov 2026, Release A. This document covers what exists today and th
 
 ## Update (Nov 2026)
 The Sicon sync and Aftersales estate onboarding now resolve customers through utils/customer_identity.py, the same matching that Sage imports use. Org-level matching is limited to the Pulse operator workspace and eligible Pulse-managed customer orgs (see crm_afs_onboarding._eligible_customer_org).
+
+## Release A/B identity update (26 Nov 2026), tested in iterations 336–337
+
+### Shared identity: what is now authoritative
+| Entity | Authoritative key | Where |
+|---|---|---|
+| Customer organisation | `organizations.id`; external ref `customer_account_refs(system, company, ref)` (unique) | utils/customer_identity.py |
+| Sicon external ids | `sicon_external_links(integration_source, source_company, external_entity_type, external_id)`, unique index `uniq_sicon_external_link_v2`; `source_company` = Sicon connection companyId | utils/sicon_links.py |
+| Sage company for Sicon customer matching | `sicon_config.sage_company`, else env `SICON_SAGE_COMPANY` ("Pulse Fitness" → `PULSE FITNESS`) | sicon_links.sage_company_for |
+| Operational site ↔ Sicon sub-location | `sites.sicon_sub_location_id`; unknown sub-locations become `customer_proposed_sites(account_ref="SICON:<id>")` | sicon_onboarding._Run.operational_site |
+| Equipment from Sicon (operator workspace) | written into the customer org resolved by customerCode under the configured Sage company; never into the operator org; unknown customers are held | sicon_onboarding._Run.destination_org |
+| Onboarding project | one per Pulse-managed org, keyed `onboarding_projects.auto_org_key` (unique, sparse) | onboarding_projects.ensure_project_for_org |
+
+### Rules enforced
+- **Links are never reassigned by a sync.** A different Pulse id marks the link `conflict`. Only admin decisions (`reassign=True`) or clearing a link can change it.
+- **Legacy links** (no `source_company`) are reused, never duplicated. They are scoped only by the audited migration: `GET/POST /api/master-admin/customer-import/sicon-links/migration[/apply]`. Links that can't be placed go to the Review Centre as "Unscoped Sicon link".
+- **Reference reservations:** `claim_ref` never steals a reservation held by an active job. It waits, then raises `RefReserved`. A failed org insert releases our own reservation.
+- **Placeholder serials** (N/A, UNKNOWN, WORN, …) never match. A serial match with a different model is a conflict. An asset already bound to another Sicon id is never matched.
+- **Sicon runs** finish `partial` with `missing_resources` when a resource is unavailable (contracts) or fewer records were retrieved than `totalRecords`. Each run records pages and records retrieved per resource, plus the source company.
+- **Preview → apply:** preview stores a fingerprint for every record (`sicon_preview_fingerprints`). Apply writes only records identical to the approved preview; anything else is queued for review.
+- **Direct Sage 200 pull** (`POST /api/crm/sage200/sync/customers?source_company=`) reads every `$top/$skip` page (50,000 cap, fails loudly above it). It creates an Import Centre job and no longer writes legacy `crm_contacts`.
+- **Manual customer reconciliation:** a Sage row matching a customer that has no Sage account becomes `possible_existing_customer` (blocks approval). `link_org_id` attaches the ref and keeps the id, sites, users and plan. `confirm_new` creates a new customer.
+- **Delegated Pulse staff:** permissions `imports.prepare/review/approve/commit/undo`, `activation.view`, `sage.confidential`, granted at `/api/master-admin/customer-import/delegates`. Only operator-org or platform-org users can hold them.
+
+### Sage / Sicon capability matrix (preview has no live servers; nothing below is live-verified)
+| Resource | Route | Status |
+|---|---|---|
+| Sicon equipment | GET /api/v1/SiconService/Equipment (nested `query=$skip..%26$max..`, svc_paginate) | implemented; tested offline with fakes; live verification needed |
+| Sicon cases / case equipment / appointments | CaseSearch, Case/{id}/Equipment, Case/{id}/Appointment | implemented earlier; tested offline |
+| Sicon contracts (read) | none in Contracts.R260200c (POST only); candidate GETs not confirmed | **UNAVAILABLE**: runs report `partial`; use the spreadsheet contracts template |
+| Sicon customer master | not available; customers are found only through equipment, contracts or cases | **INCOMPLETE**: use the Sage customer file or Sage 200 pull as the customer master |
+| Sage 200 customers | GET {base}/customers `$top/$skip` | implemented; tested with mocks; field mapping needs live verification |
+| Sage / Sicon writeback | — | disabled (`SICON_ALLOW_WRITES` unset/false) |
+
+### Mapping regression
+No field mappings were changed. `normalise_equipment`, `SICON_SYNCED_FIELDS` and the case and contract mappings are untouched; make still goes to `sicon_make_raw`. Only the matching logic changed (serial reliability, destination customer, link scoping), so `gen_bruno_sicon_mapping.py` was not re-run.
+
+### Measured scale
+Sicon equipment through the operator workspace into one customer:
+- **2,000 records:** about 11–13 s per pass.
+- **20,000 records:** second pass (all matched, 0 duplicates) took 106 s with peak RSS 88 MB.
+- **Projected 111k estate:** about 10–12 min per pass. Not run at full scale.
+
+### Still open
+Release B items:
+- Contract and service-record identity consolidation.
+- Safe legacy Undo for site/equipment/contract imports.
+- Unified history across all engines.
+- Delegated staff UI outside Master Admin.
+
+Releases C–E have not started: activation and invitations, MFA, site-specific gym floor, shared person identity, consent, events, upgrades and purchasing.
