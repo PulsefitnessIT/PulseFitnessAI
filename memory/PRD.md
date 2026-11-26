@@ -39595,3 +39595,15 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
   - Moving the site, equipment and contract engines onto the shared job model and asset/contract identity
   - MOD kiosk policy review
   - Delegated permissions
+
+## Nov 2026 — Release A (safe customer import hardening), tested in iteration 332 + reruns (83 tests plus the 5,200-row test)
+- Sage branches are separate until verified, with bulk verify in the Review Centre.
+- Source-company isolation: identity lookup, ref index, CRM company match and contact staging.
+- Approval snapshot is re-checked at commit.
+- Undo preview, dependency checks and restore-only-if-unchanged. Bulk dependency checks plus heartbeats make large undos safe.
+- Atomic site confirmation with link-to-existing, keeping address line 4.
+- Review Centre is no longer capped.
+- Company-code sign-up is blocked for pending-activation orgs.
+- Plaintext reveal and email of passwords retired; plaintext no longer stored.
+- Docs: memory/PLATFORM_DATA_ARCHITECTURE.md (data ownership, flow matrix, gaps for Releases B–E).
+- NOT DONE: Releases B–E (estate and equipment/contract identity, activation and invitations, MFA, site-specific gym floor, shared person id, consent unification, product events, LITE→PRO testing, purchasing, cancellation).

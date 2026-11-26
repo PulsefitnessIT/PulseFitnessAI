@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="415.309" timestamp="2026-11-26T19:16:18.281674+00:00" hostname="agent-env-5f3a6e50-70cd-47b2-8f5d-2dbbd87be14c"><testcase classname="tests.test_sage_sicon_customer_import" name="test_large_file_over_5000_rows" time="414.955"><failure message="KeyError: 'removed'">tests/test_sage_sicon_customer_import.py:317: in test_large_file_over_5000_rows
+    assert r["removed"] == 5200
+           ^^^^^^^^^^^^
+E   KeyError: 'removed'</failure></testcase></testsuite></testsuites>

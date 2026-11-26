@@ -112,14 +112,12 @@ API: `/api/master-admin/customer-import/*`. Only Pulse Fitness admins can use it
 **CRM company**
 - Matched by `linked_organization_id`, then by account number. Never by name.
 
-## Head office and branch handling
-- **Pass 1:** create or match every account.
-- **Pass 2:** process branches, whatever order they appear in the file.
-- By default (the user's choice), a branch whose head office is in the file or already on the platform is **merged into the head office organisation**. Its account number is added to `sage_account_refs` / `sage_branch_refs`, and its address becomes a proposed site. The admin can choose **Separate customer** per row.
-- A branch with a missing or unknown head office is imported as a separate customer with a warning, and the link is recorded as proposed.
-- A self-reference or a circular chain blocks approval.
-- A branch that is already its own customer is never auto-merged.
-- None of this grants any cross-organisation access.
+## Head office and branch handling (updated: Release A)
+- A Sage head office / branch link is an *accounting* relationship. It is not proof of ownership or access.
+- By default, every branch is imported as its **own customer**, with `head_office_link_status=proposed`.
+- Admins verify or reject links in bulk in the Review Centre ("Unverified branch relationship", via `POST /customer-import/branch-links`). Verifying records the link only: there is no merge and no shared access.
+- An admin can still choose "Merge into head office — I have verified it" on a row before approval.
+- Circular or self-referencing links block approval.
 
 ## Statuses
 - Hidden accounts (ActiveStatus=1) are excluded by default. The admin can include them.
@@ -166,3 +164,12 @@ Pick **Sicon Customer Contacts**, then upload, review, approve and run, as above
 
 ## Plaintext password remediation
 `POST /api/master-admin/customer-import/security/initial-passwords?apply=true` removes stored `primary_contact_initial_password` values. Users' real passwords are unaffected; hand over access with the secure set-password link instead. Run it first with `apply=false` to see the count.
+
+## Release A additions (Nov 2026)
+- **Undo preview:** `GET /jobs/{id}/undo-preview` checks what depends on each customer before undoing.
+- **Value restore:** a pre-import value is restored only if the field still holds what the import wrote.
+- **Change after approval:** if records change after approval, Run sends the import back for review (409).
+- **Proposed sites:** Confirm / Link to existing / Reject. A site at the same postcode triggers a prompt.
+- **Inactive customers:** company-code sign-up is refused for imported customers that are not yet activated.
+- **Passwords:** Reveal password and emailing credentials are retired.
+- Full architecture and remaining gaps: `memory/PLATFORM_DATA_ARCHITECTURE.md`.

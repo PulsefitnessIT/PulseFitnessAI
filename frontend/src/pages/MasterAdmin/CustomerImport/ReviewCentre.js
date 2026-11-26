@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -15,9 +15,11 @@ export default function ReviewCentre({ onOpenJob }) {
   const [page, setPage] = useState(0);
   const [d, setD] = useState({ total: 0, types: {}, items: [] });
   const [err, setErr] = useState('');
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++seq.current;  // ignore slower, older responses
     const { data } = await axios.get(`${API}/review`, { headers, params: { type: type || undefined, search: q || undefined, skip: page * PAGE, limit: PAGE } });
-    setD(data);
+    if (mine === seq.current) setD(data);
   }, [headers, type, q, page]);
   useEffect(() => { load().then(() => setErr('')).catch((e) => setErr(e.response?.data?.detail || 'Could not load the review list')); }, [load]);
   const site = async (id, decision) => {
@@ -26,15 +28,20 @@ export default function ReviewCentre({ onOpenJob }) {
     } catch (e) {
       const ex = e.response?.status === 409 && e.response?.data?.detail?.existing_sites;
       if (!ex) { setErr(e.response?.data?.detail?.message || e.response?.data?.detail || e.message); return; }
-      if (window.confirm(`This customer already has “${ex[0].name}” at this postcode.\n\nOK = link the Sage address to that site\nCancel = create a separate new site`)) {
-        await axios.post(`${API}/proposed-sites/${id}/link`, {}, { headers, params: { link_site_id: ex[0].id } });
-      } else {
-        await axios.post(`${API}/proposed-sites/${id}/confirm`, {}, { headers, params: { force: true } });
-      }
+      try {
+        if (window.confirm(`This customer already has “${ex[0].name}” at this postcode.\n\nOK = link the Sage address to that site\nCancel = create a separate new site`)) {
+          await axios.post(`${API}/proposed-sites/${id}/link`, {}, { headers, params: { link_site_id: ex[0].id } });
+        } else {
+          await axios.post(`${API}/proposed-sites/${id}/confirm`, {}, { headers, params: { force: true } });
+        }
+      } catch (e2) { setErr(e2.response?.data?.detail || e2.message); }
     }
     load();
   };
-  const branch = async (ids, decision) => { await axios.post(`${API}/branch-links`, { org_ids: ids, decision }, { headers }); load(); };
+  const branch = async (ids, decision) => {
+    try { await axios.post(`${API}/branch-links`, { org_ids: ids, decision }, { headers }); } catch (e) { setErr(e.response?.data?.detail || e.message); }
+    load();
+  };
   return (
     <div className="space-y-3" data-testid="review-centre">
       <div className="flex flex-wrap gap-1.5">

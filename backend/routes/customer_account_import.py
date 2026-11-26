@@ -64,6 +64,7 @@ async def _ensure_indexes():
     await db.customer_proposed_sites.create_index([("org_id", 1), ("account_ref", 1)], unique=True)
     await db.crm2_contacts.create_index("linked_organization_id")
     await db.customer_import_undo.create_index("job_id")
+    await db.customer_import_undo.create_index([("org_id", 1), ("job_id", 1)])
     _INDEXES_READY = True
 
 
@@ -559,6 +560,8 @@ async def commit(job_id: str, user: dict = Depends(get_current_user)):
         return await _job_view(job_id)
     if job["status"] not in ("approved", "completed_with_errors", "interrupted"):
         raise HTTPException(409, "Approve the import first")
+    if job["status"] == "approved":
+        await _evaluate(job_id)  # re-check against the live database: anything changed since approval → review again
     if job["status"] == "approved" and (job.get("approval") or {}).get("snapshot") != await _snapshot_hash(job_id):
         await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "analysed"}, "$unset": {"approval": ""}})
         raise HTTPException(409, "The import changed after approval — review and approve it again")
@@ -933,29 +936,56 @@ async def _dependents(org_id: str, job_id: str) -> dict:
     return out
 
 
+async def _dependents_bulk(org_ids: list, job_id: str) -> dict:
+    """Same checks as _dependents, in batches (fast for imports with thousands of customers)."""
+    out: dict = {}
+    for i in range(0, len(org_ids), 1000):
+        chunk = org_ids[i:i + 1000]
+        for coll, label in _DEPENDENTS:
+            async for g in db[coll].aggregate([{"$match": {"organization_id": {"$in": chunk}}},
+                                               {"$group": {"_id": "$organization_id", "n": {"$sum": 1}}}]):
+                out.setdefault(g["_id"], {})[label] = g["n"]
+        async for g in db.sites.aggregate([{"$match": {"organization_id": {"$in": chunk}, "created_via": {"$ne": "sage_proposed_site"}}},
+                                           {"$group": {"_id": "$organization_id", "n": {"$sum": 1}}}]):
+            out.setdefault(g["_id"], {})["sites"] = g["n"]
+        async for g in db.customer_import_undo.aggregate([{"$match": {"org_id": {"$in": chunk}, "job_id": {"$ne": job_id}}},
+                                                          {"$group": {"_id": "$org_id", "jobs": {"$addToSet": "$job_id"}}}]):
+            live = await db.customer_import_jobs.count_documents({"id": {"$in": g["jobs"]}, "status": {"$ne": "rolled_back"}})
+            if live:
+                out.setdefault(g["_id"], {})["other imports"] = live
+        async for o in db.organizations.find({"id": {"$in": chunk}}, {"_id": 0, "id": 1, "subscription_tier": 1, "enabled_modules": 1,
+                                                                      "onboarding_status": 1}):
+            if o.get("subscription_tier") not in _PAID_TIERS_FREE or (o.get("enabled_modules") or []) != LITE_MODULES:
+                out.setdefault(o["id"], {})["paid products"] = 1
+            if o.get("onboarding_status") not in (None, "pending_activation"):
+                out.setdefault(o["id"], {})["activated"] = 1
+        await db.customer_import_jobs.update_one({"id": job_id, "status": "rolling_back"}, {"$set": {"heartbeat_at": _now()}})
+    return out
+
+
 @router.get("/jobs/{job_id}/undo-preview")
 async def undo_preview(job_id: str, user: dict = Depends(get_current_user)):
     _require_admin(user)
     created = [o["id"] async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1})]
+    deps = await _dependents_bulk(created, job_id)
     keep = []
-    for oid in created:
-        dep = await _dependents(oid, job_id)
-        if dep:
+    for oid, dep in list(deps.items())[:200]:
+        if oid in created:
             o = await db.organizations.find_one({"id": oid}, {"_id": 0, "name": 1})
             keep.append({"org_id": oid, "name": (o or {}).get("name"), "in_use": dep})
+    kept_total = sum(1 for oid in deps if oid in set(created))
     changes = await db.customer_import_undo.count_documents({"job_id": job_id})
-    return {"customers_to_remove": len(created) - len(keep), "customers_kept_in_use": keep, "changes_to_revert": changes,
+    return {"customers_to_remove": len(created) - kept_total, "customers_kept_in_use": keep, "customers_kept_total": kept_total, "changes_to_revert": changes,
             "values_restored_only_if_unchanged": await db.customer_import_preimages.count_documents({"job_id": job_id})}
 
 
 async def _rollback_work(job_id: str, user: dict) -> None:
     kept: set = set()
     removable = []
-    async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1}):
-        if await _dependents(o["id"], job_id):
-            kept.add(o["id"])
-        else:
-            removable.append(o["id"])
+    created = [o["id"] async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1})]
+    deps = await _dependents_bulk(created, job_id)
+    kept = {o for o in created if o in deps}
+    removable = [o for o in created if o not in deps]
     reverted = 0
     entries = await db.customer_import_undo.find({"job_id": job_id}).sort("_id", -1).to_list(None)
     for e in entries:
@@ -985,7 +1015,9 @@ async def _rollback_work(job_id: str, user: dict) -> None:
         if restore:
             await db.organizations.update_one({"id": p["org_id"]}, {"$set": restore})
     await db.customer_account_refs.delete_many({"job_id": job_id, "org_id": {"$nin": list(kept)}})
-    for oid in removable:
+    for n, oid in enumerate(removable):
+        if n % 200 == 0:
+            await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"heartbeat_at": _now()}})
         full = await db.organizations.find_one({"id": oid}, {"_id": 0})
         await db.customer_import_rollback_archive.insert_one({"job_id": job_id, "coll": "organizations", "doc": full, "at": _now()})
         async for st in db.sites.find({"organization_id": oid, "created_via": "sage_proposed_site"}, {"_id": 0}):
@@ -1017,7 +1049,7 @@ class BranchDecision(BaseModel):
 async def decide_branch_links(body: BranchDecision, user: dict = Depends(get_current_user)):
     """Bulk verify/reject Sage head-office links. Verifying records the relationship only — no merge, no shared access."""
     _require_admin(user)
-    done = 0
+    done, no_ho = 0, 0
     for oid in body.org_ids[:500]:
         o = await db.organizations.find_one({"id": oid, "head_office_link_status": "proposed"}, {"_id": 0, "sage_head_office_ref": 1, "sage_company": 1})
         if not o:
@@ -1027,11 +1059,12 @@ async def decide_branch_links(body: BranchDecision, user: dict = Depends(get_cur
                "head_office_link_decided_by": user.get("email"), "head_office_link_decided_at": _now()}
         if body.decision == "verify":
             if len(ho) != 1:
+                no_ho += 1  # head office not on the platform yet (or ambiguous) — stays proposed
                 continue
             upd["head_office_org_id"] = ho[0]
         await db.organizations.update_one({"id": oid, "head_office_link_status": "proposed"}, {"$set": upd})
         done += 1
-    return {"updated": done}
+    return {"updated": done, "head_office_not_found": no_ho}
 
 
 @router.get("/proposed-sites")
