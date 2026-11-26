@@ -688,8 +688,9 @@ async def _eligible_customer_org(op_org: str, org_id: str) -> bool:
     operator, service-provider or another tenant's organisation."""
     if not org_id or org_id == op_org or not await _is_operator(op_org):
         return False
-    o = await db.organizations.find_one({"id": org_id}, {"_id": 0, "is_operator_company": 1, "account_type": 1})
-    if not o or o.get("is_operator_company") or await db.users.find_one(
+    o = await db.organizations.find_one({"id": org_id}, {"_id": 0, "is_operator_company": 1, "account_type": 1,
+                                                         "created_by_org_id": 1})
+    if not o or o.get("is_operator_company") or o.get("created_by_org_id") not in (None, "", op_org) or await db.users.find_one(
             {"organization_id": org_id, "is_master_admin": True}, {"_id": 1}):
         return False
     if await db.crm2_companies.find_one({"organization_id": op_org, "linked_organization_id": org_id}, {"_id": 1}):
@@ -778,13 +779,20 @@ async def commit(import_id: str, data: dict = Body(default={}), user=Depends(req
                 raise HTTPException(404, "Selected customer not found")
             if picked.get("linked_organization_id") not in (None, "", data["customer_org_id"]):
                 raise HTTPException(409, "That CRM customer is already linked to a different organisation.")
-            if not picked.get("linked_organization_id"):
-                await db.crm2_companies.update_one({"id": picked["id"], "linked_organization_id": {"$in": [None, ""]}},
-                                                   {"$set": {"linked_organization_id": data["customer_org_id"], "linked_at": _now()}})
-                picked["linked_organization_id"] = data["customer_org_id"]
         company = picked or await db.crm2_companies.find_one(
-            {"organization_id": op_org, "linked_organization_id": data["customer_org_id"]}, {"_id": 0}) \
-            or {"linked_organization_id": data["customer_org_id"]}
+            {"organization_id": op_org, "linked_organization_id": data["customer_org_id"]}, {"_id": 0})
+        if not company:
+            # Reuse an exact-name CRM customer that is not linked yet instead of creating a second one.
+            target = _norm_name(customer)
+            async for c in db.crm2_companies.find({"organization_id": op_org, "linked_organization_id": {"$in": [None, ""]}},
+                                                  {"_id": 0}):
+                if target and _norm_name(c.get("name")) == target:
+                    company = c
+                    break
+        if company and not company.get("linked_organization_id"):
+            company["_link_org"] = data["customer_org_id"]  # written after the commit claim
+            company["linked_organization_id"] = data["customer_org_id"]
+        company = company or {"linked_organization_id": data["customer_org_id"]}
     elif data.get("account_ref") and await _is_operator(op_org):
         from utils import customer_identity as CI
         hits = [o for o in await CI.find_orgs_by_ref(data["account_ref"], data.get("sage_company") or "")
@@ -840,6 +848,8 @@ async def _shared_customer(name: str, ref: str, user: dict, data: dict, op_org: 
                                   "message": "This customer may already exist. Pick the existing customer, or confirm it is new.",
                                   "candidates": [{"id": f"org:{x['id']}", "name": x.get("name"), "match": "similar",
                                                   "kind": "organisation", "linked_organization_id": x["id"]} for x in e.suggestions]})
+    if created and not operator:
+        await db.organizations.update_one({"id": org_id}, {"$set": {"created_by_org_id": op_org}})
     if not created and not await _eligible_customer_org(op_org, org_id):
         raise HTTPException(409, "That account number belongs to an organisation you cannot link to — check the account reference.")
     await CI.mark_complete(org_id)
@@ -854,6 +864,11 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
     # 1+2) Customer org + CRM company (reuse when linked).
     if company and company.get("id"):
         crm_company_id = company["id"]
+        if company.get("_link_org"):
+            res = await db.crm2_companies.update_one({"id": crm_company_id, "linked_organization_id": {"$in": [None, ""]}},
+                                                     {"$set": {"linked_organization_id": company["_link_org"], "linked_at": _now()}})
+            if not res.modified_count:
+                raise HTTPException(409, "That CRM customer was linked to another organisation meanwhile — try again.")
         customer = company.get("name") or customer
         cust_org_id = company.get("linked_organization_id")
         if not cust_org_id:

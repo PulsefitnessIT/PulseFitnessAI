@@ -119,6 +119,7 @@ async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentia
         if user.get("is_master_admin") or user.get("is_pulse_admin"):
             _op = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0, "id": 1})
             if _op and _op.get("id"):
+                user["home_organization_id"] = user.get("organization_id")
                 user["organization_id"] = _op["id"]
         set_request_site_scope(scope_user)
         set_requested_site(request.headers.get("x-site-id"))
@@ -341,6 +342,7 @@ async def crm_me(user=Depends(get_crm_user)):
     is_admin_user = _is_master_admin_user(user)
     crm_brand, is_pulse_internal, features, modules = await _resolve_crm_brand_flags(user, is_admin_user)
     return {
+        "home_organization_id": user.get("home_organization_id") or user.get("organization_id"),
         **user,
         "organization_name": org_name,
         "crm_brand": crm_brand,

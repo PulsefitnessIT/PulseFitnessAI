@@ -271,7 +271,8 @@ export function UnifiedAuthProvider({ children }) {
   // the auto-cross-login re-mints one bound to the current org.
   useEffect(() => {
     const mainOrg = identity.main?.organization_id;
-    const crmOrg = identity.crm?.organization_id;
+    // Master admin CRM sessions are scoped to the operator company server-side; compare their home org.
+    const crmOrg = identity.crm?.home_organization_id || identity.crm?.organization_id;
     if (mainOrg && crmOrg && mainOrg !== crmOrg) {
       writeToken('crm', null);
       broadcast();

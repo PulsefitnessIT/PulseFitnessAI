@@ -87,7 +87,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
       fd.append('file', file);
       const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/analyze`, fd, { headers: headers() });
       setAnalysis(r.data);
-      setImportId(r.data.import_id);
+      setImportId(r.data.import_id); setMatchCands(null); setMatchChoice(''); setPrevCompany('');
       setSheetName(r.data.suggested_sheet);
       setHeaderRow(r.data.suggested_header_row);
       setColMap(r.data.column_map || {});
@@ -136,7 +136,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
       } catch { /* commit below still enforces the decision */ }
     }
     const isOrg = matchChoice.startsWith('org:');
-    const decision = matchChoice === '__new__' ? { create_new_customer: true }
+    const decision = matchChoice === '__new__' ? { create_new_customer: true, ...(prevCompany ? { company_id: prevCompany } : {}) }
       : isOrg && prevCompany ? { company_id: prevCompany, customer_org_id: matchChoice.slice(4) }
         : (matchChoice ? { company_id: matchChoice } : {});
     try {
@@ -185,7 +185,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
       fd.append('contract_type', tier);
       fd.append('grouping', grouping);
       const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/analyze-pdf`, fd, { headers: headers() });
-      setImportId(r.data.import_id);
+      setImportId(r.data.import_id); setMatchCands(null); setMatchChoice(''); setPrevCompany('');
       setReview(r.data);
       setStep('review');
     } catch (e) {
@@ -195,6 +195,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
 
   const reset = () => {
     setStep('upload'); setFile(null); setAnalysis(null); setImportId(''); setReview(null);
+    setMatchCands(null); setMatchChoice(''); setPrevCompany('');
     setDone(null); setCustomer(''); setErr('');
     setMergeSummary(null); setMergeSources([]); setMergeScratch(null); setMergeMap({});
   };
@@ -205,7 +206,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/session`,
         { customer_name: customer.trim(), contract_type: tier, grouping }, { headers: headers() });
-      setImportId(r.data.import_id); setMergeSummary(r.data.summary); setMergeSources(r.data.sources || []);
+      setImportId(r.data.import_id); setMatchCands(null); setMatchChoice(''); setPrevCompany(''); setMergeSummary(r.data.summary); setMergeSources(r.data.sources || []);
     } catch (e) { setErr(e?.response?.data?.detail || 'Could not start the merge session.'); }
     finally { setBusy(false); }
   };

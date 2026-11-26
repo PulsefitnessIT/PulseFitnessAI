@@ -1,0 +1,49 @@
+{
+  "summary": "I retested the 5 iteration_333 findings in Aftersales Estate Onboarding shared customer matching. All 5 backend fixes work at the API level: a new retest suite of 15 tests plus the base suite and shared-matching suites pass, 27 of 27. The UI happy path as master admin also works: upload, build, commit, the match card shows the CRM company 'Exact name match' and the 'Existing customer organisation' candidate, picking the CRM company returns 409 with the org candidate, picking the org commits with company_id + customer_org_id, and the existing CRM company is linked with no duplicate. I found 2 new HIGH issues during the UI test. (A) After 'Import another customer', the wizard keeps the previous customer choice, so a brand-new customer's estate is silently committed into the previous customer's organisation. (B) For master admin, the CRM token is re-minted in an endless loop, which causes random 401 'Not authenticated' errors on build and commit. I had to pin a CRM token in Playwright to finish the UI flow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/v2/aftersales/onboarding/{id}/commit company_id='org:<id>' (no CRM company)", "issue": "Same behaviour as before when only the org is sent: if an unlinked CRM company with the same name exists, a second crm2_companies record is created (the base test still prints 'Pangolin: 2, original crm linked: None'). The UI only avoids this after a 409; if the user picks the org candidate on the first card, the same-name CRM company is not linked either."},
+      {"endpoint": "commit with company_id + customer_org_id", "issue": "The picked CRM company is linked to the org (update_one) before the atomic 'committing' claim and before _do_commit. If the claim fails or _do_commit raises, the link stays even though nothing else was written. Low risk, but it is a partial write."},
+      {"endpoint": "_eligible_customer_org", "issue": "Any account_type='lite' org is eligible for the Pulse operator. That includes LITE orgs created by another tenant's estate onboarding (a non-operator create_new_customer also creates a LITE org, which I confirmed with iso-demo). So the Pulse operator can see and link customer orgs that another tenant created. Decide whether this is intended; if not, restrict eligibility to orgs created by the operator, by Sage or Sicon, or that have an operator CRM mirror."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EstateOnboarding.js reset() (~line 196)", "issue": "HIGH, data integrity. reset() does not clear matchChoice, prevCompany or matchCands. Reproduced: I imported 'TEST_UIQ7 Kestrel Leisure' linked to the existing org, clicked 'Import another customer', then imported 'TEST_UIQ7 Brand Unique Quasar'. Reconcile found no candidates, so doCommit sent the stale {company_id: TEST_UIQ7_crm, customer_org_id: TEST_UIQ7_org} with no prompt. The new customer's site and equipment were written into Kestrel's org and CRM company (confirmed in the DB: 2 sites in TEST_UIQ7_org). Fix: in reset(), and when a new import starts (analyze), call setMatchCands(null), setMatchChoice('') and setPrevCompany('').", "selector": "[data-testid='afs-onb-restart'] then [data-testid='afs-onb-commit']", "priority": "HIGH"},
+      {"component": "EstateOnboarding.js doCommit", "issue": "If the user picks a CRM company, gets the 409, and then picks 'None of these — create a new customer', only {create_new_customer:true} is sent. The earlier CRM company choice (prevCompany) is dropped, so a second same-name CRM company is created. Send company_id: prevCompany together with create_new_customer.", "selector": "[data-testid='afs-onb-match-new']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Master admin CRM session (UnifiedAuthProvider.js org-mismatch guard, ~line 272, vs backend routes/crm_auth.py ~line 119)", "issue": "HIGH. This is an existing bug (not introduced this iteration), but it blocks the requested flow. The backend scopes a master admin's CRM session to the operator org (3ece2d0c…, Pulse Fitness Ltd), while /api/auth/me returns the admin org (d19de469…). The org-mismatch guard sees the two orgs differ, drops crm_token and cross-logs in again, which mismatches again: an endless loop. Backend logs show cross-login + /crm/auth/me firing many times per second. Requests sent while the token is null get 401 'Not authenticated'. I saw this on /build and /commit in 2 of 3 UI runs. Fix: exempt master/pulse admins from the guard (for example compare against the backend's effective CRM org, or skip when identity.crm.is_master_admin is true).", "affected_selectors": ["afs-onb-error", "afs-onb-build", "afs-onb-commit"]}
+    ],
+    "design_issues": [
+      {"screen": "CRM header for master admin", "issues": ["The header reads 'CRM · Pulse Fitness AI Admin' while the data shown is the Pulse Fitness Ltd operator workspace, so it does not match."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_afs_shared_customer_retest.py",
+    "/app/backend/tests/test_afs_shared_customer_matching_api.py",
+    "/app/backend/tests/test_shared_customer_matching.py",
+    "/app/backend/tests/ui_afs_setup.py",
+    "/app/test_reports/pytest/afs_shared_retest.xml"
+  ],
+  "action_items": [
+    "HIGH: EstateOnboarding.js reset() and new-import start must clear matchChoice, prevCompany and matchCands. Today a second import silently commits into the previous customer.",
+    "HIGH: Stop the master admin crm_token re-mint loop. UnifiedAuthProvider's org-mismatch guard conflicts with the backend scoping master admin CRM sessions to the operator org, which causes random 401s on CRM calls.",
+    "MEDIUM: When 'create new' is chosen after a CRM company 409, send company_id: prevCompany together with create_new_customer. When an org candidate is picked and an exact-name unlinked CRM company is in the candidates, link that company instead of creating a duplicate.",
+    "LOW: Move the picked-CRM-company link inside the claimed or try section so a failed commit leaves no partial link.",
+    "DECIDE: Should LITE orgs created by other tenants be eligible for the Pulse operator? Restrict eligibility if not."
+  ],
+  "critical_code_review_comments": [
+    "crm_afs_onboarding.py commit(): billing_frequency is now validated before any write. The duplicate check at _do_commit lines 948-950 is now redundant.",
+    "_eligible_customer_org runs up to 3 DB lookups for each suggestion inside the _customer_candidates loop, plus count_documents for sites and equipment. That is fine for 12 results, but it is an N+1 pattern.",
+    "crm_afs_onboarding.py is 1225 lines and EstateOnboarding.js is 806 lines. Both are past the 700-line guideline."
+  ],
+  "updated_files": ["/app/backend/tests/test_afs_shared_customer_retest.py", "/app/backend/tests/ui_afs_setup.py"],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "60% (the requested happy path passes only with a pinned CRM token; it fails on stale choice reuse and the auth-loop 401s)"},
+  "seed_data_creation": "Only TEST_<TAG>/TEST_UIQ7 orgs, CRM companies, imports, sites, equipment and contracts, all deleted by id afterwards. The org count was 637 before and after. No emails were sent and nothing was written to Sicon. Pre-existing TEST_ orgs from other runs (TEST_BulkImport_*, TEST_Gym A/B, TEST_NoEmail etc.) were left alone.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use admin@pulsefitness.com (CRM is scoped to operator org 3ece2d0c…). MFA enforcement is currently false. To get to the UI: /login, then /crm, click 'Corporate', then crm-nav-aftersales, then afs-tab-onboarding. Until the auth loop is fixed, pin a CRM token by calling page.route on **/api/crm/v2/aftersales/onboarding/** with an Authorization header from POST /api/crm/auth/login. After the 409, wait for the CRM candidate row to detach before picking the org radio. tests/ui_afs_setup.py setup|verify|cleanup <TAG> builds the fixtures. Retest the stale-choice bug by doing 2 imports in a row and checking that the 2nd commit body has no company_id or customer_org_id.",
+  "rca of the issue": "(A) Stale choice: matchChoice and prevCompany are component state that reset() never clears. doCommit builds the decision from matchChoice whenever reconcile returns decision_required=false. (B) Auth loop: backend get_crm_user overrides organization_id to the operator company for master admins (crm_auth.py ~line 119). The frontend guard (UnifiedAuthProvider ~line 272) treats a main/CRM organization_id mismatch as a stale token and drops it, then cross-login mints another token for the operator org, and the cycle repeats. Calls made in between send no token, so they return 401."
+}
