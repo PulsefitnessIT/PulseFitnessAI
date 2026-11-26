@@ -24,7 +24,7 @@ _PROMPT = """Extract this {label} for gym / fitness equipment as JSON:
 {{"customer_name": str|null, "account_ref": str|null, "postcode": str|null, "site_name": str|null,
  "site_address": str|null, "document_ref": str|null, "document_date": "YYYY-MM-DD"|null,
  "lines": [{{"item_code": str|null, "make": str|null, "model": str|null, "description": str|null,
-             "quantity": int, "serials": [str], "amount": number|null}}]}}
+             "quantity": int|null, "serials": [str], "amount": number|null}}]}}
 Rules: copy codes, models, serial numbers and QUANTITIES EXACTLY as printed; never change a quantity to match the
 number of serials; never invent values (use null / []).
 "account_ref" is the customer's account number on the document (e.g. Sage A/C). "postcode" is the
@@ -85,7 +85,21 @@ async def extract_document(pdf: bytes, doc_type: str) -> dict:
     jobs += [_ask(f"scanned pages {b[0]}–{b[-1]}", images=page_images(pdf, b)) for b in doc["vision_batches"]]
     if not jobs:
         raise HTTPException(422, "The document has no readable pages.")
-    results = await asyncio.gather(*jobs)
+    short: list = []
+    results = list(await asyncio.gather(*jobs))
+    expected_re = re.compile(r"\b(?:qty|quantity)\b", re.I)
+    for i, sec in enumerate(doc["sections"]):
+        want = sum(1 for t in sec["text"].splitlines() if expected_re.search(t))
+        got = len((results[i][1] or {}).get("lines") or [])
+        if want and got < want:  # AI dropped lines → re-read this part in halves once
+            ls = sec["text"].splitlines()
+            a, b = await asyncio.gather(_ask(sec["label"], "\n".join(ls[:len(ls) // 2])), _ask(sec["label"], "\n".join(ls[len(ls) // 2:])))
+            if a[1] is not None and b[1] is not None:
+                retry = {**a[1], "lines": (a[1].get("lines") or []) + (b[1].get("lines") or [])}
+                if len(retry["lines"]) >= got:
+                    results[i] = (sec["label"], retry)
+            if len((results[i][1] or {}).get("lines") or []) < want:
+                short.append(f"{sec['label']}: {want} quantity line(s) printed, {len((results[i][1] or {}).get('lines') or [])} read")
     ok = [(part, out) for part, out in results if out is not None]
     if not ok:
         raise HTTPException(422, "The document could not be read — check it is a clear invoice or delivery note.")
@@ -99,11 +113,12 @@ async def extract_document(pdf: bytes, doc_type: str) -> dict:
     merged["lines"] = verify_quantities(lines, pdf)
     cov = doc["coverage"]
     failed = [part for part, out in results if out is None]
-    merged["coverage"] = {**cov, "parts_total": len(results), "parts_read": len(ok), "parts_failed": failed,
-                          "complete": not failed and not cov.get("unread")}
+    merged["coverage"] = {**cov, "parts_total": len(results), "parts_read": len(ok), "parts_failed": failed + short,
+                          "notes": (cov.get("notes") or []) + short, "complete": not failed and not short and not cov.get("unread")}
     return merged
 
 
+_QTY_LABEL = re.compile(r"\b(?:qty|quantity)\b", re.I)
 _QTY = re.compile(r"\b(?:qty|quantity|units?)\s*[:.=]?\s*(\d+(?:\.\d+)?)\b", re.I)
 
 
@@ -137,14 +152,21 @@ def verify_quantities(lines: list, pdf: bytes) -> list:
             if hit:
                 break
         ai = ln.get("quantity")
-        if not hit:
+        if not hit:  # scanned page / line not locatable — the coordinator must confirm the AI reading
             ln["qty_validation"] = "unverified"
             continue
         used.add(hit[:2])
         ln["source_text"] = hit[2].strip()[:300]
         m = _QTY.search(hit[2])
         if not m:
-            ln["qty_validation"] = "unverified"
+            if _QTY_LABEL.search(hit[2]):  # "Qty two", "Qty -" — a quantity is printed but unreadable
+                ln["quantity_ai"], ln["quantity"], ln["qty_validation"] = ai, None, "invalid"
+                continue
+            nums = re.findall(r"(?<![\w.£,-])(\d{1,4})(?![\w.,%])", hit[2])
+            if ai is not None and str(ai).isdigit() and str(int(ai)) in nums:
+                ln["qty_validation"] = "column_match"  # unlabelled quantity column contains the same number
+            else:
+                ln["quantity_ai"], ln["quantity"], ln["qty_validation"] = ai, None, "missing"
             continue
         printed = float(m.group(1))
         ln["quantity_text"] = m.group(0)
@@ -306,6 +328,8 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
             flags.append("quantity_unconfirmed")
         elif ln.get("qty_validation") == "corrected_from_source":
             flags.append("quantity_corrected")
+        elif ln.get("qty_validation") == "unverified":
+            flags.append("quantity_unverified")
         if serials and qty and len(serials) != qty:
             flags.append("serial_mismatch")
         if len(set(serials)) != len(serials):
@@ -329,6 +353,7 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
         if doc_type == "maintenance_invoice":
             flags.append("evidence_only_price")
         blocking = {"unknown_code", "spare_part", "already_covered", "variant_review", "serial_mismatch", "quantity_unconfirmed",
+                    "quantity_unverified",
                     "duplicate_serials", "discontinued", "model_match_only", "unsupported"}
         ident_flags = set(flags) & (blocking - {"already_covered", "unsupported"})
         identification = ("matched" if cfg and not ident_flags else "spare_part" if "spare_part" in flags

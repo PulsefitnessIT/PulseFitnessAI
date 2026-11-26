@@ -1454,6 +1454,7 @@ class CustomQuoteIn(BaseModel):
     save: bool = False
     source_blocking: int = 0                          # unresolved rows from the document reconciliation
     rate_review_reason: Optional[str] = None          # required to save while imported rates still need review
+    pricing_job_id: Optional[str] = None              # extraction job the rates came from (server re-checks completeness)
 
 
 @router.post("/build-custom-quote")
@@ -1468,6 +1469,16 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(require_crm_perm(
     if not company:
         raise HTTPException(404, "Company not found")
     unresolved = sum(1 for x in body.machine_rates + body.travel_rates + body.repair_rates if x.get("needs_review")) + (body.source_blocking or 0)
+    if body.pricing_job_id:  # trust the server's own extraction result, not client flags
+        job = await db.crm2_afs_doc_jobs.find_one({"id": body.pricing_job_id, "organization_id": _org(user), "kind": "pricing"}, {"_id": 0, "result": 1})
+        if not job:
+            raise HTTPException(404, "Pricing extraction not found")
+        res = job.get("result") or {}
+        server = (res.get("reconciliation") or {}).get("blocking", 0) + sum(
+            1 for k in ("machine_services", "travel", "repairs") for x in res.get(k) or [] if x.get("needs_review"))
+        if not (res.get("coverage") or {}).get("complete", True):
+            server += 1
+        unresolved = max(unresolved, server)
     if body.save and unresolved and len((body.rate_review_reason or "").strip()) < 10:
         raise HTTPException(422, f"{unresolved} imported rate(s) or source row(s) still need review — correct them, or record why "
                                  "they are accepted/excluded before saving the quote.")

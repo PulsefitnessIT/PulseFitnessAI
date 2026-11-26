@@ -744,7 +744,8 @@ const MATCH_STATUSES = [['exact', 'Exact match'], ['suggested', 'Suggested match
   ['unmatched', 'Not matched'], ['excluded', 'Excluded'], ['registered', 'Already registered']];
 const MATCH_LABEL = Object.fromEntries(MATCH_STATUSES);
 const QTY_LABEL = { verified: 'qty matches document', corrected_from_source: 'qty taken from document', unverified: 'qty not checked — confirm',
-  invalid: 'qty unreadable — enter it', confirmed_by_coordinator: 'qty confirmed by coordinator' };
+  invalid: 'qty unreadable — enter it', missing: 'no qty printed — enter it', column_match: 'qty matches document column',
+  confirmed_by_coordinator: 'qty confirmed by coordinator' };
 function matchStatus(ln, decision) {
   const k = decision === 'excluded' ? 'excluded'
     : (ln.flags || []).includes('already_covered') || (ln.existing_equipment || []).length > 0 ? 'registered'
@@ -1027,6 +1028,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
   const [pricingCoverage, setPricingCoverage] = useState(null);
   const [pricingRecon, setPricingRecon] = useState(null);
   const [rateReviewReason, setRateReviewReason] = useState('');
+  const [pricingJobId, setPricingJobId] = useState(null);
   const onPricingUploaded = async (doc, f) => {
     setUploadBusy(true); setCustomData(null); setCustomResult(null); setPricingCoverage(null);
     try {
@@ -1034,7 +1036,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
       const ex = { data: (await waitForJob(axios, API, headers, job.data.job_id)).result };
       setCustomData({ machine_services: ex.data.machine_services || [], travel: ex.data.travel || [], repairs: ex.data.repairs || [], summary: ex.data.summary || null });
       setPricingCoverage(ex.data.coverage || null);
-      setPricingRecon(ex.data.reconciliation || null); setRateReviewReason('');
+      setPricingRecon(ex.data.reconciliation || null); setRateReviewReason(''); setPricingJobId(job.data.job_id);
       setLastFilename(ex.data.source_filename || f.name || '');
       if (customMode === 'wizard') setWizStep(2);
     } finally { setUploadBusy(false); }
@@ -1072,7 +1074,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
         machine_rates: incl.service ? (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price), needs_review: !!m.needs_review })) : [],
         travel_rates: incl.travel ? (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price), needs_review: !!t.needs_review })) : [],
         repair_rates: incl.repairs ? (customData.repairs || []).map(rp => ({ type: rp.type, hourly_rate: Number(rp.hourly_rate), needs_review: !!rp.needs_review })) : [],
-        source_blocking: (pricingRecon?.issues || []).length, rate_review_reason: rateReviewReason,
+        source_blocking: (pricingRecon?.issues || []).length, rate_review_reason: rateReviewReason, pricing_job_id: pricingJobId || undefined,
         estimated_repair_hours: incl.repairs ? Number(estHours || 0) : 0,
         term_years: Number(term), quote_discount_pct: Number(discount),
         visits_per_year: Number(visits || 1), vat_pct: Number(vatPct || 0) / 100,
