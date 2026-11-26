@@ -581,6 +581,11 @@ async def update_org_details(org_id: str, body: dict = Body(...), user: dict = D
         if owners or await CI.claim_ref(new_ref, "", org_id, None, "master_admin_edit") != org_id:
             raise HTTPException(409, f"Account {new_ref} already belongs to another customer")
         updates["customer_account_number"] = new_ref
+        old = await db.organizations.find_one({"id": org_id}, {"_id": 0, "customer_account_number": 1})
+        if old and old.get("customer_account_number") and old["customer_account_number"] != new_ref:
+            await db.customer_account_refs.delete_many({"org_id": org_id, "company": "", "ref": old["customer_account_number"]})
+            await db.organizations.update_one({"id": org_id}, {"$pull": {"sage_account_refs": old["customer_account_number"]}})
+        await db.organizations.update_one({"id": org_id}, {"$addToSet": {"sage_account_refs": new_ref}})
 
     # Iter 215en — when any structured-address field is being updated, also
     # re-compose the legacy single-line `address` so Sage / Sicon outbox

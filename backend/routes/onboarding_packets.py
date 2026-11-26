@@ -501,7 +501,8 @@ async def _create_organization(packet: Dict, packet_id: str) -> str:
     ids = await CI.find_orgs_by_ref(ref) if ref else []
     if ids:
         raise HTTPException(409, f"Account {ref} already belongs to an existing customer — attach this packet to it instead")
-    if not ref and not packet.get("confirm_new_customer") and await CI.duplicate_suggestions(org.get("name", ""), org.get("postcode", "")):
+    if not ref and not packet.get("confirm_new_customer") and await CI.duplicate_suggestions(org.get("trading_name") or org.get("legal_name") or org.get("name", ""),
+                                                                                         org.get("billing_postcode") or org.get("postcode", "")):
         raise HTTPException(409, "A customer with a similar name already exists — check Master Admin → Onboarding before provisioning")
     org_id = str(uuid.uuid4())
     if ref and await CI.claim_ref(ref, "", org_id, None, "onboarding_packet") != org_id:

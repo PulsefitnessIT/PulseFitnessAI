@@ -67,7 +67,16 @@ async def claim_ref(ref: str, company: str, org_id: str, job_id: Optional[str] =
                                                    "job_id": job_id, "source": source, "created_at": _now()})
         return org_id
     except DuplicateKeyError:
-        d = await db.customer_account_refs.find_one({"system": "sage", "company": company, "ref": clean_ref(ref)}, {"_id": 0, "org_id": 1})
+        key = {"system": "sage", "company": company, "ref": clean_ref(ref)}
+        d = await db.customer_account_refs.find_one(key, {"_id": 0, "org_id": 1})
+        if d and d["org_id"] != org_id and not await db.organizations.find_one({"id": d["org_id"]}, {"_id": 1}):
+            # The previous owner no longer exists (rolled back / deleted) — take the reference over atomically.
+            took = await db.customer_account_refs.find_one_and_update({**key, "org_id": d["org_id"]},
+                                                                       {"$set": {"org_id": org_id, "job_id": job_id, "source": source,
+                                                                                 "taken_over_at": _now()}})
+            if took:
+                return org_id
+            d = await db.customer_account_refs.find_one(key, {"_id": 0, "org_id": 1})
         return d["org_id"]
 
 

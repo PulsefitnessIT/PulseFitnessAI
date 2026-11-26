@@ -57,6 +57,7 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
       const { data } = await axios.post(`${API}/jobs/${job.id}/${path}`, {}, { headers });
       setJob(data);
       if (path === 'commit') poll();
+      if (path === 'discard') onDone?.();
     } catch (e) { setErr(e.response?.data?.detail || e.message); } finally { setBusy(''); }
   };
   const poll = async () => {
@@ -89,7 +90,7 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
     catch (e) { setErr(e.response?.data?.detail || e.message); } finally { setBusy(''); }
   };
   const sage = job.kind === 'sage_accounts';
-  const finished = ['completed', 'completed_with_errors', 'interrupted'].includes(job.status);
+  const finished = ['completed', 'completed_with_errors', 'interrupted', 'rollback_interrupted'].includes(job.status);
 
   return (
     <Card className="p-5 rounded-xl border-zinc-200 space-y-4" data-testid="ci-job-panel">
@@ -147,7 +148,7 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
         )}
         {finished && (
           <span className={`text-sm font-medium ${job.status === 'completed' ? 'text-emerald-700' : 'text-amber-700'}`} data-testid="ci-finished">
-            {job.status === 'completed' ? 'Import complete' : job.status === 'interrupted' ? 'Import interrupted — retry to continue' : `Finished with ${job.results?.failed || 0} failed record(s)`}
+            {job.status === 'completed' ? 'Import complete' : job.status === 'interrupted' ? 'Import interrupted — retry to continue' : job.status === 'rollback_interrupted' ? 'Undo stopped part-way — choose Undo import again to finish it' : `Finished with ${job.results?.failed || 0} failed record(s)`}
             {sage && job.results ? ` · ${job.results.org_created_lite || 0} new LITE organisations` : ''}
           </span>
         )}

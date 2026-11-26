@@ -39575,3 +39575,23 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Tests: tests/test_sage_sicon_customer_import.py + test_sage_sicon_import_independent.py (20 passing, including 5,200 rows).
 - Backlog P1: owner/manager invitations (Access & Invitations), MFA for customer privileged roles, site-scoped roles, gym-floor device access, LITE activation email. P2: paid-product discovery and conversion dashboard (MRR/ARR).
 - Known unrelated: trial-reminder email may not be idempotent across backend restarts (flagged by the testing agent).
+
+## Nov 2026 — Onboarding consolidation (P0), tested in iterations 330–331
+- One Onboarding area: a top-level sidebar item with the Onboarding Centre tabs Dashboard, Import Centre, Projects, Review Centre, Customer Activation, Import History, Templates & Guidance and Reports. Specialist group: Questionnaires and the MOD screens. Pulse staff group: staff onboarding.
+- Shared identity service: utils/customer_identity.py (find_orgs_by_ref, claim_ref with takeover from a deleted owner, duplicate_suggestions, provision_customer_org = LITE only). It is used by the Sage import, manual creation, Master Admin create and edit, Aftersales estate commit and onboarding packets.
+- Removed (UI deleted, API returns 410): onboard-pulse-site, onboard-head-office, guided-wizard customer tenants. The quick "customers" card was also removed (it was already 404). The org Sites "Import CSV" button now deep-links to Import Centre → Sites.
+- New APIs under /api/master-admin/customer-import:
+  - manual, duplicates, detect
+  - review, history, activation
+  - templates/{kind}.csv
+  - jobs/{id}/discard
+- Recovery: stale-worker recovery covers interrupted, analysis_failed and rollback_interrupted. Rollback runs asynchronously with an undo log.
+- Inventory and decisions: memory/ONBOARDING_CONSOLIDATION.md. Import handover: memory/CUSTOMER_IMPORT.md.
+- Legacy tests for the retired endpoints are skipped with a reason; test_iter_216h50 now seeds its fixture directly.
+- P1 next:
+  - Customer Activation invitations and MFA
+  - Gym-floor devices
+  - One onboarding project per customer, with automatic steps
+  - Moving the site, equipment and contract engines onto the shared job model and asset/contract identity
+  - MOD kiosk policy review
+  - Delegated permissions

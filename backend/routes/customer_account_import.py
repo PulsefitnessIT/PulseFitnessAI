@@ -99,7 +99,9 @@ async def _ref_index(refs: set, company: str) -> dict:
             for ref in {st.get("invoice_customer_ref"), st.get("sicon_customer_ref")} & set(chunk):
                 if st.get("organization_id"):
                     out[ref].add(st["organization_id"])
-    return {k: sorted(v) for k, v in out.items()}
+    every = {i for v in out.values() for i in v}
+    live = {o["id"] async for o in db.organizations.find({"id": {"$in": list(every)}}, {"_id": 0, "id": 1})} if every else set()
+    return {k: sorted(v & live) for k, v in out.items()}
 
 
 # ---------------------------------------------------------------- analyse (upload)
@@ -164,7 +166,7 @@ async def analyze(file: UploadFile = File(None), file_id: Optional[str] = Form(N
 async def _evaluate_bg(job_id: str, then: str) -> None:
     try:
         await _evaluate(job_id)
-        await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": then}})
+        await db.customer_import_jobs.update_one({"id": job_id, "status": "analysing"}, {"$set": {"status": then}})
     except Exception as e:  # noqa: BLE001
         logger.exception("customer import evaluation %s failed", job_id)
         await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "analysis_failed", "error": str(e)[:300]}})
@@ -410,7 +412,7 @@ async def _job_view(job_id: str) -> dict:
     if job["status"] in ("committing", "analysing", "rolling_back") and job.get("heartbeat_at", job.get("created_at")) and \
             (datetime.now(timezone.utc) - datetime.fromisoformat(job.get("heartbeat_at") or job["created_at"])).total_seconds() > STALE_SECONDS:
         # The worker stopped (e.g. server restart). Completed rows are kept; "Retry" carries on from where it stopped.
-        new = {"committing": "interrupted", "analysing": "analysis_failed", "rolling_back": "interrupted"}[job["status"]]
+        new = {"committing": "interrupted", "analysing": "analysis_failed", "rolling_back": "rollback_interrupted"}[job["status"]]
         await db.customer_import_jobs.update_one({"id": job_id, "status": job["status"]}, {"$set": {"status": new,
                                                  "error": "The import stopped unexpectedly — choose Retry to continue"}})
         job["status"] = new
@@ -432,9 +434,17 @@ async def _job_view(job_id: str) -> dict:
     return job
 
 
+async def _flip_stale() -> None:
+    cutoff = datetime.fromtimestamp(datetime.now(timezone.utc).timestamp() - STALE_SECONDS, timezone.utc).isoformat()
+    for st, new in (("committing", "interrupted"), ("analysing", "analysis_failed"), ("rolling_back", "rollback_interrupted")):
+        await db.customer_import_jobs.update_many({"status": st, "heartbeat_at": {"$lt": cutoff}},
+                                                  {"$set": {"status": new, "error": "The import stopped unexpectedly — choose Retry to continue"}})
+
+
 @router.get("/jobs")
 async def list_jobs(kind: Optional[str] = None, user: dict = Depends(get_current_user)):
     _require_admin(user)
+    await _flip_stale()
     q = {"kind": kind} if kind else {}
     return {"jobs": await db.customer_import_jobs.find(q, {"_id": 0}).sort("created_at", -1).to_list(50)}
 
@@ -866,7 +876,7 @@ async def rollback(job_id: str, user: dict = Depends(get_current_user)):
     been given access and no paid product is active; such organisations (and their records) are kept."""
     _require_admin(user)
     job = await db.customer_import_jobs.find_one_and_update(
-        {"id": job_id, "status": {"$in": ["completed", "completed_with_errors", "interrupted"]}},
+        {"id": job_id, "status": {"$in": ["completed", "completed_with_errors", "interrupted", "rollback_interrupted"]}},
         {"$set": {"status": "rolling_back", "heartbeat_at": _now()}})
     if not job:
         raise HTTPException(409, "Only finished imports can be rolled back")
@@ -877,6 +887,14 @@ async def rollback(job_id: str, user: dict = Depends(get_current_user)):
 
 
 async def _do_rollback(job_id: str, user: dict) -> None:
+    try:
+        await _rollback_work(job_id, user)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("rollback %s failed", job_id)
+        await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "rollback_interrupted", "error": str(e)[:300]}})
+
+
+async def _rollback_work(job_id: str, user: dict) -> None:
     kept: set = set()
     removable = []
     async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1, "subscription_tier": 1, "enabled_modules": 1}):
@@ -903,6 +921,8 @@ async def _do_rollback(job_id: str, user: dict) -> None:
             unsets = {k: "" for k, v in e["before"].items() if v is None}
             await coll.update_one(key, {k: v for k, v in (("$set", sets), ("$unset", unsets)) if v})
         reverted += 1
+        if reverted % 500 == 0:
+            await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"heartbeat_at": _now()}})
     async for p in db.customer_import_preimages.find({"job_id": job_id}, {"_id": 0}).sort("at", -1):
         if p["org_id"] not in kept:
             await db.organizations.update_one({"id": p["org_id"]}, {"$set": p["before"]})
@@ -1032,7 +1052,7 @@ async def manual_customer(body: ManualCustomer, user: dict = Depends(get_current
     if ref:
         ids = await CI.find_orgs_by_ref(ref, company)
         if ids:
-            o = await db.organizations.find_one({"id": ids[0]}, {"_id": 0, "id": 1, "name": 1})
+            o = await db.organizations.find_one({"id": ids[0]}, {"_id": 0, "id": 1, "name": 1}) or {}
             raise HTTPException(409, {"message": f"Account {ref} already belongs to {o.get('name') if o else 'another customer'}",
                                       "existing": o})
     email, ew = S._email(body.primary_contact_email)
@@ -1077,6 +1097,7 @@ _REVIEW_ROW_CATS = {
 async def review_centre(type: Optional[str] = None, search: str = "", skip: int = 0, limit: int = Query(50, le=200),
                         user: dict = Depends(get_current_user)):
     _require_admin(user)
+    await _flip_stale()
     items: list[dict] = []
     open_jobs = {j["id"]: j async for j in db.customer_import_jobs.find({"status": {"$in": ["analysed", "approved", "completed_with_errors", "interrupted"]}},
                                                                       {"_id": 0, "id": 1, "filename": 1, "created_by": 1, "kind": 1})}
@@ -1135,6 +1156,7 @@ async def review_centre(type: Optional[str] = None, search: str = "", skip: int 
 @router.get("/history")
 async def import_history(limit: int = Query(100, le=500), user: dict = Depends(get_current_user)):
     _require_admin(user)
+    await _flip_stale()
     out = []
     async for j in db.customer_import_jobs.find({}, {"_id": 0}).sort("created_at", -1).limit(limit):
         res, p = j.get("results") or {}, j.get("preview") or {}
@@ -1143,7 +1165,7 @@ async def import_history(limit: int = Query(100, le=500), user: dict = Depends(g
                     "processed": sum(p.values()), "created": res.get("org_created_lite", 0) + res.get("contact_created", 0),
                     "updated": res.get("org_updated", 0) + res.get("contact_updated", 0),
                     "skipped": res.get("org_unchanged", 0) + res.get("contact_unchanged", 0), "failed": res.get("failed", 0),
-                    "report": True, "undo": j["status"] in ("completed", "completed_with_errors", "interrupted")})
+                    "report": True, "undo": j["status"] in ("completed", "completed_with_errors", "interrupted", "rollback_interrupted")})
     async for b in db.import_batches.find({}, {"_id": 0, "org_snapshots": 0}).sort("created_at", -1).limit(limit):
         out.append({"id": b["id"], "engine": "bulk_import", "type": f"Bulk {b.get('kind', '')}".strip(), "filename": b.get("filename"),
                     "by": b.get("actor_email"), "at": str(b.get("created_at") or ""), "status": "undone" if b.get("undone") else "completed",

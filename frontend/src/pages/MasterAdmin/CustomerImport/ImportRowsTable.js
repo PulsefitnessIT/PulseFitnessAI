@@ -105,7 +105,7 @@ export default function ImportRowsTable({ job, headers, setJob, locked }) {
                   <td className="p-2 tabular-nums">{r.row}</td>
                   <td className="p-2 font-mono">{r.record?.account_ref || ''}</td>
                   <td className="p-2">{nameOf(r)}{o.org_name && o.org_name !== nameOf(r) ? <span className="block text-zinc-400">matched: {o.org_name}</span> : null}</td>
-                  <td className="p-2"><Badge cat={o.category} />{r.commit_status === 'done' && <span className="block text-emerald-700 mt-1">imported</span>}{r.commit_status === 'failed' && <span className="block text-red-600 mt-1">{r.error}</span>}</td>
+                  <td className="p-2"><Badge cat={o.category} />{r.commit_status === 'done' && (job.status === 'rolled_back' ? <span className="block text-zinc-500 mt-1">undone</span> : <span className="block text-emerald-700 mt-1">imported</span>)}{r.commit_status === 'failed' && <span className="block text-red-600 mt-1">{r.error}</span>}</td>
                   <td className="p-2 space-y-0.5 max-w-md">
                     {(r.record?.errors || []).map((e) => <p key={e} className="text-red-600">{e}</p>)}
                     {o.action && <p className="text-amber-700">{o.action}</p>}
