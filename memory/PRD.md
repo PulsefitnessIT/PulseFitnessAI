@@ -39566,3 +39566,12 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Doc jobs: one job per file (deduplicated), heartbeat, stale-job detection and retry.
 - Production (deployer, read-only): healthy. Year 4: all 43 rate rows on the live list af73ec. Nothing to reconcile in renewals. The CM_RENEWAL_EMAIL_LIVE, MOD_QUOTE_NOTIFY_LIVE, SICON_ALLOW_WRITES and AFS_IMPORT_MAX_MB flags are absent (emails and Sicon writes are off).
 - Pending: deploy these fixes, then run a production smoke test of a >2 MiB Aftersales upload. Contracts real-staff check, Maintenance Master reconciliation, CI frozen-lockfile proof, and classification of the full regression suite.
+
+## Nov 2026 — Sage & Sicon Customer Import (P0), preview-verified in iteration 329 + rerun
+- New: Master Admin → Organisations → Onboarding → "Sage & Sicon Customer Import" (routes/customer_account_import.py, utils/sage_sicon_import.py, pages/MasterAdmin/CustomerImport/*). Full handover in memory/CUSTOMER_IMPORT.md.
+- Handles XLS, XLSX and CSV (including BOM). Detects template metadata and example rows. Matches by account number using a unique refs index. Two-pass head office handling (branch merged by default, per the user's choice). Finance fields go to a staff-only customer_account_internal record. Hidden accounts excluded by default; on-hold flagged. Sage address becomes a proposed site. Contacts are added to crm2_contacts with conservative matching. Unmatched Sicon contacts are staged and auto-linked later. Server-held snapshot with approval, background batches, retry, reconciliation CSV, and exact rollback via an undo log.
+- New customers get LITE only, pending_activation. No users, no emails, no paid products.
+- Legacy onboarding_import fixes: no silent truncation over 5,000 rows (413); no auto user or plaintext password; no welcome email; matching by account number.
+- Tests: tests/test_sage_sicon_customer_import.py + test_sage_sicon_import_independent.py (20 passing, including 5,200 rows).
+- Backlog P1: owner/manager invitations (Access & Invitations), MFA for customer privileged roles, site-scoped roles, gym-floor device access, LITE activation email. P2: paid-product discovery and conversion dashboard (MRR/ARR).
+- Known unrelated: trial-reminder email may not be idempotent across backend restarts (flagged by the testing agent).

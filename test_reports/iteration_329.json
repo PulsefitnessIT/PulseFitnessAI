@@ -1,0 +1,52 @@
+{
+  "summary": "Tested the Sage 200 + Sicon customer import (P0) end to end, backend and UI. The 7 existing acceptance tests (A–D, edge cases, 5,200-row import plus rollback) all pass again. I added 13 independent checks in backend/tests/test_sage_sicon_import_independent.py; 11 pass and 2 fail on real rollback bugs. Passing checks: XLSX leading zero with number format '0000' (read as '0042'); UTF-8 BOM CSV; an invalid email is kept in email_source but not used; international phone shown as +33; all 4 address lines; analysis and finance fields stored only in customer_account_internal; a blank source value never overwrites; a conflicting value is applied only with apply_changes, and rollback restores it; an existing pro/CRM/memberships/marketing org keeps its modules; an account ref linked to 2 orgs gives ambiguous_organisation and approve/commit return 409; a branch listed before its head office merges; a missing head office gives a warning and a separate org; a self-reference blocks approval; a decision withdraws approval; two concurrent commits give 200+409 or 200+200 with no duplicate orgs (30 orgs, 30 refs); proposed-site confirm/reject works; overview, staged-contacts, report.csv, rows search/category and initial-passwords?apply=false all work; a Service Desk user (owner@isodemo.com) gets 403; legacy analyze returns 413 above 5,000 rows and 200 at exactly 5,000; the legacy customer_orgs commit (even with send_welcome=true) creates no user, stores no password, sets pending_activation, sends no email and matches by account number on reimport. UI: I fixed 2 bugs (the real legacy XLS template was rejected by the uploader with 415; the active mode pill was invisible, white on white). After the fixes the XLS template shows 115 of 115 fields, 9 metadata rows, 8 example rows and 0 genuine, the summary shows 0 paid / 0 invitations / 0 users, and Approve, Run import, finished, report download and Undo all work. A small production-style CSV ran end to end: the branch merged under its head office, the merge/separate select works, ticking Include on a hidden account works, the category filter and search work, progress is shown, and Undo removed all 3 orgs. Apply changes withdraws approval and re-approve works. The review queues show proposed sites and staged contacts, and confirm/reject works.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/master-admin/customer-import/jobs/{id}/rollback (Sicon job)", "issue": "Undo of a Sicon contacts import does nothing: it returns removed 0 / restored 0. The crm2_contacts it created on existing orgs stay, and the customer_contact_staging rows it staged stay. Rollback only handles organizations with created_via_job_id plus preimages.", "priority": "HIGH"},
+      {"endpoint": "POST /jobs/{id}/rollback (Sage job)", "issue": "When a proposed site was confirmed, rollback deletes the org but leaves the db.sites document (created_via=sage_proposed_site), now pointing at a deleted org. Rollback also leaves records on pre-existing orgs it touched: customer_account_internal, customer_proposed_sites, the crm2_companies created by _crm_company, crm2_contacts created by the job, customer_account_refs claims and the sage_account_refs $addToSet. I had to delete orphans left by the acceptance test D (TEST Paid Gym) after each run.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "rollback", "issue": "Contacts on a removed org are deleted only when import_job_ids == [job_id] exactly. Contacts that a later Sicon job linked or updated become orphans."},
+      {"endpoint": "/api/files/upload (utils/file_validation.sniff_mime)", "issue": "FIXED by testing agent. libmagic sniffed only the first 64KB, so the 70KB Sage XLS template was seen as application/x-ole-storage and rejected with 415 ('This file type is not supported' in the UI). It now re-sniffs the whole buffer for OLE containers."},
+      {"endpoint": "background (unrelated)", "issue": "The 'Service Desk trial — 1 days left' email to sp.pytest.a87ad83ed4@example.com is retried on every backend reload (11 failed sends in 30 min). The reminder is not idempotent. It does not come from the import."},
+      {"endpoint": "data", "issue": "3 organisations still have primary_contact_initial_password. POST /security/initial-passwords?apply=true has not been run. I did not run it because it changes real data; an admin needs to."},
+      {"endpoint": "onboarding_import._commit_customer_tenants", "issue": "Dead `if False:` welcome-email block left in. Account-number matching ignores sage_company, which is inconsistent with the new importer."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SageSiconImport mode tabs", "issue": "FIXED: the active pill used bg-zinc-900 text-white, which the light theme turns white (white on white, invisible). It now uses the project's seg-active class.", "selector": "[data-testid=ci-mode-sage_accounts]", "priority": "MEDIUM"},
+      {"component": "ImportJobPanel rollback", "issue": "After Undo, the overview counters (ci-overview) and history are not refreshed, because rollback() never calls onDone. They showed 3 Sage customers until the page was reloaded.", "selector": "[data-testid=ci-rollback-btn]", "priority": "LOW"},
+      {"component": "ReviewQueues", "issue": "Loads only on mount. After an import commits, new proposed sites and staged contacts do not appear until the page is reloaded. Pass a refresh key from SageSiconImport.refresh.", "selector": "[data-testid=ci-proposed-sites]", "priority": "LOW"},
+      {"component": "ImportRowsTable", "issue": "Rows load with no request ordering or cancelling. In one run, changing the category then quickly typing a search showed 4 rows instead of 1 (an older response replaced the newer one). Search on its own works.", "selector": "[data-testid=ci-filter-search]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Import job panel after commit", "issues": ["Rows still show 'Review changed values — tick apply changes to overwrite' after the import has finished, which can confuse admins."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_sage_sicon_customer_import.py", "/app/backend/tests/test_sage_sicon_import_independent.py", "/app/test_reports/pytest/sage_sicon_iter329.xml"],
+  "action_items": [
+    "Make rollback complete: for Sicon jobs, remove the crm2_contacts it created (import_job_ids contains job_id and source=sicon_customer_import), revert its updates, and delete the staging rows it created (source_job_id).",
+    "On Sage rollback, also delete or archive db.sites created from confirmed proposed sites for removed orgs. For pre-existing orgs, undo the records the job created (customer_account_internal, proposed sites, crm2_companies with created_via_job_id, contacts, refs claimed with job_id, the sage_account_refs addToSet).",
+    "In test D, clean up the paid-org side records (or fix rollback so it does).",
+    "Call onDone() after rollback in ImportJobPanel, and refresh ReviewQueues after commit and rollback.",
+    "Guard ImportRowsTable.load against out-of-order responses (AbortController or a request id).",
+    "Make the trial-reminder email idempotent across backend restarts (unrelated to this feature)."
+  ],
+  "critical_code_review_comments": [
+    "customer_account_import.py is 933 lines; split it into evaluate, commit and rollback modules.",
+    "The UI uploads the customer file to db.files with category 'contracts'. Use a dedicated category (e.g. 'customer-import') so these files don't show in contract document lists.",
+    "_evaluate_sage loads every organisation name for twin detection on each re-evaluation. That is fine now but O(N) per decision click.",
+    "approve() runs _evaluate synchronously (a 5k+ row import can be slow inside the request), while decisions run it in the background. Keep this consistent.",
+    "Commit concurrency is correctly guarded by find_one_and_update on status, and refs are unique-indexed, so there are no duplicate orgs."
+  ],
+  "updated_files": ["/app/backend/utils/file_validation.py", "/app/frontend/src/pages/MasterAdmin/CustomerImport/SageSiconImport.js", "/app/backend/tests/test_sage_sicon_import_independent.py"],
+  "success_rate": {"backend": "90% (18/20 pytest; the 2 failures are real rollback bugs)", "frontend": "90% (all listed flows work after 2 fixes; 3 low-priority refresh/race issues)"},
+  "test_credentials": "Token minted per the briefing. In the browser, the app's /auth/refresh rotates (revokes) the minted JWT and switches to cookie mode, so every request returned 401 ('Session expired'). For UI tests I used page.route to inject the Bearer token on non-CRM /api calls and stubbed /auth/refresh. Mint a fresh token if you see 'Session revoked'.",
+  "seed_data_creation": "None kept. All synthetic imports used TST* company codes and were rolled back. Orgs, sites, staging and file docs I inserted were deleted by id, including orphans the existing test D leaves behind. The UI and API jobs remain in db.customer_import_jobs as history.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_sage_sicon_customer_import.py tests/test_sage_sicon_import_independent.py -o addopts='' -q. test_proposed_site_confirm_reject and test_rollback_completeness_for_contacts should pass once rollback is fixed. UI: master-admin?section=onboarding then data-testid onboarding-subtab-sage-import, file input ci-upload-file. Controlled checkboxes need click(), not check().",
+  "rca of the issue": "XLS 415: sniff_mime passes data[:64KB] to libmagic. For OLE2 files whose Workbook directory entry sits past 64KB, libmagic returns the generic application/x-ole-storage, which is not in MIME_ALL_ATTACHMENTS. Fixed by re-sniffing the full buffer when that generic type comes back. Rollback gaps: rollback() only iterates organizations with created_via_job_id and preimages, and has no per-job ledger of other writes (contacts, staging, sites, companies on existing orgs)."
+}

@@ -161,7 +161,11 @@ def sniff_mime(data: bytes) -> str:
         raise HTTPException(status_code=415, detail="File too small to validate")
     if _MAGIC_OK and magic is not None:
         try:
-            return magic.from_buffer(data[: 1024 * 64], mime=True).lower()
+            m = magic.from_buffer(data[: 1024 * 64], mime=True).lower()
+            if m == "application/x-ole-storage" and len(data) > 1024 * 64:
+                # Legacy OLE (.xls/.doc) streams can sit past the 64KB prefix — re-sniff the whole file.
+                m = magic.from_buffer(data, mime=True).lower()
+            return m
         except Exception as exc:
             logger.warning("magic.from_buffer failed, falling back: %s", exc)
     return _sniff_mime_fallback(data)

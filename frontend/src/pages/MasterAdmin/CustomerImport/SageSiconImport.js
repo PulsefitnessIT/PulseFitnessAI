@@ -32,9 +32,10 @@ export default function SageSiconImport() {
   const [company, setCompany] = useState('');
   const [ov, setOv] = useState({});
   const [history, setHistory] = useState([]);
+  const [tick, setTick] = useState(0);
   const refresh = useCallback(async () => {
     const [a, b] = await Promise.all([axios.get(`${API}/overview`, { headers }), axios.get(`${API}/jobs`, { headers, params: { kind: mode } })]);
-    setOv(a.data); setHistory(b.data.jobs || []);
+    setOv(a.data); setHistory(b.data.jobs || []); setTick((t) => t + 1);
   }, [headers, mode]);
   useEffect(() => { refresh().catch(() => {}); }, [refresh]);
 
@@ -58,7 +59,7 @@ export default function SageSiconImport() {
       <div className="flex flex-wrap gap-2" role="tablist">
         {MODES.map((m) => (
           <button key={m.id} type="button" onClick={() => { setMode(m.id); setJob(null); }} role="tab" aria-selected={mode === m.id}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${mode === m.id ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${mode === m.id ? 'seg-active' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
             data-testid={`ci-mode-${m.id}`}><m.icon size={14} />{m.label}</button>
         ))}
       </div>
@@ -85,7 +86,7 @@ export default function SageSiconImport() {
           ))}
         </Card>
       )}
-      <ReviewQueues headers={headers} onChange={refresh} />
+      <ReviewQueues headers={headers} onChange={refresh} tick={tick} />
     </div>
   );
 }

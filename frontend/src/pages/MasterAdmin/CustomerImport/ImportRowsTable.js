@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Input } from '@/components/ui/input';
 
@@ -66,11 +66,13 @@ export default function ImportRowsTable({ job, headers, setJob, locked }) {
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
   const [data, setData] = useState({ total: 0, rows: [] });
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++seq.current;  // ignore responses that arrive after a newer request
     const { data: d } = await axios.get(`${API}/jobs/${job.id}/rows`, { headers, params: { category: cat || undefined, search: q || undefined, limit: 200 } });
-    setData(d);
+    if (mine === seq.current) setData(d);
   }, [job.id, headers, cat, q]);
-  useEffect(() => { load(); }, [load, job.evaluated_at]);
+  useEffect(() => { load().catch(() => {}); }, [load, job.evaluated_at, job.status]);
   const decide = (row) => async (patch) => {
     let { data: j } = await axios.post(`${API}/jobs/${job.id}/decisions`, { decisions: [{ row, ...patch }] }, { headers });
     setJob(j);

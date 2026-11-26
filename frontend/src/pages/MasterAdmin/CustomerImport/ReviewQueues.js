@@ -5,14 +5,14 @@ import { Card } from '@/components/ui/card';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api/master-admin/customer-import`;
 
-export default function ReviewQueues({ headers, onChange }) {
+export default function ReviewQueues({ headers, onChange, tick }) {
   const [sites, setSites] = useState([]);
   const [staged, setStaged] = useState([]);
   const load = useCallback(async () => {
     const [a, b] = await Promise.all([axios.get(`${API}/proposed-sites`, { headers }), axios.get(`${API}/staged-contacts`, { headers })]);
     setSites(a.data.sites || []); setStaged(b.data.groups || []);
   }, [headers]);
-  useEffect(() => { load().catch(() => {}); }, [load]);
+  useEffect(() => { load().catch(() => {}); }, [load, tick]);
   const decide = async (id, d) => { await axios.post(`${API}/proposed-sites/${id}/${d}`, {}, { headers }); load(); onChange?.(); };
   if (!sites.length && !staged.length) return null;
   return (

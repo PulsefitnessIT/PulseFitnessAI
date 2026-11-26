@@ -75,7 +75,7 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
   const rollback = async () => {
     if (!window.confirm('Undo this import? Organisations it created that nobody has access to are removed, and values it overwrote are restored.')) return;
     setBusy('rollback');
-    try { await axios.post(`${API}/jobs/${job.id}/rollback`, {}, { headers }); const { data } = await axios.get(`${API}/jobs/${job.id}`, { headers }); setJob(data); }
+    try { await axios.post(`${API}/jobs/${job.id}/rollback`, {}, { headers }); const { data } = await axios.get(`${API}/jobs/${job.id}`, { headers }); setJob(data); onDone?.(); }
     catch (e) { setErr(e.response?.data?.detail || e.message); } finally { setBusy(''); }
   };
   const sage = job.kind === 'sage_accounts';

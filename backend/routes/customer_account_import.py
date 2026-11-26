@@ -60,6 +60,7 @@ async def _ensure_indexes():
     await db.customer_contact_staging.create_index([("account_ref", 1), ("fingerprint", 1)], unique=True)
     await db.customer_proposed_sites.create_index([("org_id", 1), ("account_ref", 1)], unique=True)
     await db.crm2_contacts.create_index("linked_organization_id")
+    await db.customer_import_undo.create_index("job_id")
     _INDEXES_READY = True
 
 
@@ -604,6 +605,26 @@ async def _claim_ref(ref: str, company: str, org_id: str, job_id: str) -> str:
         return d["org_id"]
 
 
+async def _log(job_id: str, org_id: str, coll: str, key: dict, *, delete=False, before: Optional[dict] = None,
+               pull: Optional[dict] = None) -> None:
+    """Undo log: every change an import makes is recorded so the import can be rolled back exactly."""
+    await db.customer_import_undo.insert_one({"job_id": job_id, "org_id": org_id, "coll": coll, "key": key, "delete": delete,
+                                              "before": before, "pull": pull, "at": datetime.now(timezone.utc)})
+
+
+async def _add_ref(job_id: str, org_id: str, coll: str, key: dict, field: str, ref: str) -> None:
+    if not await db[coll].find_one({**key, field: ref}, {"_id": 1}):
+        await db[coll].update_one(key, {"$addToSet": {field: ref}})
+        await _log(job_id, org_id, coll, key, pull={field: ref})
+
+
+async def _before(coll: str, key: dict, fields) -> Optional[dict]:
+    cur = await db[coll].find_one(key, {"_id": 0})
+    if cur is None:
+        return None
+    return {f: cur.get(f) for f in fields}
+
+
 def _lite_org_doc(org_id: str, rec: dict, job: dict) -> dict:
     o = rec["org"]
     return {
@@ -644,7 +665,8 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
         org_id = await _claim_ref(ref, company, ho_ids[0], job["id"])
         if org_id != ho_ids[0]:
             raise ValueError(f"Account {ref} was linked to a different organisation by another import")
-        await db.organizations.update_one({"id": org_id}, {"$addToSet": {"sage_account_refs": ref, "sage_branch_refs": ref}})
+        for f in ("sage_account_refs", "sage_branch_refs"):
+            await _add_ref(job["id"], org_id, "organizations", {"id": org_id}, f, ref)
         res["org_outcome"] = "branch_merged"
     else:
         ids = await _orgs_for_ref(ref, company)  # revalidate at commit time
@@ -663,7 +685,7 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
                 await db.customer_import_preimages.insert_one({"job_id": job["id"], "org_id": org_id, "row": r["row"],
                                                                "before": {k: ex.get(k) for k in upd}, "at": _now()})
                 await db.organizations.update_one({"id": org_id}, {"$set": upd})
-            await db.organizations.update_one({"id": org_id}, {"$addToSet": {"sage_account_refs": ref}})
+            await _add_ref(job["id"], org_id, "organizations", {"id": org_id}, "sage_account_refs", ref)
             res["org_outcome"] = "updated" if upd else "unchanged"
         else:
             new_id = str(uuid.uuid4())
@@ -677,8 +699,13 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
                 await db.organizations.update_one({"id": org_id}, {"$set": {"sage_head_office_ref": rel["head_office_ref"],
                                                                             "head_office_link_status": "proposed"}})
     res["org_id"] = org_id
+    ikey = {"org_id": org_id, "account_ref": ref}
+    prev = await db.customer_account_internal.find_one(ikey, {"_id": 0})
+    await _log(job["id"], org_id, "customer_account_internal", ikey, delete=prev is None,
+               before=None if prev is None else {k: prev.get(k) for k in ("fields", "analysis", "sage_status", "office_type",
+                                                                           "head_office_ref", "sage_company", "source_job_id")})
     await db.customer_account_internal.update_one(
-        {"org_id": org_id, "account_ref": ref},
+        ikey,
         {"$set": {"fields": rec["internal"], "analysis": rec["analysis"], "sage_status": rec["status"],
                   "office_type": rec["office_type"], "head_office_ref": rec["head_office_ref"], "sage_company": company,
                   "source_job_id": job["id"], "updated_at": _now()}}, upsert=True)
@@ -687,6 +714,8 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
         res["contact_outcome"] = await _upsert_contact(op, org_id, company_id, ref, rec["contact"], "sage", job, user)
     if out.get("proposed_site"):
         o = rec["org"]
+        if not await db.customer_proposed_sites.find_one({"org_id": org_id, "account_ref": ref}, {"_id": 1}):
+            await _log(job["id"], org_id, "customer_proposed_sites", {"org_id": org_id, "account_ref": ref}, delete=True)
         await db.customer_proposed_sites.update_one(
             {"org_id": org_id, "account_ref": ref},
             {"$setOnInsert": {"id": str(uuid.uuid4()), "status": "proposed", "created_at": _now(), "source_job_id": job["id"],
@@ -707,10 +736,11 @@ async def _crm_company(op: dict, org_id: str, ref: str, user: dict, job: dict) -
         c = await db.crm2_companies.find_one({"organization_id": op["id"], "account_number": ref,
                                               "linked_organization_id": {"$in": [None, ""]}}, {"_id": 0, "id": 1})
         if c:
+            await _log(job["id"], org_id, "crm2_companies", {"id": c["id"]}, before={"linked_organization_id": None, "linked_at": None})
             await db.crm2_companies.update_one({"id": c["id"]}, {"$set": {"linked_organization_id": org_id, "linked_at": _now()}})
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
     if c:
-        await db.crm2_companies.update_one({"id": c["id"]}, {"$addToSet": {"sage_account_refs": ref}})
+        await _add_ref(job["id"], org_id, "crm2_companies", {"id": c["id"]}, "sage_account_refs", ref)
         return c["id"]
     cid = str(uuid.uuid4())
     await db.crm2_companies.insert_one({
@@ -722,6 +752,7 @@ async def _crm_company(op: dict, org_id: str, ref: str, user: dict, job: dict) -
         "account_owner_id": user.get("id"), "account_owner_name": user.get("full_name", ""), "owner_id": user.get("id"),
         "owner_name": user.get("full_name", ""), "tags": ["sage-import"], "directors": [], "notes": "",
         "imported_via": "sage_customer_import", "created_via_job_id": job["id"], "created_at": _now(), "updated_at": _now()})
+    await _log(job["id"], org_id, "crm2_companies", {"id": cid}, delete=True)
     return cid
 
 
@@ -751,8 +782,11 @@ async def _upsert_contact(op: dict, org_id: str, company_id: str, ref: str, c: d
             fills["sicon_default_contact"] = bool(c.get("is_default"))
         fills["identity"] = {**(cur.get("identity") or {}), **{k: v for k, v in ident.items() if v}}
         fills["updated_at"] = _now()
-        await db.crm2_contacts.update_one({"id": hit["id"]}, {"$set": fills, "$addToSet": {
-            "source_fingerprints": fp, "sources": source, "customer_account_refs": ref, "import_job_ids": job["id"]}})
+        key = {"id": hit["id"]}
+        await _log(job["id"], org_id, "crm2_contacts", key, before=await _before("crm2_contacts", key, fills.keys()))
+        await db.crm2_contacts.update_one(key, {"$set": fills})
+        for f, v in (("source_fingerprints", fp), ("sources", source), ("customer_account_refs", ref), ("import_job_ids", job["id"])):
+            await _add_ref(job["id"], org_id, "crm2_contacts", key, f, v)
         return "updated"
     doc = _crm2_contact_doc(op["id"], company_id, None, {"first_name": c.get("first_name", ""), "last_name": c.get("last_name", ""),
                                                          "email": c.get("email", ""), "phone": phone,
@@ -768,7 +802,9 @@ async def _upsert_contact(op: dict, org_id: str, company_id: str, ref: str, c: d
                 # Import never implies consent: marketing permission must be obtained separately.
                 "marketing_permission": "not_obtained", "gdpr_consent": False,
                 "sicon_preferences": c.get("preferences") or {}, "sicon_default_contact": bool(c.get("is_default"))})
+    doc["created_via_job_id"] = job["id"]
     await db.crm2_contacts.insert_one(doc)
+    await _log(job["id"], org_id, "crm2_contacts", {"id": doc["id"]}, delete=True)
     return "created"
 
 
@@ -777,6 +813,8 @@ async def _reconcile_staged(op: dict, org_id: str, company_id: str, ref: str, jo
     async for s in db.customer_contact_staging.find({"account_ref": ref, "status": "awaiting_account"}, {"_id": 0}):
         try:
             out = await _upsert_contact(op, org_id, company_id, ref, s["contact"], "sicon", job, user)
+            await _log(job["id"], org_id, "customer_contact_staging", {"account_ref": ref, "fingerprint": s["fingerprint"]},
+                       before={"status": "awaiting_account", "org_id": None, "linked_at": None, "contact_outcome": None})
             await db.customer_contact_staging.update_one({"account_ref": ref, "fingerprint": s["fingerprint"]},
                                                          {"$set": {"status": "linked", "org_id": org_id, "linked_at": _now(),
                                                                    "contact_outcome": out}})
@@ -794,6 +832,9 @@ async def _commit_sicon_row(job: dict, r: dict, op: dict, user: dict) -> dict:
     if len(ids) > 1:
         raise ValueError(f"Customer code {ref} now matches several organisations — held")
     if not ids:
+        skey = {"account_ref": ref, "fingerprint": rec["fingerprint"]}
+        if not await db.customer_contact_staging.find_one(skey, {"_id": 1}):
+            await _log(job["id"], "", "customer_contact_staging", skey, delete=True)
         await db.customer_contact_staging.update_one(
             {"account_ref": ref, "fingerprint": rec["fingerprint"]},
             {"$setOnInsert": {"contact": rec["contact"], "status": "awaiting_account", "source_job_id": job["id"],
@@ -837,32 +878,54 @@ async def report(job_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/jobs/{job_id}/rollback")
 async def rollback(job_id: str, user: dict = Depends(get_current_user)):
-    """Undo an import: removes organisations it created that nobody has been given access to, and restores
-    values it overwrote on existing organisations. Organisations with users or paid products are kept."""
+    """Undo an import exactly, using its undo log. Organisations it created are removed only while nobody has
+    been given access and no paid product is active; such organisations (and their records) are kept."""
     _require_admin(user)
     job = await db.customer_import_jobs.find_one({"id": job_id}, {"_id": 0})
     if not job or job["status"] not in ("completed", "completed_with_errors", "interrupted"):
         raise HTTPException(409, "Only finished imports can be rolled back")
-    removed, kept, restored = 0, 0, 0
+    kept: set = set()
+    removable = []
     async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1, "subscription_tier": 1, "enabled_modules": 1}):
         users = await db.users.count_documents({"organization_id": o["id"]}) + await db.crm_users.count_documents({"organization_id": o["id"]})
         if users or o.get("subscription_tier") not in _PAID_TIERS_FREE or (o.get("enabled_modules") or []) != LITE_MODULES:
-            kept += 1
+            kept.add(o["id"])
+        else:
+            removable.append(o["id"])
+    reverted = 0
+    entries = await db.customer_import_undo.find({"job_id": job_id}).sort("_id", -1).to_list(None)
+    for e in entries:
+        if e.get("org_id") in kept:
             continue
-        full = await db.organizations.find_one({"id": o["id"]}, {"_id": 0})
-        await db.customer_import_rollback_archive.insert_one({"job_id": job_id, "org": full, "by": user.get("email"), "at": _now()})
-        for coll in ("customer_account_refs", "customer_account_internal", "customer_proposed_sites"):
-            await db[coll].delete_many({"org_id": o["id"]})
-        await db.crm2_contacts.delete_many({"linked_organization_id": o["id"], "import_job_ids": [job_id]})
-        await db.crm2_companies.delete_many({"linked_organization_id": o["id"], "created_via_job_id": job_id})
-        await db.organizations.delete_one({"id": o["id"]})
-        removed += 1
-    async for p in db.customer_import_preimages.find({"job_id": job_id}, {"_id": 0}):
-        await db.organizations.update_one({"id": p["org_id"]}, {"$set": p["before"]})
-        restored += 1
+        coll, key = db[e["coll"]], e["key"]
+        if e.get("delete"):
+            doc = await coll.find_one(key, {"_id": 0})
+            if doc:
+                await db.customer_import_rollback_archive.insert_one({"job_id": job_id, "coll": e["coll"], "doc": doc, "at": _now()})
+                await coll.delete_one(key)
+        elif e.get("pull"):
+            await coll.update_one(key, {"$pull": e["pull"]})
+        elif e.get("before") is not None:
+            sets = {k: v for k, v in e["before"].items() if v is not None}
+            unsets = {k: "" for k, v in e["before"].items() if v is None}
+            await coll.update_one(key, {k: v for k, v in (("$set", sets), ("$unset", unsets)) if v})
+        reverted += 1
+    async for p in db.customer_import_preimages.find({"job_id": job_id}, {"_id": 0}).sort("at", -1):
+        if p["org_id"] not in kept:
+            await db.organizations.update_one({"id": p["org_id"]}, {"$set": p["before"]})
+    await db.customer_account_refs.delete_many({"job_id": job_id, "org_id": {"$nin": list(kept)}})
+    for oid in removable:
+        full = await db.organizations.find_one({"id": oid}, {"_id": 0})
+        await db.customer_import_rollback_archive.insert_one({"job_id": job_id, "coll": "organizations", "doc": full, "at": _now()})
+        async for st in db.sites.find({"organization_id": oid, "created_via": "sage_proposed_site"}, {"_id": 0}):
+            await db.customer_import_rollback_archive.insert_one({"job_id": job_id, "coll": "sites", "doc": st, "at": _now()})
+        await db.sites.delete_many({"organization_id": oid, "created_via": "sage_proposed_site"})
+        await db.organizations.delete_one({"id": oid})
     await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "rolled_back", "rolled_back_at": _now(),
-                                                                       "rollback": {"removed": removed, "kept": kept, "restored": restored}}})
-    return {"removed": removed, "kept_in_use": kept, "restored": restored}
+                                                                       "rolled_back_by": user.get("email"),
+                                                                       "rollback": {"removed": len(removable), "kept": len(kept),
+                                                                                    "changes_reverted": reverted}}})
+    return {"removed": len(removable), "kept_in_use": len(kept), "restored": reverted}
 
 
 @router.get("/staged-contacts")
