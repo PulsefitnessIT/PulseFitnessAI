@@ -1431,7 +1431,6 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
         await db.organizations.update_many(
             {"primary_contact_email": target_email.strip().lower()},
             {"$set": {
-                "primary_contact_initial_password": temp_password,
                 "primary_contact_password_changed": False,
             }},
         )

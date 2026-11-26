@@ -391,7 +391,6 @@ async def _ensure_primary_contact_user(org: dict, actor: dict) -> Optional[str]:
     await db.organizations.update_one(
         {"id": org["id"]},
         {"$set": {
-            "primary_contact_initial_password": password,
             "primary_contact_user_id": user_id,
             "primary_contact_password_changed": False,
             "primary_contact_provisioned_at": datetime.now(timezone.utc).isoformat(),

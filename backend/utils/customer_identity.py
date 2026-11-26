@@ -51,9 +51,10 @@ async def find_orgs_by_ref(ref: str, company: str = "") -> list[str]:
     async for o in db.organizations.find(q, {"_id": 0, "id": 1, "sage_company": 1}):
         if (o.get("sage_company") or "") == company:
             ids.add(o["id"])
-    async for s in db.sites.find({"$or": [{"invoice_customer_ref": ref}, {"sicon_customer_ref": ref}]}, {"_id": 0, "organization_id": 1}):
-        if s.get("organization_id"):
-            ids.add(s["organization_id"])
+    if not company:  # site references carry no Sage company — only trusted for the default company
+        async for s in db.sites.find({"$or": [{"invoice_customer_ref": ref}, {"sicon_customer_ref": ref}]}, {"_id": 0, "organization_id": 1}):
+            if s.get("organization_id"):
+                ids.add(s["organization_id"])
     if not ids:
         return []
     live = {o["id"] async for o in db.organizations.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1})}

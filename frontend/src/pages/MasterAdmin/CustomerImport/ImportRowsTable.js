@@ -48,8 +48,8 @@ const RowControls = ({ r, decide, locked }) => {
       <label className="flex items-center gap-1"><input type="checkbox" checked={included} onChange={(e) => decide({ include: e.target.checked })} data-testid={`ci-row-include-${r.row}`} />Include</label>
       {o.relationship?.head_office_ref && o.relationship?.head_office_org_id !== undefined && o.category !== 'circular_relationship' && (
         <select className="border rounded px-1 py-0.5" value={d.relationship || o.relationship.mode || 'merge'} onChange={(e) => decide({ relationship: e.target.value })} data-testid={`ci-row-rel-${r.row}`}>
-          <option value="merge">Under head office {o.relationship.head_office_ref}</option>
-          <option value="separate">Separate customer</option>
+          <option value="separate">Separate customer (link to {o.relationship.head_office_ref} awaits verification)</option>
+          <option value="merge">Merge into head office {o.relationship.head_office_ref} — I have verified it</option>
         </select>
       )}
       {o.conflicts && Object.keys(o.conflicts).length > 0 && (

@@ -240,7 +240,7 @@ def test_D_combined_sage_and_sicon(H):
     js = _analyze(H, _sicon_csv(contacts1), "contacts.csv", "sicon_contacts", company)
     assert js["preview"].get("unresolved_contact") == 4
     _run(H, js["id"])
-    assert db.customer_contact_staging.count_documents({"account_ref": a, "status": "awaiting_account"}) == 4
+    assert db.customer_contact_staging.count_documents({"account_ref": a, "status": "awaiting_account", "source_company": company}) == 4
     # 2. Sage accounts: new, head office + branch (branch listed first), paid existing, leading zero kept
     sage = [
         {"AccountNumber": br, "AccountName": "TEST Branch Gym", "AssociatedOfficeType": "1", "AssociatedHeadOfficeAccountNum": ho,
@@ -256,15 +256,20 @@ def test_D_combined_sage_and_sicon(H):
     ]
     j = _analyze(H, _sage_csv(sage), "sage.csv", "sage_accounts", company)
     p = j["preview"]
-    assert p.get("new_customer_organisation") == 2 and p.get("branch_merged_into_head_office") == 1
+    assert p.get("new_customer_organisation") == 3 and not p.get("branch_merged_into_head_office")
     assert p.get("hidden_sage_account") == 1 and p.get("invalid") == 1 and p.get("existing_update_proposed") == 1, p
     done = _run(H, j["id"])
     assert done["status"] == "completed", done
     alpha = db.organizations.find_one({"customer_account_number": a, "sage_company": company})
     assert alpha and alpha["address_line4"] == "Area" and alpha["subscription_tier"] == "free"
     hq = db.organizations.find_one({"customer_account_number": ho, "sage_company": company})
-    assert br in hq["sage_account_refs"] and db.organizations.count_documents({"customer_account_number": br, "sage_company": company}) == 0
-    assert db.customer_proposed_sites.find_one({"org_id": hq["id"], "account_ref": br})["status"] == "proposed"
+    bro = db.organizations.find_one({"customer_account_number": br, "sage_company": company})
+    assert br not in hq["sage_account_refs"] and bro["head_office_link_status"] == "proposed"
+    assert db.customer_proposed_sites.find_one({"org_id": bro["id"], "account_ref": br})["status"] == "proposed"
+    v = requests.post(f"{API}/branch-links", headers=H, json={"org_ids": [bro["id"]], "decision": "verify"}, timeout=30).json()
+    assert v["updated"] == 1
+    bro = db.organizations.find_one({"id": bro["id"]})
+    assert bro["head_office_link_status"] == "verified" and bro["head_office_org_id"] == hq["id"]
     pg = db.organizations.find_one({"id": paid_id})
     assert pg["subscription_tier"] == "pro" and "crm" in pg["enabled_modules"] and pg["address_line1"] == "9 Paid Way"
     assert "Memo" not in str(alpha) and db.customer_account_internal.find_one({"org_id": alpha["id"]})["fields"]["Memo"] == "confidential"

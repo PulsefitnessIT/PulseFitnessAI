@@ -118,3 +118,42 @@ def test_non_admin_cannot_use_import_centre():
         assert requests.get(f"{API}{path}", headers=h, timeout=30).status_code in (401, 403)
     assert requests.post(f"{API}/manual", headers=h, json={"name": "x"}, timeout=30).status_code in (401, 403)
     assert requests.post(f"{API}/detect", headers=h, files={"file": ("a.csv", io.BytesIO(b"a,b\n1,2\n"))}, timeout=30).status_code in (401, 403)
+
+
+def test_release_a_pending_customer_rejects_company_code_signup(H):
+    db = _db()
+    name = f"TEST Pending {uuid.uuid4().hex[:6]}"
+    org = requests.post(f"{API}/manual", headers=H, json={"name": name, "confirm_new": True}, timeout=30).json()
+    code = db.organizations.find_one({"id": org["id"]})["company_code"]
+    email = f"intruder-{uuid.uuid4().hex[:6]}@example.org"
+    r = requests.post(f"{R}/auth/register", json={"email": email, "password": "Str0ng!Passw0rd#", "full_name": "X Y",
+                                                 "company_code": code}, timeout=30)
+    assert r.status_code == 403, r.text
+    assert db.users.count_documents({"email": email}) == 0
+    db.crm2_companies.delete_many({"linked_organization_id": org["id"]})
+    db.organizations.delete_one({"id": org["id"]})
+
+
+def test_release_a_reveal_password_retired(H):
+    db = _db()
+    o = db.organizations.find_one({}, {"id": 1})
+    r = requests.get(f"{R}/master-admin/organizations/{o['id']}/primary-contact-credentials", headers=H, timeout=30)
+    assert r.status_code == 200 and r.json()["initial_password"] is None and r.json()["available"] is False
+    assert requests.post(f"{R}/master-admin/organizations/{o['id']}/send-primary-contact-credentials", headers=H, timeout=30).status_code == 410
+
+
+def test_release_a_source_company_isolation(H):
+    db = _db()
+    ref = "SC" + uuid.uuid4().hex[:5].upper()
+    a = _analyze(H, _sage_csv([{"AccountNumber": ref, "AccountName": "TEST Co A"}]), "a.csv", "sage_accounts", "TSTA" + ref[-3:])
+    _run(H, a["id"])
+    b = _analyze(H, _sage_csv([{"AccountNumber": ref, "AccountName": "TEST Co B"}]), "b.csv", "sage_accounts", "TSTB" + ref[-3:])
+    assert b["preview"].get("new_customer_organisation") == 1, b["preview"]  # same number, different Sage company = different customer
+    _run(H, b["id"])
+    assert db.organizations.count_documents({"customer_account_number": ref}) == 2
+    pv = requests.get(f"{API}/jobs/{a['id']}/undo-preview", headers=H, timeout=30).json()
+    assert pv["customers_to_remove"] == 1
+    from tests.test_sage_sicon_customer_import import _rollback
+    for j in (a, b):
+        _rollback(H, j["id"])
+    assert db.organizations.count_documents({"customer_account_number": ref}) == 0

@@ -33,6 +33,10 @@ async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
             raise HTTPException(status_code=400, detail="Invalid company code")
         org_id = org["id"]
         invite = await db.invites.find_one({"email": user.email, "organization_id": org_id, "status": "pending"}, {"_id": 0})
+        if not invite and (org.get("onboarding_status") == "pending_activation" or org.get("portal_access") == "not_activated"
+                           or org.get("provisioning_state") == "importing"):
+            # Imported customers are activated only through a verified invitation — a company code is not enough.
+            raise HTTPException(status_code=403, detail="This organisation is not open for sign-up yet. Ask Pulse Fitness for an invitation.")
         if invite:
             role = invite["role"]
             await db.invites.update_one(

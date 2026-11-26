@@ -173,6 +173,10 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
 
 @router.get("/master-admin/organizations/{org_id}/primary-contact-credentials")
 async def get_primary_contact_credentials(org_id: str, user: dict = Depends(get_current_user)):
+    """Plaintext password reveal is retired — hand over access with a set-password / reset link instead."""
+    require_master_admin(user)
+    return {"email": None, "initial_password": None, "password_changed": False, "available": False,
+            "message": "Passwords are no longer stored or shown. Send the customer a password reset link instead."}
     """Reveal the auto-generated initial password for the org's primary
     contact user. Audited every time it is accessed. Cleared once the
     contact changes their own password (see password reset flow)."""
@@ -198,6 +202,7 @@ async def get_primary_contact_credentials(org_id: str, user: dict = Depends(get_
 
 @router.post("/master-admin/organizations/{org_id}/send-primary-contact-credentials")
 async def send_primary_contact_credentials(org_id: str, user: dict = Depends(get_current_user)):
+    raise HTTPException(410, "Emailing passwords is retired — send a password reset link instead")
     """Iter 215at — email the auto-generated initial credentials to the
     primary contact via Resend, then clear the plaintext from the org doc
     so it can no longer be revealed in the panel.

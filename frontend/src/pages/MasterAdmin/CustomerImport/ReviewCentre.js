@@ -20,7 +20,21 @@ export default function ReviewCentre({ onOpenJob }) {
     setD(data);
   }, [headers, type, q, page]);
   useEffect(() => { load().then(() => setErr('')).catch((e) => setErr(e.response?.data?.detail || 'Could not load the review list')); }, [load]);
-  const site = async (id, decision) => { await axios.post(`${API}/proposed-sites/${id}/${decision}`, {}, { headers }); load(); };
+  const site = async (id, decision) => {
+    try {
+      await axios.post(`${API}/proposed-sites/${id}/${decision}`, {}, { headers });
+    } catch (e) {
+      const ex = e.response?.status === 409 && e.response?.data?.detail?.existing_sites;
+      if (!ex) { setErr(e.response?.data?.detail?.message || e.response?.data?.detail || e.message); return; }
+      if (window.confirm(`This customer already has “${ex[0].name}” at this postcode.\n\nOK = link the Sage address to that site\nCancel = create a separate new site`)) {
+        await axios.post(`${API}/proposed-sites/${id}/link`, {}, { headers, params: { link_site_id: ex[0].id } });
+      } else {
+        await axios.post(`${API}/proposed-sites/${id}/confirm`, {}, { headers, params: { force: true } });
+      }
+    }
+    load();
+  };
+  const branch = async (ids, decision) => { await axios.post(`${API}/branch-links`, { org_ids: ids, decision }, { headers }); load(); };
   return (
     <div className="space-y-3" data-testid="review-centre">
       <div className="flex flex-wrap gap-1.5">
@@ -30,6 +44,9 @@ export default function ReviewCentre({ onOpenJob }) {
         ))}
       </div>
       {err && <p className="text-sm text-red-600" data-testid="rc-error">{err}</p>}
+      {type === 'Unverified branch relationship' && d.items.length > 0 && (
+        <Button size="sm" variant="outline" onClick={() => window.confirm(`Verify all ${d.items.length} branch links shown? This records the relationship only — no merge and no shared access.`) && branch(d.items.map((x) => x.branch_org_id), 'verify')} data-testid="rc-branch-verify-all">Verify all shown</Button>
+      )}
       <Input className="h-8 w-72" placeholder="Search customer or account number" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} data-testid="rc-search" />
       <Card className="rounded-xl border-zinc-200 overflow-auto">
         <table className="w-full text-xs">
@@ -47,6 +64,8 @@ export default function ReviewCentre({ onOpenJob }) {
                 <td className="p-2 whitespace-nowrap">
                   {it.site_id && <><Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => site(it.site_id, 'confirm')} data-testid={`rc-site-confirm-${i}`}>Confirm site</Button>
                     <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => site(it.site_id, 'reject')} data-testid={`rc-site-reject-${i}`}>Not a site</Button></>}
+                  {it.branch_org_id && <><Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => branch([it.branch_org_id], 'verify')} data-testid={`rc-branch-verify-${i}`}>Verify link</Button>
+                    <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => branch([it.branch_org_id], 'reject')} data-testid={`rc-branch-reject-${i}`}>Reject</Button></>}
                   {it.job_id && <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => onOpenJob?.(it.job_id)} data-testid={`rc-open-job-${i}`}>Open import</Button>}
                 </td>
               </tr>

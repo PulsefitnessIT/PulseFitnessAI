@@ -58,7 +58,9 @@ async def _ensure_indexes():
     await db.customer_account_refs.create_index("org_id")
     await db.customer_import_rows.create_index([("job_id", 1), ("row", 1)], unique=True)
     await db.customer_account_internal.create_index([("org_id", 1), ("account_ref", 1)], unique=True)
-    await db.customer_contact_staging.create_index([("account_ref", 1), ("fingerprint", 1)], unique=True)
+    if "account_ref_1_fingerprint_1" in await db.customer_contact_staging.index_information():
+        await db.customer_contact_staging.drop_index("account_ref_1_fingerprint_1")  # superseded by the company-scoped key
+    await db.customer_contact_staging.create_index([("source_company", 1), ("account_ref", 1), ("fingerprint", 1)], unique=True)
     await db.customer_proposed_sites.create_index([("org_id", 1), ("account_ref", 1)], unique=True)
     await db.crm2_contacts.create_index("linked_organization_id")
     await db.customer_import_undo.create_index("job_id")
@@ -75,6 +77,11 @@ async def _operator_org() -> dict:
 # ---------------------------------------------------------------- account-reference lookup
 async def _orgs_for_ref(ref: str, company: str) -> list[str]:
     return await CI.find_orgs_by_ref(ref, company)
+
+
+async def _empty():
+    return
+    yield  # noqa — empty async generator
 
 
 async def _ref_index(refs: set, company: str) -> dict:
@@ -94,8 +101,9 @@ async def _ref_index(refs: set, company: str) -> dict:
             for ref in {o.get("customer_account_number"), o.get("sage_customer_number"), o.get("sicon_customer_number"),
                         *(o.get("sage_account_refs") or [])} & set(chunk):
                 out[ref].add(o["id"])
-        async for st in db.sites.find({"$or": [{"invoice_customer_ref": {"$in": chunk}}, {"sicon_customer_ref": {"$in": chunk}}]},
-                                      {"_id": 0, "organization_id": 1, "invoice_customer_ref": 1, "sicon_customer_ref": 1}):
+        async for st in (db.sites.find({"$or": [{"invoice_customer_ref": {"$in": chunk}}, {"sicon_customer_ref": {"$in": chunk}}]},
+                                      {"_id": 0, "organization_id": 1, "invoice_customer_ref": 1, "sicon_customer_ref": 1})
+                         if not company else _empty()):
             for ref in {st.get("invoice_customer_ref"), st.get("sicon_customer_ref")} & set(chunk):
                 if st.get("organization_id"):
                     out[ref].add(st["organization_id"])
@@ -326,7 +334,7 @@ def _relationship(rec, ref, by_ref, ho_of, idx, d) -> dict:
                 "message": f"Head office account {ho} is not in this file or the platform — imported as a separate customer for now"}
     if len(ho_ids) > 1:
         return {"type": "branch", "blocking": "ambiguous_organisation", "message": f"Head office {ho} matches several organisations"}
-    mode = d.get("relationship") or "merge"
+    mode = d.get("relationship") or "separate"  # Sage accounting links are not proof of ownership — verify first
     own = idx.get(ref, [])
     if own and (not ho_ids or own[0] != ho_ids[0]):
         return {"type": "branch", "head_office_ref": ho, "mode": "separate",
@@ -505,7 +513,9 @@ async def set_decisions(job_id: str, body: DecisionsIn, user: dict = Depends(get
 
 async def _snapshot_hash(job_id: str) -> str:
     rows = await db.customer_import_rows.find({"job_id": job_id}, {"_id": 0, "row": 1, "record.fingerprint": 1, "decision": 1,
-                                                                    "outcome.category": 1}).sort("row", 1).to_list(None)
+                                                                    "outcome.category": 1, "outcome.org_id": 1, "outcome.fills": 1,
+                                                                    "outcome.conflicts": 1, "outcome.relationship": 1,
+                                                                    "outcome.matched_contact_id": 1}).sort("row", 1).to_list(None)
     return S.fingerprint(rows)
 
 
@@ -680,7 +690,7 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
                     upd["name"] = rec["org"]["name"]
             if upd:
                 await db.customer_import_preimages.insert_one({"job_id": job["id"], "org_id": org_id, "row": r["row"],
-                                                               "before": {k: ex.get(k) for k in upd}, "at": _now()})
+                                                               "before": {k: ex.get(k) for k in upd}, "after": upd, "at": _now()})
                 await db.organizations.update_one({"id": org_id}, {"$set": upd})
             await _add_ref(job["id"], org_id, "organizations", {"id": org_id}, "sage_account_refs", ref)
             res["org_outcome"] = "updated" if upd else "unchanged"
@@ -725,7 +735,7 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
 async def _crm_company(op: dict, org_id: str, ref: str, user: dict, job: dict) -> str:
     """Internal Pulse CRM company for this customer — matched by link or account number, never by name."""
     c = await db.crm2_companies.find_one({"organization_id": op["id"], "linked_organization_id": org_id}, {"_id": 0, "id": 1})
-    if not c and ref:
+    if not c and ref and not (job.get("source_company") or ""):
         c = await db.crm2_companies.find_one({"organization_id": op["id"], "account_number": ref,
                                               "linked_organization_id": {"$in": [None, ""]}}, {"_id": 0, "id": 1})
         if c:
@@ -804,17 +814,18 @@ async def _upsert_contact(op: dict, org_id: str, company_id: str, ref: str, c: d
 
 async def _reconcile_staged(op: dict, org_id: str, company_id: str, ref: str, job: dict, user: dict) -> int:
     n = 0
-    async for s in db.customer_contact_staging.find({"account_ref": ref, "status": "awaiting_account"}, {"_id": 0}):
+    async for s in db.customer_contact_staging.find({"account_ref": ref, "status": "awaiting_account",
+                                                     "source_company": job.get("source_company") or ""}, {"_id": 0}):
         try:
             out = await _upsert_contact(op, org_id, company_id, ref, s["contact"], "sicon", job, user)
-            await _log(job["id"], org_id, "customer_contact_staging", {"account_ref": ref, "fingerprint": s["fingerprint"]},
+            await _log(job["id"], org_id, "customer_contact_staging", {"source_company": job.get("source_company") or "", "account_ref": ref, "fingerprint": s["fingerprint"]},
                        before={"status": "awaiting_account", "org_id": None, "linked_at": None, "contact_outcome": None})
-            await db.customer_contact_staging.update_one({"account_ref": ref, "fingerprint": s["fingerprint"]},
+            await db.customer_contact_staging.update_one({"source_company": job.get("source_company") or "", "account_ref": ref, "fingerprint": s["fingerprint"]},
                                                          {"$set": {"status": "linked", "org_id": org_id, "linked_at": _now(),
                                                                    "contact_outcome": out}})
             n += 1
         except ValueError as e:
-            await db.customer_contact_staging.update_one({"account_ref": ref, "fingerprint": s["fingerprint"]},
+            await db.customer_contact_staging.update_one({"source_company": job.get("source_company") or "", "account_ref": ref, "fingerprint": s["fingerprint"]},
                                                          {"$set": {"status": "needs_review", "org_id": org_id, "note": str(e)}})
     return n
 
@@ -826,12 +837,13 @@ async def _commit_sicon_row(job: dict, r: dict, op: dict, user: dict) -> dict:
     if len(ids) > 1:
         raise ValueError(f"Customer code {ref} now matches several organisations — held")
     if not ids:
-        skey = {"account_ref": ref, "fingerprint": rec["fingerprint"]}
+        skey = {"source_company": job.get("source_company") or "", "account_ref": ref, "fingerprint": rec["fingerprint"]}
         if not await db.customer_contact_staging.find_one(skey, {"_id": 1}):
             await _log(job["id"], "", "customer_contact_staging", skey, delete=True)
         await db.customer_contact_staging.update_one(
-            {"account_ref": ref, "fingerprint": rec["fingerprint"]},
+            skey,
             {"$setOnInsert": {"contact": rec["contact"], "status": "awaiting_account", "source_job_id": job["id"],
+                              "source_company": job.get("source_company") or "",
                               "source_row": r["row"], "created_at": _now()}}, upsert=True)
         return {"contact_outcome": "staged"}
     company_id = await _crm_company(op, ids[0], ref, user, job)
@@ -894,12 +906,53 @@ async def _do_rollback(job_id: str, user: dict) -> None:
         await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "rollback_interrupted", "error": str(e)[:300]}})
 
 
+_DEPENDENTS = (("users", "users"), ("crm_users", "CRM users"), ("invites", "invitations"), ("equipment", "equipment"),
+               ("assets", "assets"), ("crm2_contracts", "contracts"), ("fault_reports", "fault reports"), ("service_cases", "service cases"),
+               ("work_orders", "work orders"), ("members", "members"), ("crm2_activities", "CRM activities"))
+
+
+async def _dependents(org_id: str, job_id: str) -> dict:
+    """Anything created or used after the import that an Undo must never remove."""
+    out = {}
+    for coll, label in _DEPENDENTS:
+        n = await db[coll].count_documents({"organization_id": org_id})
+        if n:
+            out[label] = n
+    n = await db.sites.count_documents({"organization_id": org_id, "created_via": {"$ne": "sage_proposed_site"}})
+    if n:
+        out["sites"] = n
+    later = await db.customer_import_undo.distinct("job_id", {"org_id": org_id, "job_id": {"$ne": job_id}})
+    later = [j for j in later if await db.customer_import_jobs.count_documents({"id": j, "status": {"$ne": "rolled_back"}})]
+    if later:
+        out["other imports"] = len(later)
+    o = await db.organizations.find_one({"id": org_id}, {"_id": 0, "subscription_tier": 1, "enabled_modules": 1, "onboarding_status": 1})
+    if o and (o.get("subscription_tier") not in _PAID_TIERS_FREE or (o.get("enabled_modules") or []) != LITE_MODULES):
+        out["paid products"] = 1
+    if o and o.get("onboarding_status") not in (None, "pending_activation"):
+        out["activated"] = 1
+    return out
+
+
+@router.get("/jobs/{job_id}/undo-preview")
+async def undo_preview(job_id: str, user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    created = [o["id"] async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1})]
+    keep = []
+    for oid in created:
+        dep = await _dependents(oid, job_id)
+        if dep:
+            o = await db.organizations.find_one({"id": oid}, {"_id": 0, "name": 1})
+            keep.append({"org_id": oid, "name": (o or {}).get("name"), "in_use": dep})
+    changes = await db.customer_import_undo.count_documents({"job_id": job_id})
+    return {"customers_to_remove": len(created) - len(keep), "customers_kept_in_use": keep, "changes_to_revert": changes,
+            "values_restored_only_if_unchanged": await db.customer_import_preimages.count_documents({"job_id": job_id})}
+
+
 async def _rollback_work(job_id: str, user: dict) -> None:
     kept: set = set()
     removable = []
-    async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1, "subscription_tier": 1, "enabled_modules": 1}):
-        users = await db.users.count_documents({"organization_id": o["id"]}) + await db.crm_users.count_documents({"organization_id": o["id"]})
-        if users or o.get("subscription_tier") not in _PAID_TIERS_FREE or (o.get("enabled_modules") or []) != LITE_MODULES:
+    async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1}):
+        if await _dependents(o["id"], job_id):
             kept.add(o["id"])
         else:
             removable.append(o["id"])
@@ -924,8 +977,13 @@ async def _rollback_work(job_id: str, user: dict) -> None:
         if reverted % 500 == 0:
             await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"heartbeat_at": _now()}})
     async for p in db.customer_import_preimages.find({"job_id": job_id}, {"_id": 0}).sort("at", -1):
-        if p["org_id"] not in kept:
-            await db.organizations.update_one({"id": p["org_id"]}, {"$set": p["before"]})
+        if p["org_id"] in kept:
+            continue
+        cur = await db.organizations.find_one({"id": p["org_id"]}, {"_id": 0}) or {}
+        # Only restore fields still holding the value this import wrote — later legitimate edits are kept.
+        restore = {k: v for k, v in p["before"].items() if "after" not in p or cur.get(k) == p["after"].get(k)}
+        if restore:
+            await db.organizations.update_one({"id": p["org_id"]}, {"$set": restore})
     await db.customer_account_refs.delete_many({"job_id": job_id, "org_id": {"$nin": list(kept)}})
     for oid in removable:
         full = await db.organizations.find_one({"id": oid}, {"_id": 0})
@@ -945,9 +1003,35 @@ async def _rollback_work(job_id: str, user: dict) -> None:
 async def staged_contacts(user: dict = Depends(get_current_user)):
     _require_admin(user)
     groups: dict[str, list] = {}
-    async for s in db.customer_contact_staging.find({"status": {"$in": ["awaiting_account", "needs_review"]}}, {"_id": 0}).limit(5000):
+    async for s in db.customer_contact_staging.find({"status": {"$in": ["awaiting_account", "needs_review"]}}, {"_id": 0}):
         groups.setdefault(s["account_ref"], []).append(s)
     return {"groups": [{"account_ref": k, "contacts": v} for k, v in sorted(groups.items())]}
+
+
+class BranchDecision(BaseModel):
+    org_ids: list[str]
+    decision: Literal["verify", "reject"]
+
+
+@router.post("/branch-links")
+async def decide_branch_links(body: BranchDecision, user: dict = Depends(get_current_user)):
+    """Bulk verify/reject Sage head-office links. Verifying records the relationship only — no merge, no shared access."""
+    _require_admin(user)
+    done = 0
+    for oid in body.org_ids[:500]:
+        o = await db.organizations.find_one({"id": oid, "head_office_link_status": "proposed"}, {"_id": 0, "sage_head_office_ref": 1, "sage_company": 1})
+        if not o:
+            continue
+        ho = await CI.find_orgs_by_ref(o.get("sage_head_office_ref") or "", o.get("sage_company") or "")
+        upd = {"head_office_link_status": "verified" if body.decision == "verify" else "rejected",
+               "head_office_link_decided_by": user.get("email"), "head_office_link_decided_at": _now()}
+        if body.decision == "verify":
+            if len(ho) != 1:
+                continue
+            upd["head_office_org_id"] = ho[0]
+        await db.organizations.update_one({"id": oid, "head_office_link_status": "proposed"}, {"$set": upd})
+        done += 1
+    return {"updated": done}
 
 
 @router.get("/proposed-sites")
@@ -957,18 +1041,35 @@ async def proposed_sites(user: dict = Depends(get_current_user)):
 
 
 @router.post("/proposed-sites/{site_id}/{decision}")
-async def decide_site(site_id: str, decision: Literal["confirm", "reject"], user: dict = Depends(get_current_user)):
+async def decide_site(site_id: str, decision: Literal["confirm", "reject", "link"], link_site_id: str = "", force: bool = False,
+                      user: dict = Depends(get_current_user)):
     """Confirm turns the Sage address into a real customer site (no gym-floor access is created)."""
     _require_admin(user)
-    p = await db.customer_proposed_sites.find_one({"id": site_id, "status": "proposed"}, {"_id": 0})
+    p = await db.customer_proposed_sites.find_one_and_update({"id": site_id, "status": "proposed"}, {"$set": {"status": "deciding"}})
     if not p:
-        raise HTTPException(404, "Proposed site not found")
+        raise HTTPException(409, "This proposed site has already been decided")
+    if decision == "link":
+        if not link_site_id or not await db.sites.find_one({"id": link_site_id, "organization_id": p["org_id"]}, {"_id": 1}):
+            await db.customer_proposed_sites.update_one({"id": site_id}, {"$set": {"status": "proposed"}})
+            raise HTTPException(422, "Choose one of this customer's existing sites")
+        await db.sites.update_one({"id": link_site_id, "invoice_customer_ref": {"$in": [None, ""]}}, {"$set": {"invoice_customer_ref": p["account_ref"]}})
+        await db.customer_proposed_sites.update_one({"id": site_id}, {"$set": {"status": "linked", "site_id": link_site_id,
+                                                                              "decided_by": user.get("email")}})
+        return {"status": "linked", "site_id": link_site_id}
+    if decision == "confirm" and not force:
+        pc = (p.get("postcode") or "").replace(" ", "").upper()
+        twins = [s async for s in db.sites.find({"organization_id": p["org_id"]}, {"_id": 0, "id": 1, "name": 1, "postcode": 1})
+                 if pc and (s.get("postcode") or "").replace(" ", "").upper() == pc]
+        if twins:
+            await db.customer_proposed_sites.update_one({"id": site_id}, {"$set": {"status": "proposed"}})
+            raise HTTPException(409, {"message": "This customer already has a site at this postcode — link to it instead?",
+                                      "existing_sites": twins})
     if decision == "reject":
         await db.customer_proposed_sites.update_one({"id": site_id}, {"$set": {"status": "rejected", "decided_by": user.get("email")}})
         return {"status": "rejected"}
     sid = str(uuid.uuid4())
     await db.sites.insert_one({"id": sid, "organization_id": p["org_id"], "name": p["name"],
-                               **{k: p.get(k, "") for k in ("address_line1", "address_line2", "address_line3", "city", "county",
+                               **{k: p.get(k, "") for k in ("address_line1", "address_line2", "address_line3", "address_line4", "city", "county",
                                                             "postcode", "country")},
                                "invoice_customer_ref": p["account_ref"], "status": "active", "created_via": "sage_proposed_site",
                                "created_at": _now()})
@@ -1102,7 +1203,7 @@ async def review_centre(type: Optional[str] = None, search: str = "", skip: int 
     open_jobs = {j["id"]: j async for j in db.customer_import_jobs.find({"status": {"$in": ["analysed", "approved", "completed_with_errors", "interrupted"]}},
                                                                       {"_id": 0, "id": 1, "filename": 1, "created_by": 1, "kind": 1})}
     async for r in db.customer_import_rows.find({"job_id": {"$in": list(open_jobs)}, "$or": [
-            {"outcome.category": {"$in": list(_REVIEW_ROW_CATS)}}, {"commit_status": "failed"}]}, {"_id": 0, "record.internal": 0}).limit(5000):
+            {"outcome.category": {"$in": list(_REVIEW_ROW_CATS)}}, {"commit_status": "failed"}]}, {"_id": 0, "record.internal": 0}):
         j, cat = open_jobs[r["job_id"]], (r.get("outcome") or {}).get("category")
         label, prio = ("Failed import row", "high") if r.get("commit_status") == "failed" else _REVIEW_ROW_CATS[cat]
         rec = r.get("record") or {}
@@ -1110,35 +1211,41 @@ async def review_centre(type: Optional[str] = None, search: str = "", skip: int 
                       "name": (rec.get("org") or {}).get("name") or " ".join(x for x in ((rec.get("contact") or {}).get("first_name"), (rec.get("contact") or {}).get("last_name")) if x),
                       "detail": r.get("error") or (r.get("outcome") or {}).get("action", ""), "owner": j.get("created_by"),
                       "source": f"{j['filename']} row {r['row']}", "job_id": j["id"], "resolve": "Open the import and decide this row"})
-    async for s in db.customer_contact_staging.find({"status": {"$in": ["awaiting_account", "needs_review"]}}, {"_id": 0}).limit(5000):
+    async for s in db.customer_contact_staging.find({"status": {"$in": ["awaiting_account", "needs_review"]}}, {"_id": 0}):
         c = s["contact"]
         items.append({"type": "Unmatched Sicon contact", "priority": "low", "ref": s["account_ref"],
                       "name": " ".join(x for x in (c.get("first_name"), c.get("last_name")) if x) or c.get("email", ""),
                       "detail": s.get("note") or "Waiting for this Sage account to be imported", "owner": "",
                       "source": "Sicon contacts", "resolve": "Import the matching Sage account — the contact links automatically"})
-    async for p in db.customer_proposed_sites.find({"status": "proposed"}, {"_id": 0}).limit(5000):
+    async for p in db.customer_proposed_sites.find({"status": "proposed"}, {"_id": 0}):
         items.append({"type": "Proposed operational site", "priority": "low", "ref": p["account_ref"], "name": p["name"],
                       "detail": ", ".join(x for x in (p.get("address_line1"), p.get("city"), p.get("postcode")) if x), "owner": "",
                       "source": "Sage address", "site_id": p["id"], "resolve": "Confirm it is a real gym location or mark it not a site"})
     async for i in db.customer_account_internal.find({"$or": [{"sage_status.hidden": True}, {"sage_status.on_hold": True}]},
-                                                     {"_id": 0, "org_id": 1, "account_ref": 1, "sage_status": 1}).limit(5000):
+                                                     {"_id": 0, "org_id": 1, "account_ref": 1, "sage_status": 1}):
         o = await db.organizations.find_one({"id": i["org_id"]}, {"_id": 0, "name": 1}) or {}
         items.append({"type": "Hidden Sage account" if i["sage_status"].get("hidden") else "Sage account on hold",
                       "priority": "medium", "ref": i["account_ref"], "name": o.get("name", ""), "org_id": i["org_id"],
                       "detail": "Do not invite until the account position is agreed", "owner": "", "source": "Sage status",
                       "resolve": "Check with Accounts before activating this customer"})
     async for o in db.organizations.find({"onboarding_status": "pending_activation", "sage_account_refs.0": {"$exists": True}},
-                                         {"_id": 0, "id": 1, "name": 1, "customer_account_number": 1}).limit(5000):
+                                         {"_id": 0, "id": 1, "name": 1, "customer_account_number": 1}):
         if not await db.crm2_contacts.count_documents({"linked_organization_id": o["id"], "email": {"$nin": ["", None]}}):
             items.append({"type": "Missing owner details", "priority": "low", "ref": o.get("customer_account_number", ""),
                           "name": o["name"], "org_id": o["id"], "detail": "No business contact with an email address", "owner": "",
                           "source": "Customer record", "resolve": "Import Sicon contacts or add a contact before activation"})
     async for r in db.customer_import_rows.find({"job_id": {"$in": list(open_jobs)}, "outcome.warnings": {"$regex": "^Invalid email"}},
-                                                 {"_id": 0, "row": 1, "job_id": 1, "record.account_ref": 1, "outcome.warnings": 1}).limit(2000):
+                                                 {"_id": 0, "row": 1, "job_id": 1, "record.account_ref": 1, "outcome.warnings": 1}):
         items.append({"type": "Invalid contact email", "priority": "low", "ref": (r.get("record") or {}).get("account_ref", ""),
                       "name": "", "detail": next(w for w in r["outcome"]["warnings"] if w.startswith("Invalid email")),
                       "owner": open_jobs[r["job_id"]].get("created_by"), "source": f"{open_jobs[r['job_id']]['filename']} row {r['row']}",
                       "job_id": r["job_id"], "resolve": "Correct the email in Sage/Sicon and re-import"})
+    async for o in db.organizations.find({"head_office_link_status": "proposed"}, {"_id": 0, "id": 1, "name": 1,
+                                                                                 "customer_account_number": 1, "sage_head_office_ref": 1}):
+        items.append({"type": "Unverified branch relationship", "priority": "medium", "ref": o.get("customer_account_number", ""),
+                      "name": o["name"], "org_id": o["id"], "detail": f"Sage lists head office account {o.get('sage_head_office_ref')}",
+                      "owner": "", "source": "Sage head office link", "branch_org_id": o["id"],
+                      "resolve": "Verify the link if the head office really owns this branch, or reject it"})
     types = {}
     for it in items:
         types[it["type"]] = types.get(it["type"], 0) + 1

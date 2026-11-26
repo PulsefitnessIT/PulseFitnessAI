@@ -74,7 +74,10 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
     a.href = URL.createObjectURL(r.data); a.download = `import-reconciliation-${job.id.slice(0, 8)}.csv`; a.click();
   };
   const rollback = async () => {
-    if (!window.confirm('Undo this import? Organisations it created that nobody has access to are removed, and values it overwrote are restored.')) return;
+    let pv = null;
+    try { pv = (await axios.get(`${API}/jobs/${job.id}/undo-preview`, { headers })).data; } catch { /* preview optional */ }
+    const kept = pv?.customers_kept_in_use?.length ? `\n\nKept because they are already in use: ${pv.customers_kept_in_use.map((k) => k.name).join(', ')}` : '';
+    if (!window.confirm(`Undo this import?\n\n${pv ? `${pv.customers_to_remove} new customer(s) will be removed and ${pv.changes_to_revert} change(s) reverted. Values someone has edited since are left alone.` : ''}${kept}`)) return;
     setBusy('rollback');
     try {
       await axios.post(`${API}/jobs/${job.id}/rollback`, {}, { headers });

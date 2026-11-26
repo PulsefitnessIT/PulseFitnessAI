@@ -182,7 +182,8 @@ def test_relationship_variants(H):
             {"AccountNumber": "H1", "AccountName": "TEST H1", "AssociatedOfficeType": "2"},
             {"AccountNumber": "B2", "AccountName": "TEST B2", "AssociatedOfficeType": "1", "AssociatedHeadOfficeAccountNum": "NOPE9"}]
     j = _analyze(H, _sage_csv(sage), "rel.csv", "sage_accounts", co)
-    assert _cat(H, j["id"], "B1")["outcome"]["category"] == "branch_merged_into_head_office"
+    b1 = _cat(H, j["id"], "B1")["outcome"]  # policy: branches stay separate until an admin verifies the link
+    assert b1["category"] == "new_customer_organisation" and b1["relationship"]["mode"] == "separate"
     b2 = _cat(H, j["id"], "B2")["outcome"]
     assert b2["category"] == "new_customer_organisation" and any("NOPE9" in w for w in b2["warnings"]), b2
     # admin chooses 'separate' for B1
@@ -251,7 +252,7 @@ def test_proposed_site_confirm_reject(H):
         assert site["address_line1"] in ("1 Site Rd", "2 Site Rd")
         b = requests.post(f"{API}/proposed-sites/{sites[1]['id']}/reject", headers=H, timeout=30)
         assert b.json()["status"] == "rejected"
-        assert requests.post(f"{API}/proposed-sites/{sites[1]['id']}/confirm", headers=H, timeout=30).status_code == 404
+        assert requests.post(f"{API}/proposed-sites/{sites[1]['id']}/confirm", headers=H, timeout=30).status_code == 409
         sid = a.json()["site_id"]
     finally:
         rb = _rollback(H, j["id"])
