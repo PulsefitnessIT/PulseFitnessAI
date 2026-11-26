@@ -130,9 +130,11 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
         "notes": body.get("notes", ""),
         "features": body.get("features", {}),
     }
-    await db.organizations.insert_one(org_doc)
     if ref:
-        await CI.claim_ref(ref, "", org_id, None, "master_admin_create")
+        if await CI.claim_ref(ref, "", org_id, None, "master_admin_create") != org_id:
+            raise HTTPException(409, {"message": f"Account {ref} already belongs to an existing customer"})
+        org_doc.update({"customer_account_number": ref, "sage_customer_number": ref, "sage_account_refs": [ref]})
+    await db.organizations.insert_one(org_doc)
 
     # Iter 215ar — auto-provision a user account for the primary contact
     # so the org owner can sign in immediately. Master admin can reveal the

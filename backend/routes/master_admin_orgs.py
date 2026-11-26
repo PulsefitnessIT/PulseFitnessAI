@@ -574,6 +574,13 @@ async def update_org_details(org_id: str, body: dict = Body(...), user: dict = D
     updates = {k: v for k, v in body.items() if k in allowed}
     if not updates:
         raise HTTPException(400, "No valid fields to update")
+    from utils import customer_identity as CI
+    new_ref = CI.clean_ref(updates.get("customer_account_number") or "")
+    if new_ref:
+        owners = [o for o in await CI.find_orgs_by_ref(new_ref) if o != org_id]
+        if owners or await CI.claim_ref(new_ref, "", org_id, None, "master_admin_edit") != org_id:
+            raise HTTPException(409, f"Account {new_ref} already belongs to another customer")
+        updates["customer_account_number"] = new_ref
 
     # Iter 215en — when any structured-address field is being updated, also
     # re-compose the legacy single-line `address` so Sage / Sicon outbox

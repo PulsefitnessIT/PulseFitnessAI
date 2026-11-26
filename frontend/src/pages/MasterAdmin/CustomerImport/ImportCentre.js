@@ -25,12 +25,14 @@ const Detector = ({ onDetected }) => {
   const [res, setRes] = useState(null);
   const [busy, setBusy] = useState(false);
   const onUploaded = async (doc) => {
-    setBusy(true);
+    setBusy(true); setRes(null);
     try {
       const fd = new FormData(); fd.append('file_id', doc.id);
       const { data } = await axios.post(`${API}/master-admin/customer-import/detect`, fd, { headers });
       setRes({ ...data, file_id: doc.id });
       if (data.confidence !== 'needs_choice') onDetected(data.type, ['sage_accounts', 'sicon_contacts'].includes(data.type) ? doc.id : null);
+    } catch (e) {
+      setRes({ label: 'Could not read the file', confidence: 'needs_choice', next: e.response?.data?.detail || e.message });
     } finally { setBusy(false); }
   };
   return (
@@ -82,7 +84,7 @@ export default function ImportCentre({ initialType = '', initialOrg = '', openJo
       {type === 'sage_accounts' && (
         <div className="flex gap-2 text-xs">
           {[['file', 'Import a Sage file'], ['sicon', 'Read directly from Sicon'], ['manual', 'Add one customer by hand']].map(([k, l]) => (
-            <button key={k} type="button" className={`px-3 py-1 rounded-full ${src === k ? 'bg-zinc-900 text-white' : 'bg-zinc-100'}`}
+            <button key={k} type="button" className={`px-3 py-1 rounded-full ${src === k ? 'seg-active' : 'bg-zinc-100'}`}
               onClick={() => { setSrc(k); setManual(k === 'manual'); }} data-testid={`ic-accounts-${k}`}>{l}</button>
           ))}
         </div>

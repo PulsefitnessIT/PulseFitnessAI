@@ -504,6 +504,8 @@ async def _create_organization(packet: Dict, packet_id: str) -> str:
     if not ref and not packet.get("confirm_new_customer") and await CI.duplicate_suggestions(org.get("name", ""), org.get("postcode", "")):
         raise HTTPException(409, "A customer with a similar name already exists — check Master Admin → Onboarding before provisioning")
     org_id = str(uuid.uuid4())
+    if ref and await CI.claim_ref(ref, "", org_id, None, "onboarding_packet") != org_id:
+        raise HTTPException(409, f"Account {ref} already belongs to an existing customer")
     is_trial = bool(packet.get("is_trial"))
     trial_days = int(packet.get("trial_duration_days") or 14) if is_trial else 0
     now_dt = datetime.now(timezone.utc)
@@ -727,7 +729,8 @@ async def _rollback_provisioning(created: Dict[str, List[str]]) -> None:
 
 
 @router.post("/onboarding-packets/{packet_id}/provision")
-async def provision_packet(packet_id: str, user: dict = Depends(get_current_user), request: Request = None) -> Dict:
+async def provision_packet(packet_id: str, user: dict = Depends(get_current_user), request: Request = None,
+                          confirm_new_customer: bool = False) -> Dict:
     """Atomically create org + sites + users + equipment + suppliers + contracts."""
     _require_master_admin(user)
     packet = await db.onboarding_packets.find_one({"id": packet_id}, {"_id": 0})
@@ -746,7 +749,7 @@ async def provision_packet(packet_id: str, user: dict = Depends(get_current_user
     }
 
     try:
-        org_id = await _create_organization(packet, packet_id)
+        org_id = await _create_organization({**packet, "confirm_new_customer": confirm_new_customer or packet.get("confirm_new_customer")}, packet_id)
         created["organization_ids"].append(org_id)
         await _link_or_create_crm_company(packet, org_id, packet_id)
 

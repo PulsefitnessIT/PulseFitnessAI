@@ -153,6 +153,7 @@ async def analyze(file: UploadFile = File(None), file_id: Optional[str] = Form(N
                                                    {"_id": 0, "id": 1, "finished_at": 1})
     job["previously_imported"] = prior
     job["status"] = "analysing"
+    job["heartbeat_at"] = _now()
     await db.customer_import_jobs.insert_one(dict(job))
     t = asyncio.create_task(_evaluate_bg(job_id, "analysed"))
     _TASKS.add(t)
@@ -399,10 +400,20 @@ _WRITES = {"new_customer_organisation", "existing_update_proposed", "existing_un
            "new_business_contact", "existing_contact_update_proposed", "existing_contact_unchanged", "unresolved_contact"}
 
 
+STALE_SECONDS = 180
+
+
 async def _job_view(job_id: str) -> dict:
     job = await db.customer_import_jobs.find_one({"id": job_id}, {"_id": 0})
     if not job:
         raise HTTPException(404, "Import not found")
+    if job["status"] in ("committing", "analysing", "rolling_back") and job.get("heartbeat_at", job.get("created_at")) and \
+            (datetime.now(timezone.utc) - datetime.fromisoformat(job.get("heartbeat_at") or job["created_at"])).total_seconds() > STALE_SECONDS:
+        # The worker stopped (e.g. server restart). Completed rows are kept; "Retry" carries on from where it stopped.
+        new = {"committing": "interrupted", "analysing": "analysis_failed", "rolling_back": "interrupted"}[job["status"]]
+        await db.customer_import_jobs.update_one({"id": job_id, "status": job["status"]}, {"$set": {"status": new,
+                                                 "error": "The import stopped unexpectedly — choose Retry to continue"}})
+        job["status"] = new
     p = job.get("preview") or {}
     job["summary"] = {
         "new_lite_organisations": p.get("new_customer_organisation", 0),
@@ -475,7 +486,7 @@ async def set_decisions(job_id: str, body: DecisionsIn, user: dict = Depends(get
         if upd:
             await db.customer_import_rows.update_one({"job_id": job_id, "row": d.row}, {"$set": upd})
     # Any change after approval withdraws the approval — the admin must re-approve the new snapshot.
-    await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "analysing"}, "$unset": {"approval": ""}})
+    await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "analysing", "heartbeat_at": _now()}, "$unset": {"approval": ""}})
     t = asyncio.create_task(_evaluate_bg(job_id, "analysed"))
     _TASKS.add(t)
     t.add_done_callback(_TASKS.discard)
@@ -486,6 +497,17 @@ async def _snapshot_hash(job_id: str) -> str:
     rows = await db.customer_import_rows.find({"job_id": job_id}, {"_id": 0, "row": 1, "record.fingerprint": 1, "decision": 1,
                                                                     "outcome.category": 1}).sort("row", 1).to_list(None)
     return S.fingerprint(rows)
+
+
+@router.post("/jobs/{job_id}/discard")
+async def discard(job_id: str, user: dict = Depends(get_current_user)):
+    """Abandon an import that was checked but never run. Nothing was written, so nothing is undone."""
+    _require_admin(user)
+    r = await db.customer_import_jobs.update_one({"id": job_id, "status": {"$in": ["analysed", "approved", "analysis_failed"]}},
+                                                 {"$set": {"status": "discarded", "discarded_by": user.get("email"), "discarded_at": _now()}})
+    if not r.modified_count:
+        raise HTTPException(409, "Only imports that have not run can be discarded")
+    return await _job_view(job_id)
 
 
 @router.post("/jobs/{job_id}/approve")
@@ -843,9 +865,18 @@ async def rollback(job_id: str, user: dict = Depends(get_current_user)):
     """Undo an import exactly, using its undo log. Organisations it created are removed only while nobody has
     been given access and no paid product is active; such organisations (and their records) are kept."""
     _require_admin(user)
-    job = await db.customer_import_jobs.find_one({"id": job_id}, {"_id": 0})
-    if not job or job["status"] not in ("completed", "completed_with_errors", "interrupted"):
+    job = await db.customer_import_jobs.find_one_and_update(
+        {"id": job_id, "status": {"$in": ["completed", "completed_with_errors", "interrupted"]}},
+        {"$set": {"status": "rolling_back", "heartbeat_at": _now()}})
+    if not job:
         raise HTTPException(409, "Only finished imports can be rolled back")
+    t = asyncio.create_task(_do_rollback(job_id, user))
+    _TASKS.add(t)
+    t.add_done_callback(_TASKS.discard)
+    return {"status": "rolling_back"}
+
+
+async def _do_rollback(job_id: str, user: dict) -> None:
     kept: set = set()
     removable = []
     async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1, "subscription_tier": 1, "enabled_modules": 1}):
@@ -887,7 +918,7 @@ async def rollback(job_id: str, user: dict = Depends(get_current_user)):
                                                                        "rolled_back_by": user.get("email"),
                                                                        "rollback": {"removed": len(removable), "kept": len(kept),
                                                                                     "changes_reverted": reverted}}})
-    return {"removed": len(removable), "kept_in_use": len(kept), "restored": reverted}
+
 
 
 @router.get("/staged-contacts")
@@ -933,7 +964,7 @@ async def overview(user: dict = Depends(get_current_user)):
     return {
         "customer_organisations": await db.organizations.count_documents(sage_q),
         "sage_account_references": await db.customer_account_refs.count_documents({}),
-        "awaiting_activation": await db.organizations.count_documents({**sage_q, "onboarding_status": "pending_activation"}),
+        "awaiting_activation": await db.organizations.count_documents({"onboarding_status": "pending_activation"}),
         "lite_only": await db.organizations.count_documents({**sage_q, "subscription_tier": {"$in": ["free", "lite"]}}),
         "imported_contacts": await db.crm2_contacts.count_documents({"is_business_contact": True}),
         "unmatched_contacts": await db.customer_contact_staging.count_documents({"status": {"$in": ["awaiting_account", "needs_review"]}}),
@@ -1025,7 +1056,9 @@ async def manual_customer(body: ManualCustomer, user: dict = Depends(get_current
                                                            "telephone": {"number": body.phone, "display": body.phone} if body.phone else {},
                                                            "role": "Primary contact"}, "manual", job, user)
     await CI.mark_complete(org_id)
-    return await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    out = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    out["similar_customers"] = [x for x in await CI.duplicate_suggestions(name, body.postcode) if x["id"] != org_id]
+    return out
 
 
 # ---------------------------------------------------------------- Review Centre (all open exceptions in one place)

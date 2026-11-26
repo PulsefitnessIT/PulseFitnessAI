@@ -78,6 +78,19 @@ def _run(H, jid):
     raise AssertionError("commit did not finish")
 
 
+def _rollback(H, jid):
+    r = requests.post(f"{API}/jobs/{jid}/rollback", headers=H, timeout=120)
+    if r.status_code == 409:  # already rolled back (test cleanup)
+        return {}
+    assert r.status_code == 200, r.text
+    for _ in range(600):
+        j = requests.get(f"{API}/jobs/{jid}", headers=H, timeout=30).json()
+        if j["status"] != "rolling_back":
+            return j.get("rollback") or {}
+        time.sleep(0.5)
+    raise AssertionError("rollback did not finish")
+
+
 def _xlsx(header, rows) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -178,7 +191,7 @@ def test_B_production_style_fixture_lite_only_and_idempotent(H):
     rep = requests.get(f"{API}/jobs/{j['id']}/report.csv", headers=H, timeout=60)
     assert rep.status_code == 200 and "LITE (new)" in rep.text
     for jid in (j2["id"], j["id"]):
-        requests.post(f"{API}/jobs/{jid}/rollback", headers=H, timeout=120)
+        _rollback(H, jid)
     assert db.organizations.count_documents({"sage_company": company}) == 0
 
 
@@ -263,7 +276,7 @@ def test_D_combined_sage_and_sicon(H):
     js2 = _analyze(H, _sicon_csv(contacts1), "contacts.csv", "sicon_contacts", company)
     assert js2["preview"].get("existing_contact_unchanged") == 4, js2["preview"]
     for jid in (j["id"], js["id"]):
-        requests.post(f"{API}/jobs/{jid}/rollback", headers=H, timeout=120)
+        _rollback(H, jid)
     db.organizations.delete_one({"id": paid_id})
     db.customer_account_refs.delete_many({"company": company})
     db.customer_contact_staging.delete_many({"account_ref": a, "source_job_id": js["id"]})
@@ -285,6 +298,7 @@ def test_edge_circular_duplicates_and_tamper(H):
     assert p.get("conflicting_duplicate") == 2 and p.get("invalid") == 1
     assert requests.post(f"{API}/jobs/{j['id']}/approve", headers=H, timeout=60).status_code == 409
     assert requests.post(f"{API}/jobs/{j['id']}/commit", headers=H, timeout=60).status_code == 409
+    assert requests.post(f"{API}/jobs/{j['id']}/discard", headers=H, timeout=60).json()["status"] == "discarded"
 
 
 def test_large_file_over_5000_rows(H):
@@ -294,5 +308,5 @@ def test_large_file_over_5000_rows(H):
     assert j["detection"]["counts"]["genuine"] == 5200 and j["preview"]["new_customer_organisation"] == 5200
     done = _run(H, j["id"])
     assert done["status"] == "completed" and done["results"]["org_created_lite"] == 5200
-    r = requests.post(f"{API}/jobs/{j['id']}/rollback", headers=H, timeout=300).json()
+    r = _rollback(H, j["id"])
     assert r["removed"] == 5200

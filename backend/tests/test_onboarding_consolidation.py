@@ -41,6 +41,7 @@ def test_manual_customer_duplicate_check_and_lite(H):
     # Sage import of the same account number recognises the manual customer (no duplicate)
     j = _analyze(H, _sage_csv([{"AccountNumber": ref, "AccountName": f"{name} A"}]), "s.csv", "sage_accounts")
     assert j["preview"].get("existing_unchanged") == 1 or j["preview"].get("existing_update_proposed") == 1, j["preview"]
+    requests.post(f"{API}/jobs/{j['id']}/discard", headers=H, timeout=60)
     ids = [org["id"], r3.json()["id"], r4.json()["id"]]
     for i in ids:
         db.customer_account_refs.delete_many({"org_id": i})

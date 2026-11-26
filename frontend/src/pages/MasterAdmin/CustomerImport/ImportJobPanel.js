@@ -75,7 +75,17 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
   const rollback = async () => {
     if (!window.confirm('Undo this import? Organisations it created that nobody has access to are removed, and values it overwrote are restored.')) return;
     setBusy('rollback');
-    try { await axios.post(`${API}/jobs/${job.id}/rollback`, {}, { headers }); const { data } = await axios.get(`${API}/jobs/${job.id}`, { headers }); setJob(data); onDone?.(); }
+    try {
+      await axios.post(`${API}/jobs/${job.id}/rollback`, {}, { headers });
+      let { data } = await axios.get(`${API}/jobs/${job.id}`, { headers });
+      setJob(data);
+      while (data.status === 'rolling_back') {
+        await new Promise((r) => setTimeout(r, 1500));
+        ({ data } = await axios.get(`${API}/jobs/${job.id}`, { headers }));
+        setJob(data);
+      }
+      onDone?.();
+    }
     catch (e) { setErr(e.response?.data?.detail || e.message); } finally { setBusy(''); }
   };
   const sage = job.kind === 'sage_accounts';
@@ -120,6 +130,10 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
             Approve import
           </Button>
         )}
+        {['analysed', 'approved', 'analysis_failed'].includes(job.status) && (
+          <Button variant="ghost" size="sm" onClick={() => call('discard', 'discard')} disabled={!!busy} data-testid="ci-discard-btn">Discard</Button>
+        )}
+        {job.status === 'discarded' && <span className="text-sm text-zinc-500" data-testid="ci-discarded">Discarded — nothing was imported</span>}
         {s.blocking > 0 && job.status === 'analysed' && <span className="text-xs text-amber-700" data-testid="ci-blocking-note">{s.blocking} record(s) need a decision first</span>}
         {(job.status === 'approved' || job.status === 'completed_with_errors' || job.status === 'interrupted') && (
           <Button onClick={() => call('commit', 'commit')} disabled={!!busy} data-testid="ci-commit-btn">
@@ -137,6 +151,7 @@ export default function ImportJobPanel({ job, setJob, headers, onDone }) {
             {sage && job.results ? ` · ${job.results.org_created_lite || 0} new LITE organisations` : ''}
           </span>
         )}
+        {job.status === 'rolling_back' && <span className="text-sm text-zinc-600 flex items-center gap-2" data-testid="ci-rolling-back"><Loader2 size={14} className="animate-spin" />Undoing import…</span>}
         {job.status === 'rolled_back' && <span className="text-sm text-zinc-500" data-testid="ci-rolled-back">Rolled back</span>}
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={download} data-testid="ci-report-btn"><Download size={14} className="mr-1" />Reconciliation report</Button>

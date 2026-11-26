@@ -279,7 +279,15 @@ function PacketDetailDialog({ API, headers, packet: initialPacket, onClose, onCh
   const doProvision = async () => {
     setProvisioning(true);
     try {
-      const res = await axios.post(`${API}/onboarding-packets/${packet.id}/provision`, {}, { headers });
+      let res;
+      try {
+        res = await axios.post(`${API}/onboarding-packets/${packet.id}/provision`, {}, { headers });
+      } catch (e) {
+        const d = e.response?.data?.detail;
+        if (e.response?.status !== 409 || typeof d !== 'string' || !d.includes('similar name')) throw e;
+        if (!window.confirm(`${d}\n\nProvision it as a new, separate customer anyway?`)) return;
+        res = await axios.post(`${API}/onboarding-packets/${packet.id}/provision?confirm_new_customer=true`, {}, { headers });
+      }
       notify.success(`Provisioned! Org ID: ${res.data.organization_id?.slice(0, 8)}…`);
       onChanged();
     } catch (e) {

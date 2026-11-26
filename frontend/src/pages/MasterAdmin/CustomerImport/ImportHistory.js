@@ -14,7 +14,7 @@ export default function ImportHistory({ onOpenJob }) {
     const { data } = await axios.get(`${API}/master-admin/customer-import/history`, { headers });
     setRows(data.imports || []);
   }, [headers]);
-  useEffect(() => { load().catch(() => {}); }, [load]);
+  useEffect(() => { load().catch((e) => setMsg(e.response?.data?.detail || 'Could not load import history')); }, [load]);
   const report = async (id) => {
     const r = await axios.get(`${API}/master-admin/customer-import/jobs/${id}/report.csv`, { headers, responseType: 'blob' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(r.data); a.download = `import-reconciliation-${id.slice(0, 8)}.csv`; a.click();
@@ -23,7 +23,7 @@ export default function ImportHistory({ onOpenJob }) {
     if (!window.confirm('Undo this import? Records it created that nobody has started using are removed, and values it changed are restored.')) return;
     try {
       const url = r.engine === 'customer_import' ? `/master-admin/customer-import/jobs/${r.id}/rollback` : `/master-admin/bulk-import/undo/${r.id}`;
-      await axios.post(`${API}${url}`, {}, { headers }); setMsg('Import undone'); load();
+      await axios.post(`${API}${url}`, {}, { headers }); setMsg(r.engine === 'customer_import' ? 'Undo started — refresh in a moment to see it finish' : 'Import undone'); load();
     } catch (e) { setMsg(e.response?.data?.detail || e.message); }
   };
   return (

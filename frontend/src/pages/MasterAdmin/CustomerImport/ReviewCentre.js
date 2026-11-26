@@ -14,20 +14,22 @@ export default function ReviewCentre({ onOpenJob }) {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
   const [d, setD] = useState({ total: 0, types: {}, items: [] });
+  const [err, setErr] = useState('');
   const load = useCallback(async () => {
     const { data } = await axios.get(`${API}/review`, { headers, params: { type: type || undefined, search: q || undefined, skip: page * PAGE, limit: PAGE } });
     setD(data);
   }, [headers, type, q, page]);
-  useEffect(() => { load().catch(() => {}); }, [load]);
+  useEffect(() => { load().then(() => setErr('')).catch((e) => setErr(e.response?.data?.detail || 'Could not load the review list')); }, [load]);
   const site = async (id, decision) => { await axios.post(`${API}/proposed-sites/${id}/${decision}`, {}, { headers }); load(); };
   return (
     <div className="space-y-3" data-testid="review-centre">
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" onClick={() => { setType(''); setPage(0); }} className={`text-xs px-3 py-1 rounded-full ${!type ? 'bg-zinc-900 text-white' : 'bg-zinc-100'}`} data-testid="rc-type-all">All ({Object.values(d.types).reduce((a, b) => a + b, 0)})</button>
+        <button type="button" onClick={() => { setType(''); setPage(0); }} className={`text-xs px-3 py-1 rounded-full ${!type ? 'seg-active' : 'bg-zinc-100'}`} data-testid="rc-type-all">All ({Object.values(d.types).reduce((a, b) => a + b, 0)})</button>
         {Object.entries(d.types).map(([k, v]) => (
-          <button key={k} type="button" onClick={() => { setType(k); setPage(0); }} className={`text-xs px-3 py-1 rounded-full ${type === k ? 'bg-zinc-900 text-white' : 'bg-zinc-100'}`} data-testid={`rc-type-${k.replace(/\W+/g, '-').toLowerCase()}`}>{k} ({v})</button>
+          <button key={k} type="button" onClick={() => { setType(k); setPage(0); }} className={`text-xs px-3 py-1 rounded-full ${type === k ? 'seg-active' : 'bg-zinc-100'}`} data-testid={`rc-type-${k.replace(/\W+/g, '-').toLowerCase()}`}>{k} ({v})</button>
         ))}
       </div>
+      {err && <p className="text-sm text-red-600" data-testid="rc-error">{err}</p>}
       <Input className="h-8 w-72" placeholder="Search customer or account number" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} data-testid="rc-search" />
       <Card className="rounded-xl border-zinc-200 overflow-auto">
         <table className="w-full text-xs">

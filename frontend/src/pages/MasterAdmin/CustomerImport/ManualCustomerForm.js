@@ -53,6 +53,9 @@ export default function ManualCustomerForm() {
       )}
       {err && <p className="text-sm text-red-600" data-testid="ic-manual-error">{err}</p>}
       {done && <p className="text-sm text-emerald-700 flex items-center gap-1.5" data-testid="ic-manual-done"><CheckCircle2 size={14} />{done.name} created on LITE, awaiting activation.</p>}
+      {done?.similar_customers?.length > 0 && (
+        <p className="text-xs text-amber-700" data-testid="ic-manual-similar">Note: similar existing customers — {done.similar_customers.map((x) => x.name).join(', ')}. Check they are not the same business.</p>
+      )}
       <Button onClick={() => save(false)} disabled={busy || !f.name} data-testid="ic-manual-save">
         {busy && <Loader2 size={14} className="animate-spin mr-1" />}Check and create customer
       </Button>

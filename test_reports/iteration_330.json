@@ -1,0 +1,62 @@
+{
+  "summary": "Tested the onboarding consolidation (P0), backend and UI. Regression: test_onboarding_consolidation.py passes 6/6. Sage/Sicon import, the independent checks, bulk import, head office and the onboarding-fixes suites pass 35, with 23 skipped. I added 9 independent checks in test_onboarding_consolidation_independent.py: 7 pass and 2 fail on real bugs. Confirmed working: the legacy routes return 410; manual entry validation (empty name, more than 60 characters, account number longer than 8, bad email all return 422); a manual customer is LITE, pending activation, has no users, and its contact is a CRM contact only; the account number is upper-cased; activation, duplicates, review, history, detect and templates all respond correctly, including 422 on a garbage file; a Service Desk user gets 403. UI: the Onboarding area has 14 sub-tabs in 3 groups; old bookmarks ?tab=site / head-office / sage-import / imports redirect to the Import Centre; the deep link type=sites&org= preselects the organisation; the 6 import-type tiles each render the correct panel; manual create works, and a duplicate shows suggestions with 'don't create' and 'create anyway'; Read directly from Sicon renders; Review Centre, Customer Activation, Import History and Templates & Guidance render; Organisations → Create organisation with a similar name shows a confirm listing the suggestions, and dismissing it creates nothing. I fixed 2 white-on-white active pills.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/master-admin/organizations", "issue": "Race creates duplicate customers. The account number is checked with find_orgs_by_ref BEFORE the insert, and claim_ref runs AFTER the insert with its return value ignored. 5 concurrent creates with the same customer_account_number all returned 200 and made 5 organisations. Fix: claim_ref(ref, '', new_id) before inserting and return 409 if the owner != new_id, or call CI.provision_customer_org. Also, the org document never stores customer_account_number / sage_account_refs; it exists only in customer_account_refs.", "priority": "HIGH"},
+      {"endpoint": "POST /api/onboarding-packets/{id}/provision", "issue": "Dead end. _create_organization reads packet.confirm_new_customer, but nothing can set it: the PUT allowlist excludes it, provision takes no body, and no UI sends it. Any packet whose name resembles an existing org returns 409 forever. Also, when the packet has an account number, it is never claimed in customer_account_refs after the org is created.", "priority": "HIGH"},
+      {"endpoint": "POST /api/crm/v2/aftersales/onboarding/{id}/commit (_shared_customer)", "issue": "Code review, not run. When the user links an EXISTING CRM company (company_id) that has no linked_organization_id and no account_number, provision_customer_org runs a name check and returns 409 'may already exist' if any similarly named org exists. That is very likely, because the CRM company name usually matches the org. EstateOnboarding.js only shows this as text. The user can only choose 'create new', which makes a duplicate CRM company. There is no way to link the existing org or confirm. Pass confirmed_new=True when the admin picked a company explicitly, or offer to link a suggested org.", "priority": "MEDIUM"}
+    ],
+    "minor": [
+      {"endpoint": "POST /customer-import/manual", "issue": "When an account number is given, the name/postcode duplicate check is skipped. 'Acme Gym' already exists with no account number; entering 'Acme Gym' plus a new account number silently creates a second org (verified). At least show the suggestions as a warning."},
+      {"endpoint": "utils/customer_identity.duplicate_suggestions", "issue": "Matching only by postcode never produces a suggestion: the score is 0.5, below the 0.7 threshold, so the postcode $or clause does nothing (verified). Searching names with an AND of words also misses typos and abbreviations, and the Mongo find has limit(200)."},
+      {"endpoint": "GET /customer-import/overview", "issue": "All counts are limited to orgs with sage_account_refs. The dashboard shows 'Awaiting activation 0' while Customer Activation lists 4, because manual and estate customers have no account number. The two screens are inconsistent."},
+      {"endpoint": "GET /customer-import/review", "issue": "Jobs left in 'analysed' status stay in the Review Centre forever. There are currently 62 items, all from test fixtures (edge.csv D1 repeated, etc.). It needs a 'discard job' action or an age cutoff, and the test suites should delete the jobs they analyse. There is also an N+1 query per org for 'Missing owner details' and per row in /activation."},
+      {"endpoint": "data hygiene", "issue": "Leftover TEST orgs from the main agent's run at 17:37 (not created by me, so not deleted): ea021bb6-1b1c-41c8-8d19-91cba7b991fa and f353d386-984b-41a9-ac50-9dfe0e325484 (TEST Manual Gym 981eca); fa1219ae-e4d3-454b-ba1f-a1200e8d40b4 and 2489ac81-55ee-4e9d-b3fe-dd46744e0f6f (TEST MA Org aa5e57); 5bc7cc09-2c24-4a8a-be88-f1146219d94c and 28ce826e-3f61-49c4-a575-d43139feefe8 (TEST Estate fcef1b); e0bc440f-6fcf-4bca-92b8-ee50b473d393 (TEST Provision Org a3f6765b, 1 user). The tests should clean up in try/finally."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ImportCentre account-source pills and ReviewCentre type pills", "issue": "FIXED by testing agent. The active pill used bg-zinc-900 text-white, which the theme renders white on white (invisible). It now uses seg-active, the same fix as iteration 329.", "selector": "[data-testid^=ic-accounts-], [data-testid^=rc-type-]", "priority": "MEDIUM"},
+      {"component": "ImportCentre Detector", "issue": "onUploaded has try/finally but no catch. A 422 from /detect (for example an unreadable workbook) becomes an unhandled rejection and the user sees nothing.", "selector": "[data-testid=ic-detector]", "priority": "LOW"},
+      {"component": "ReviewCentre / ImportHistory / OnboardingViews", "issue": "Load errors are swallowed with .catch(() => {}). There is no error state, so on failure the screen looks empty.", "selector": "[data-testid=import-history]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Organisations → Create organisation", "issue": "The create dialog has no customer_account_number input, so the backend's 409 'account already belongs' path can't be reached from the UI. The Edit org form CAN set customer_account_number, which appears to bypass the shared identity service: no claim, no conflict check.", "affected_selectors": ["[data-testid=create-org-dialog]"]},
+      {"flow": "Customer Questionnaires → Provision", "issue": "There is no 'create as new customer' option when the backend returns 409 for a similar name (see the backend critical issue).", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "Import Centre → Customer Accounts (Sage file)", "issues": ["The SageSiconImport info text still says 'Sites, equipment and contracts use the Bulk Imports tab'. That tab no longer exists; it should point to the Import Centre tiles."]},
+      {"screen": "ManualCustomerForm", "issues": ["The previous success message ('… created on LITE') stays visible while the duplicate-suggestions box for the next attempt is shown. Clear done when a new save starts."]},
+      {"screen": "Customer Activation", "issues": ["The Sage column shows 'Active' for manual and estate customers that have no Sage record. It should show '—'."]},
+      {"screen": "Import History", "issues": ["Times are raw UTC (ISO sliced) with no timezone label."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_onboarding_consolidation_independent.py", "/app/backend/tests/test_onboarding_consolidation.py", "/app/test_reports/pytest/pytest_iter330.xml"],
+  "action_items": [
+    "Make POST /master-admin/organizations claim the account number before inserting (or use CI.provision_customer_org), so concurrent creates can't duplicate. Store customer_account_number on the org.",
+    "Give packet provisioning a confirm path (a body {confirm_new_customer} on /provision, or add it to the PUT allowlist, plus a UI button). Claim the packet's account number in customer_account_refs.",
+    "Aftersales estate commit: when the admin explicitly picked company_id, don't block on name suggestions. Pass confirmed_new, or offer to link a suggested org.",
+    "Manual entry with a new account number: still return or show name suggestions as a warning.",
+    "Fix the duplicate_suggestions postcode scoring, or remove the dead clause.",
+    "Align the overview/dashboard counts with the activation queue.",
+    "Add discard/expiry for abandoned 'analysed' jobs. Clean up leftover TEST orgs and analysed test jobs, and add try/finally cleanup to the tests.",
+    "Add catch/error states to the Detector, ReviewCentre, ImportHistory and the OnboardingViews loaders. Fix the stale 'Bulk Imports tab' copy.",
+    "Route Edit-org changes to customer_account_number through the shared identity service."
+  ],
+  "critical_code_review_comments": [
+    "master_admin_org_create: the check-then-insert TOCTOU race (verified with 5 concurrent requests, 5 orgs). claim_ref's return value is ignored.",
+    "onboarding_packets._create_organization: the confirm_new_customer flag can't be set; the ref is not claimed.",
+    "crm_afs_onboarding._shared_customer: only {'name'} is passed to provision, so the estate org loses the address and postcode, and the duplicate check can't use the postcode.",
+    "customer_identity.duplicate_suggestions: the ternary precedence is correct, but 'same name' always scores 1.0 whatever the postcode; postcode-only matching never surfaces.",
+    "customer_account_import.manual_customer builds a fake job {'id': 'manual-<org8>'} for _crm_company/_upsert_contact. Any undo-log entries are written against a job id that doesn't exist in customer_import_jobs.",
+    "OrgSitesPanel: csvPreview/commitCsv/csvBusy state and logic are left dead after the CSV input was removed.",
+    "customer_account_import.py is now around 1,200 lines. Split it into review, history, manual and detect modules."
+  ],
+  "updated_files": ["/app/frontend/src/pages/MasterAdmin/CustomerImport/ImportCentre.js", "/app/frontend/src/pages/MasterAdmin/CustomerImport/ReviewCentre.js", "/app/backend/tests/test_onboarding_consolidation_independent.py"],
+  "success_rate": {"backend": "93% (48/50 executed checks across the suites; 2 real bugs)", "frontend": "90% (all flows render and work; 2 pill contrast bugs fixed; minor error-state and copy issues)"},
+  "seed_data_creation": "None kept. I created 1 TEST_UI Gym org through the UI and deleted it by id, with its CRM company and contact. The independent tests clean up their own orgs by id.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login with admin@pulsefitness.com returns a token directly (MFA not enforced at login in this env). The tests use tests.test_sage_sicon_customer_import helpers (_token mints a JWT with mfa_verified). Run test_onboarding_consolidation_independent.py with -p no:xdist. Not exercised: Aftersales estate commit (only reviewed), packet provisioning (not run, to avoid user creation and emails), and Sicon direct read against a live connection. The leftover TEST org ids are listed under backend minor issues.",
+  "rca of the issue": "Duplicate orgs race: master_admin_org_create does find_orgs_by_ref (read), then insert, then claim_ref, so every concurrent request passes the read. Packet dead end: the flag is read from the stored packet, but the only write path (PUT) filters it out."
+}

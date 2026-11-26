@@ -54,7 +54,10 @@ async def find_orgs_by_ref(ref: str, company: str = "") -> list[str]:
     async for s in db.sites.find({"$or": [{"invoice_customer_ref": ref}, {"sicon_customer_ref": ref}]}, {"_id": 0, "organization_id": 1}):
         if s.get("organization_id"):
             ids.add(s["organization_id"])
-    return sorted(ids)
+    if not ids:
+        return []
+    live = {o["id"] async for o in db.organizations.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1})}
+    return sorted(live)  # references left behind by a rolled-back creation never block a new customer
 
 
 async def claim_ref(ref: str, company: str, org_id: str, job_id: Optional[str] = None, source: str = "") -> str:
@@ -84,7 +87,11 @@ async def duplicate_suggestions(name: str, postcode: str = "", limit: int = 8) -
                                                          "customer_account_number": 1, "account_type": 1}).limit(200):
         on = norm_name(o.get("name"))
         same_pc = pc and re.sub(r"\s+", "", (o.get("postcode") or "").upper()) == pc
-        score = 1.0 if on == nn else (0.7 if nn and (nn in on or on in nn) else 0.0) + (0.5 if same_pc else 0.0)
+        name_score = 1.0 if on == nn else 0.7 if nn and on and (nn in on or on in nn) else 0.0
+        shared = bool(set(nn.split()) & set(on.split()))
+        score = name_score + (0.5 if same_pc else 0.0)
+        if same_pc and shared:
+            score = max(score, 0.7)
         if score >= 0.7:
             out.append({**o, "reason": "same name" if on == nn else "similar name" if score < 1.2 and not same_pc else
                         "similar name and same postcode", "score": round(score, 2)})

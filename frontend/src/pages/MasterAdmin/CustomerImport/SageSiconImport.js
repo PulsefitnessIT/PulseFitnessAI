@@ -73,7 +73,7 @@ export default function SageSiconImport({ fixedMode = null, initialFileId = null
         <p className="text-sm text-zinc-600">{active.hint}</p>
         <p className="text-xs text-zinc-500 flex items-start gap-1.5"><Info size={13} className="mt-0.5 shrink-0" />
           Importing never creates logins, sends emails or switches on paid products. New customers get Pulse Fitness LITE and stay
-          “awaiting activation” until you invite named people. Sites, equipment and contracts use the Bulk Imports tab.</p>
+          “awaiting activation” until you invite named people.</p>
         <label className="text-xs text-zinc-600 flex items-center gap-2">Sage company code (only if you run more than one Sage company)
           <input className="border rounded px-2 py-1 w-28 uppercase" maxLength={12} value={company} onChange={(e) => setCompany(e.target.value)} data-testid="ci-company-input" />
         </label>

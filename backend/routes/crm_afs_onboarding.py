@@ -781,7 +781,7 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
         customer = company.get("name") or customer
         cust_org_id = company.get("linked_organization_id")
         if not cust_org_id:
-            cust_org_id = await _shared_customer(customer, company.get("account_number") or "", user, data)
+            cust_org_id = await _shared_customer(customer, company.get("account_number") or "", user, {**data, "confirm_new_customer": True})
             await db.crm2_companies.update_one({"id": crm_company_id}, {"$set": {
                 "linked_organization_id": cust_org_id, "updated_at": _now()}})
     else:
