@@ -63,7 +63,7 @@ export default function SiconOnboardingSync({ API, headers }) {
             {starting && !preview ? <Loader2 size={14} className="animate-spin mr-1" /> : <Eye size={14} className="mr-1" />}
             {preview ? 'Preview again' : 'Preview Sicon Sync'}
           </Button>
-          {preview?.status === 'completed' && !appliedThisPreview && (
+          {['completed', 'partial'].includes(preview?.status) && !appliedThisPreview && (
             <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={running || starting}
               onClick={() => setConfirmOpen(true)} data-testid="sicon-sync-apply-btn">
               <DownloadCloud size={14} className="mr-1" /> Confirm &amp; import
@@ -82,13 +82,24 @@ export default function SiconOnboardingSync({ API, headers }) {
       {shown && !busy(shown) && (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500" data-testid="sicon-sync-run-meta">
-            <Badge className={shown.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}>
+            <Badge className={shown.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : shown.status === 'partial' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}>
               {shown.mode === 'apply' ? 'Imported' : 'Preview'} · {shown.status}
             </Badge>
             <span>{new Date(shown.finished_at || shown.started_at).toLocaleString()}</span>
             {shown.error && <span className="text-red-600" data-testid="sicon-sync-error">{shown.error}</span>}
           </div>
           <SiconSyncCounts run={shown} />
+          {(shown.missing_resources || []).length > 0 && (
+            <ul className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 space-y-0.5" data-testid="sicon-sync-missing">
+              {shown.missing_resources.map((m, i) => <li key={i}><b>{m.resource}</b>: {m.reason}</li>)}
+            </ul>
+          )}
+          {shown.retrieved && (
+            <p className="text-[11px] text-zinc-500" data-testid="sicon-sync-retrieved">
+              Retrieved: {Object.entries(shown.retrieved).map(([k, v]) => `${k} ${v.records} records / ${v.pages} pages`).join(' · ')}
+              {shown.sage_company ? ` · Sage company ${shown.sage_company}` : ''}{shown.source_company ? ` · Sicon company ${shown.source_company}` : ''}
+            </p>
+          )}
         </div>
       )}
 

@@ -998,13 +998,13 @@ async def read_resolve_conflict(external_id: str, data: Dict[str, Any],
             raise HTTPException(status_code=404, detail="Pulse asset not found")
         await db.equipment.update_one({"id": asset_id}, {"$set": _imp._sicon_update_set(existing, norm)})
         await _links.upsert_link(entity, external_id, "equipment", asset_id,
-                                 organization_id=org_id, sync_status="linked")
+                                 organization_id=org_id, sync_status="linked", reassign=True)
         resolution = f"linked to {asset_id}"
     elif action == "create_new":
         doc = _imp._new_asset_doc(org_id, norm)
         await db.equipment.insert_one(doc)
         await _links.upsert_link(entity, external_id, "equipment", doc["id"],
-                                 organization_id=org_id, sync_status="linked")
+                                 organization_id=org_id, sync_status="linked", reassign=True)
         resolution = f"created new asset {doc['id']}"
     elif action == "ignore":
         await _links.set_status(entity, external_id, "ignored",
@@ -1152,7 +1152,7 @@ async def save_customer_mapping(data: Dict[str, Any], user: dict = Depends(get_c
         raise HTTPException(status_code=400, detail="entity, external_id and pulse_id required")
     await _links.upsert_link(entity, external_id,
                              "crm2_company" if entity == "customer" else "crm2_site",
-                             pulse_id, organization_id=org_id, sync_status="linked")
+                             pulse_id, organization_id=org_id, sync_status="linked", reassign=True)
     await log_sicon_event(org_id, "customer_mapping_saved", f"{entity} {external_id}→{pulse_id}", True, user["id"])
     return {"success": True}
 
@@ -1218,7 +1218,7 @@ async def save_engineer_mapping(data: Dict[str, Any], user: dict = Depends(get_c
         if not eng:
             raise HTTPException(status_code=404, detail="Engineer not found")
         await _links.upsert_link(_links.ENTITY_RESOURCE, seid, "svc_engineer", peid,
-                                 organization_id=org_id, sync_status="linked")
+                                 organization_id=org_id, sync_status="linked", reassign=True)
         await log_sicon_event(org_id, "engineer_mapping_saved",
                               f"resource {seid}→{peid}", True, user["id"])
         return {"success": True, "mapped_engineer_id": peid}
@@ -1349,7 +1349,7 @@ async def onboarding_apply(run_id: str, user: dict = Depends(get_current_user)):
         {"id": run_id, "organization_id": org_id, "entity": "onboarding", "mode": "preview"}, {"_id": 0})
     if not prev:
         raise HTTPException(status_code=404, detail="Preview not found")
-    if prev.get("status") != "completed":
+    if prev.get("status") not in ("completed", "partial"):
         raise HTTPException(status_code=400, detail="Run a complete preview before importing.")
     return await _start_onboarding(user, apply=True, preview_run_id=run_id)
 

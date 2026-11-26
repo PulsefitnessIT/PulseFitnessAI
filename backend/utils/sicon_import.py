@@ -13,6 +13,7 @@ offline (the live Sicon server is only reachable on the customer network).
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
@@ -123,6 +124,16 @@ def normalise_equipment(rec: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+PLACEHOLDER_SERIALS = {"", "N/A", "NA", "NONE", "UNKNOWN", "UNK", "-", "--", "TBC", "TBA", "0", "00", "NIL", "NO SERIAL",
+                       "NOT VISIBLE", "WORN", "WORN AWAY", "UNREADABLE", "ILLEGIBLE", "MISSING", "?", "X", "XXX"}
+
+
+def reliable_serial(v) -> str:
+    """Serial numbers are only identity signals when real — placeholders never match anything."""
+    s = re.sub(r"\s+", " ", str(v or "")).strip().upper()
+    return "" if s in PLACEHOLDER_SERIALS or len(s) < 3 else s
+
+
 async def classify_equipment(norm: Dict[str, Any], org_id: str) -> Dict[str, Any]:
     """Decide what to do with a Sicon record (spec §10 A–E):
       linked   — already linked to a Pulse asset → update/sync
@@ -145,14 +156,20 @@ async def classify_equipment(norm: Dict[str, Any], org_id: str) -> Dict[str, Any
                     "confidence": "high", "reasons": ["asset already carries siconEquipmentId"]}
 
     # B) confidence match — serial number is the only reliable unique key.
-    serial = norm.get("serial_number") or ""
+    serial = reliable_serial(norm.get("serial_number"))
     candidates: List[Dict[str, Any]] = []
     if serial:
         rows = await db.equipment.find(
-            {"organization_id": org_id, "serial_number": serial},
-            {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "manufacturer": 1, "model": 1},
+            {"organization_id": org_id, "serial_number": {"$in": list({serial, serial.lower(), str(norm.get("serial_number") or "").strip()})}},
+            {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "manufacturer": 1, "model": 1, "sicon_equipment_id": 1},
         ).to_list(20)
+        # An asset already bound to a different Sicon id is a different machine with the same serial.
+        rows = [r for r in rows if r.get("sicon_equipment_id") in (None, "", seid)]
         candidates = [{"id": r["id"], "signal": "serial", "asset": r} for r in rows]
+        model = str(norm.get("model") or "").strip().lower()
+        if len(candidates) == 1 and model and str(candidates[0]["asset"].get("model") or "").strip().lower() not in ("", model):
+            return {"bucket": "conflict", "confidence": "ambiguous",
+                    "reasons": [f"Serial '{serial}' matches an asset with a different model"], "candidates": candidates}
 
     ids = {c["id"] for c in candidates}
     if len(ids) == 1:

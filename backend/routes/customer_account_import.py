@@ -39,12 +39,34 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _require_admin(user: dict) -> None:
-    """Customer account data includes confidential Sage finance fields — Pulse admins only (not Service Desk)."""
-    if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin") or user.get("role") == PULSE_ROLE \
-            or user.get("is_pulse_admin"):
+DELEGATED_PERMISSIONS = {
+    "imports.prepare": "Upload and prepare imports",
+    "imports.review": "Review import data and resolve exceptions",
+    "imports.approve": "Approve imports",
+    "imports.commit": "Run approved imports",
+    "imports.undo": "Undo imports",
+    "activation.view": "See the customer activation list",
+    "sage.confidential": "See confidential Sage finance / credit fields",
+}
+
+
+def _is_full_admin(user: dict) -> bool:
+    return bool(user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin") or user.get("role") == PULSE_ROLE
+                or user.get("is_pulse_admin"))
+
+
+def _require_admin(user: dict, perm: Optional[str] = None) -> None:
+    """Pulse admins, or Pulse staff delegated the specific onboarding permission (no Master Admin access needed)."""
+    if _is_full_admin(user):
         return
-    raise HTTPException(403, "Pulse Fitness administrator access required")
+    if perm and perm in (user.get("onboarding_permissions") or []) and user.get("is_pulse_staff"):
+        return
+    raise HTTPException(403, "Pulse Fitness administrator access required" if not perm else
+                        f"You need the '{DELEGATED_PERMISSIONS.get(perm, perm)}' onboarding permission")
+
+
+def _can_see_confidential(user: dict) -> bool:
+    return _is_full_admin(user) or ("sage.confidential" in (user.get("onboarding_permissions") or []) and user.get("is_pulse_staff"))
 
 
 _INDEXES_READY = False
@@ -132,7 +154,7 @@ async def analyze(file: UploadFile = File(None), file_id: Optional[str] = Form(N
                   expected: Optional[str] = Form(None), worksheet: Optional[str] = Form(None),
                   header_row: Optional[int] = Form(None), source_company: str = Form(""),
                   user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.prepare")
     await _ensure_indexes()
     raw, filename = await _file_bytes(user, file, file_id)
     try:
@@ -146,19 +168,28 @@ async def analyze(file: UploadFile = File(None), file_id: Optional[str] = Form(N
     if expected and expected != det["format"]:
         label = {"sage_accounts": "Sage Customer Accounts", "sicon_contacts": "Sicon Customer Contacts"}
         raise HTTPException(422, f"This file looks like a {label[det['format']]} file, not {label.get(expected, expected)}.")
+    return await create_job(det["format"], det["records"], user, source_company=source_company, filename=filename,
+                            file_type=ftype, file_id=file_id, checksum=S.checksum(raw), size=len(raw),
+                            detection={k: v for k, v in det.items() if k != "records"})
+
+
+async def create_job(kind: str, records: list, user: dict, *, source_company: str, filename: str, file_type: str,
+                     checksum: str, size: int, detection: dict, file_id: Optional[str] = None, source: str = "file") -> dict:
+    """One job lifecycle for files and direct API retrievals: records → review → approve → commit → reconcile."""
+    await _ensure_indexes()
     await _operator_org()
     job_id = str(uuid.uuid4())
-    build = S.build_sage_record if det["format"] == "sage_accounts" else S.build_sicon_record
+    build = S.build_sage_record if kind == "sage_accounts" else S.build_sicon_record
     docs = []
-    for r in det["records"]:
+    for r in records:
         rec = build(r["values"]) if r["role"] != "metadata" else None
         docs.append({"job_id": job_id, "row": r["row"], "role": r["role"], "record": rec,
                      "decision": {}, "commit_status": "pending"})
-    if docs:
-        await db.customer_import_rows.insert_many(docs)
-    job = {"id": job_id, "kind": det["format"], "status": "analysed", "filename": filename, "file_type": ftype,
-           "file_id": file_id, "checksum": S.checksum(raw), "size": len(raw), "source_company": source_company.strip().upper(),
-           "detection": {k: v for k, v in det.items() if k != "records"},
+    for i in range(0, len(docs), 2000):
+        await db.customer_import_rows.insert_many(docs[i:i + 2000])
+    job = {"id": job_id, "kind": kind, "status": "analysed", "filename": filename, "file_type": file_type,
+           "file_id": file_id, "checksum": checksum, "size": size, "source_company": source_company.strip().upper(),
+           "source": source, "detection": detection,
            "created_by": user.get("email"), "created_at": _now()}
     prior = await db.customer_import_jobs.find_one({"checksum": job["checksum"], "kind": job["kind"], "status": {"$in": ["completed", "completed_with_errors"]}},
                                                    {"_id": 0, "id": 1, "finished_at": 1})
@@ -231,9 +262,18 @@ async def _evaluate_sage(job: dict, rows: list[dict]) -> None:
     all_refs = set(by_ref) | {rs[0]["record"]["head_office_ref"] for rs in by_ref.values() if rs[0]["record"]["head_office_ref"]}
     idx = await _ref_index(all_refs, company)
     names: dict[str, int] = {}
-    async for o in db.organizations.find({}, {"_id": 0, "name": 1}):
+    unref: dict[str, list] = {}  # customers with no Sage account yet (manual adds) — candidates for reconciliation
+    async for o in db.organizations.find({}, {"_id": 0, "id": 1, "name": 1, "customer_account_number": 1, "sage_account_refs": 1,
+                                             "is_operator_company": 1}):
         k = (o.get("name") or "").strip().lower()
         names[k] = names.get(k, 0) + 1
+        if not o.get("customer_account_number") and not o.get("sage_account_refs") and not o.get("is_operator_company"):
+            unref.setdefault(CI.norm_name(o.get("name")), []).append({"id": o["id"], "name": o.get("name")})
+    manual_ref: dict[str, list] = {}  # same account number recorded without a Sage company (manual entry)
+    if company:
+        async for o in db.organizations.find({"customer_account_number": {"$in": list(by_ref)}, "sage_company": {"$in": [None, ""]}},
+                                             {"_id": 0, "id": 1, "name": 1, "customer_account_number": 1}):
+            manual_ref.setdefault(o["customer_account_number"], []).append({"id": o["id"], "name": o.get("name")})
     ho_of = {ref: rs[0]["record"]["head_office_ref"] for ref, rs in by_ref.items()
              if rs[0]["record"]["office_type"] == "branch" and rs[0]["record"]["head_office_ref"]}
     outcomes = {}
@@ -295,6 +335,17 @@ async def _evaluate_sage(job: dict, rows: list[dict]) -> None:
                     o["action"] = "Review changed values — tick 'apply changes' to overwrite"
             elif rel.get("mode") == "merge":
                 o.update(category="branch_merged_into_head_office", org_id=rel.get("head_office_org_id"))
+            elif d.get("link_org_id"):
+                ex = await db.organizations.find_one({"id": d["link_org_id"]}, {"_id": 0, "name": 1})
+                o.update(category="reconcile_existing_customer", org_id=d["link_org_id"], org_name=(ex or {}).get("name"),
+                         action="" if ex else "The chosen customer no longer exists")
+                if not ex:
+                    o["category"] = "ambiguous_organisation"
+            elif not d.get("confirm_new") and (manual_ref.get(ref) or unref.get(CI.norm_name(rec["org"]["name"]))):
+                cands = {c["id"]: c for c in (manual_ref.get(ref) or []) + (unref.get(CI.norm_name(rec["org"]["name"])) or [])}
+                o.update(category="possible_existing_customer", candidates=list(cands.values())[:8],
+                         action="A customer with this name or account number already exists without this Sage account — "
+                                "link it (keeps its ID, sites, users and subscriptions) or confirm a new customer")
             else:
                 o["category"] = "new_customer_organisation"
                 name_twins = names.get(rec["org"]["name"].strip().lower(), 0)
@@ -405,9 +456,9 @@ async def _evaluate_sicon(job: dict, rows: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------- views
-_BLOCKING = {"ambiguous_organisation", "conflicting_duplicate", "circular_relationship", "invalid_relationship",
+_BLOCKING = {"possible_existing_customer", "ambiguous_organisation", "conflicting_duplicate", "circular_relationship", "invalid_relationship",
              "ambiguous_contact"}
-_WRITES = {"new_customer_organisation", "existing_update_proposed", "existing_unchanged", "branch_merged_into_head_office",
+_WRITES = {"new_customer_organisation", "reconcile_existing_customer", "existing_update_proposed", "existing_unchanged", "branch_merged_into_head_office",
            "new_business_contact", "existing_contact_update_proposed", "existing_contact_unchanged", "unresolved_contact"}
 
 
@@ -452,7 +503,7 @@ async def _flip_stale() -> None:
 
 @router.get("/jobs")
 async def list_jobs(kind: Optional[str] = None, user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     await _flip_stale()
     q = {"kind": kind} if kind else {}
     return {"jobs": await db.customer_import_jobs.find(q, {"_id": 0}).sort("created_at", -1).to_list(50)}
@@ -460,14 +511,14 @@ async def list_jobs(kind: Optional[str] = None, user: dict = Depends(get_current
 
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str, user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     return await _job_view(job_id)
 
 
 @router.get("/jobs/{job_id}/rows")
 async def job_rows(job_id: str, category: Optional[str] = None, search: str = "", skip: int = 0,
                    limit: int = Query(100, le=500), user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     q: dict = {"job_id": job_id}
     if category:
         q["outcome.category"] = category
@@ -485,6 +536,8 @@ class Decision(BaseModel):
     relationship: Optional[Literal["merge", "separate"]] = None
     apply_changes: Optional[bool] = None
     contact_mode: Optional[Literal["new"]] = None
+    link_org_id: Optional[str] = None  # attach this Sage account to an existing (e.g. manually created) customer
+    confirm_new: Optional[bool] = None
 
 
 class DecisionsIn(BaseModel):
@@ -493,7 +546,7 @@ class DecisionsIn(BaseModel):
 
 @router.post("/jobs/{job_id}/decisions")
 async def set_decisions(job_id: str, body: DecisionsIn, user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     job = await db.customer_import_jobs.find_one({"id": job_id}, {"_id": 0, "status": 1})
     if not job:
         raise HTTPException(404, "Import not found")
@@ -523,7 +576,7 @@ async def _snapshot_hash(job_id: str) -> str:
 @router.post("/jobs/{job_id}/discard")
 async def discard(job_id: str, user: dict = Depends(get_current_user)):
     """Abandon an import that was checked but never run. Nothing was written, so nothing is undone."""
-    _require_admin(user)
+    _require_admin(user, "imports.prepare")
     r = await db.customer_import_jobs.update_one({"id": job_id, "status": {"$in": ["analysed", "approved", "analysis_failed"]}},
                                                  {"$set": {"status": "discarded", "discarded_by": user.get("email"), "discarded_at": _now()}})
     if not r.modified_count:
@@ -533,7 +586,7 @@ async def discard(job_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/jobs/{job_id}/approve")
 async def approve(job_id: str, user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.approve")
     cur = await db.customer_import_jobs.find_one({"id": job_id}, {"_id": 0, "status": 1})
     if not cur:
         raise HTTPException(404, "Import not found")
@@ -552,7 +605,7 @@ async def approve(job_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/jobs/{job_id}/commit")
 async def commit(job_id: str, user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.commit")
     job = await db.customer_import_jobs.find_one({"id": job_id}, {"_id": 0})
     if not job:
         raise HTTPException(404, "Import not found")
@@ -697,6 +750,26 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
                 await db.organizations.update_one({"id": org_id}, {"$set": upd})
             await _add_ref(job["id"], org_id, "organizations", {"id": org_id}, "sage_account_refs", ref)
             res["org_outcome"] = "updated" if upd else "unchanged"
+        elif out["category"] == "reconcile_existing_customer":
+            target = out["org_id"]
+            if not await db.organizations.find_one({"id": target}, {"_id": 1}):
+                raise ValueError("The customer chosen for reconciliation no longer exists")
+            org_id = await _claim_ref(ref, company, target, job["id"])
+            if org_id != target:
+                raise ValueError(f"Account {ref} was linked to a different organisation by another import")
+            ex = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+            upd = {k: v for k, v in {"customer_account_number": ref, "sage_customer_number": ref, "sage_company": company}.items()
+                   if not ex.get(k)}
+            fills, _ = _org_changes(ex, rec["org"])
+            upd.update(fills)
+            if upd:
+                await db.customer_import_preimages.insert_one({"job_id": job["id"], "org_id": org_id, "row": r["row"],
+                                                               "before": {k: ex.get(k) for k in upd}, "after": upd, "at": _now()})
+                await db.organizations.update_one({"id": org_id}, {"$set": upd})
+            await _add_ref(job["id"], org_id, "organizations", {"id": org_id}, "sage_account_refs", ref)
+            res["org_outcome"] = "reconciled_existing"
+        elif out["category"] == "possible_existing_customer":
+            raise ValueError("Decide whether this is an existing customer before importing")
         else:
             org_id, created = await CI.provision_customer_org(_org_fields(rec), source="sage_customer_import",
                                                               actor=user.get("email"), ref=ref, company=company, job_id=job["id"])
@@ -858,7 +931,7 @@ async def _commit_sicon_row(job: dict, r: dict, op: dict, user: dict) -> dict:
 # ---------------------------------------------------------------- reconciliation report / recovery
 @router.get("/jobs/{job_id}/report.csv")
 async def report(job_id: str, user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     job = await db.customer_import_jobs.find_one({"id": job_id}, {"_id": 0})
     if not job:
         raise HTTPException(404, "Import not found")
@@ -889,7 +962,7 @@ async def report(job_id: str, user: dict = Depends(get_current_user)):
 async def rollback(job_id: str, user: dict = Depends(get_current_user)):
     """Undo an import exactly, using its undo log. Organisations it created are removed only while nobody has
     been given access and no paid product is active; such organisations (and their records) are kept."""
-    _require_admin(user)
+    _require_admin(user, "imports.undo")
     job = await db.customer_import_jobs.find_one_and_update(
         {"id": job_id, "status": {"$in": ["completed", "completed_with_errors", "interrupted", "rollback_interrupted"]}},
         {"$set": {"status": "rolling_back", "heartbeat_at": _now()}})
@@ -965,7 +1038,7 @@ async def _dependents_bulk(org_ids: list, job_id: str) -> dict:
 
 @router.get("/jobs/{job_id}/undo-preview")
 async def undo_preview(job_id: str, user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.undo")
     created = [o["id"] async for o in db.organizations.find({"created_via_job_id": job_id}, {"_id": 0, "id": 1})]
     deps = await _dependents_bulk(created, job_id)
     keep = []
@@ -1024,6 +1097,9 @@ async def _rollback_work(job_id: str, user: dict) -> None:
             await db.customer_import_rollback_archive.insert_one({"job_id": job_id, "coll": "sites", "doc": st, "at": _now()})
         await db.sites.delete_many({"organization_id": oid, "created_via": "sage_proposed_site"})
         await db.organizations.delete_one({"id": oid})
+        await db.onboarding_projects.update_one({"auto_org_key": oid}, {"$set": {"status": "archived", "archived_reason": "import undone",
+                                                                               "updated_at": _now()},
+                                                                       "$unset": {"auto_org_key": ""}})
     await db.customer_import_jobs.update_one({"id": job_id}, {"$set": {"status": "rolled_back", "rolled_back_at": _now(),
                                                                        "rolled_back_by": user.get("email"),
                                                                        "rollback": {"removed": len(removable), "kept": len(kept),
@@ -1033,7 +1109,7 @@ async def _rollback_work(job_id: str, user: dict) -> None:
 
 @router.get("/staged-contacts")
 async def staged_contacts(user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     groups: dict[str, list] = {}
     async for s in db.customer_contact_staging.find({"status": {"$in": ["awaiting_account", "needs_review"]}}, {"_id": 0}):
         groups.setdefault(s["account_ref"], []).append(s)
@@ -1048,7 +1124,7 @@ class BranchDecision(BaseModel):
 @router.post("/branch-links")
 async def decide_branch_links(body: BranchDecision, user: dict = Depends(get_current_user)):
     """Bulk verify/reject Sage head-office links. Verifying records the relationship only — no merge, no shared access."""
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     done, no_ho = 0, 0
     for oid in body.org_ids[:500]:
         o = await db.organizations.find_one({"id": oid, "head_office_link_status": "proposed"}, {"_id": 0, "sage_head_office_ref": 1, "sage_company": 1})
@@ -1069,7 +1145,7 @@ async def decide_branch_links(body: BranchDecision, user: dict = Depends(get_cur
 
 @router.get("/proposed-sites")
 async def proposed_sites(user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     return {"sites": await db.customer_proposed_sites.find({"status": "proposed"}, {"_id": 0}).to_list(2000)}
 
 
@@ -1077,7 +1153,7 @@ async def proposed_sites(user: dict = Depends(get_current_user)):
 async def decide_site(site_id: str, decision: Literal["confirm", "reject", "link"], link_site_id: str = "", force: bool = False,
                       user: dict = Depends(get_current_user)):
     """Confirm turns the Sage address into a real customer site (no gym-floor access is created)."""
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     p = await db.customer_proposed_sites.find_one_and_update({"id": site_id, "status": "proposed"}, {"$set": {"status": "deciding"}})
     if not p:
         raise HTTPException(409, "This proposed site has already been decided")
@@ -1113,7 +1189,7 @@ async def decide_site(site_id: str, decision: Literal["confirm", "reject", "link
 
 @router.get("/overview")
 async def overview(user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     sage_q = {"sage_account_refs.0": {"$exists": True}}
     return {
         "customer_organisations": await db.organizations.count_documents(sage_q),
@@ -1165,7 +1241,7 @@ class ManualCustomer(BaseModel):
 @router.get("/duplicates")
 async def duplicates(name: str = "", postcode: str = "", account_ref: str = "", source_company: str = "",
                      user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.prepare")
     ids = await CI.find_orgs_by_ref(account_ref, source_company.strip().upper()) if account_ref else []
     by_ref = await db.organizations.find({"id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1, "postcode": 1,
                                                                  "customer_account_number": 1}).to_list(10)
@@ -1175,7 +1251,7 @@ async def duplicates(name: str = "", postcode: str = "", account_ref: str = "", 
 @router.post("/manual")
 async def manual_customer(body: ManualCustomer, user: dict = Depends(get_current_user)):
     """Create one customer by hand. Same rules as an import: LITE only, no logins, no emails."""
-    _require_admin(user)
+    _require_admin(user, "imports.prepare")
     await _ensure_indexes()
     name = body.name.strip()
     if not name or len(name) > 60:
@@ -1218,6 +1294,7 @@ async def manual_customer(body: ManualCustomer, user: dict = Depends(get_current
 # ---------------------------------------------------------------- Review Centre (all open exceptions in one place)
 _REVIEW_ROW_CATS = {
     "ambiguous_organisation": ("Possible duplicate / conflicting account reference", "high"),
+    "possible_existing_customer": ("Possible existing customer (no Sage account yet)", "high"),
     "conflicting_duplicate": ("Conflicting account reference in file", "high"),
     "circular_relationship": ("Unverified branch relationship", "medium"),
     "invalid_relationship": ("Unverified branch relationship", "medium"),
@@ -1230,7 +1307,7 @@ _REVIEW_ROW_CATS = {
 @router.get("/review")
 async def review_centre(type: Optional[str] = None, search: str = "", skip: int = 0, limit: int = Query(50, le=200),
                         user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     await _flip_stale()
     items: list[dict] = []
     open_jobs = {j["id"]: j async for j in db.customer_import_jobs.find({"status": {"$in": ["analysed", "approved", "completed_with_errors", "interrupted"]}},
@@ -1279,6 +1356,17 @@ async def review_centre(type: Optional[str] = None, search: str = "", skip: int 
                       "name": o["name"], "org_id": o["id"], "detail": f"Sage lists head office account {o.get('sage_head_office_ref')}",
                       "owner": "", "source": "Sage head office link", "branch_org_id": o["id"],
                       "resolve": "Verify the link if the head office really owns this branch, or reject it"})
+    async for c in db.sicon_import_conflicts.find({"status": "open"}, {"_id": 0, "external_entity_type": 1, "external_id": 1,
+                                                                        "reasons": 1, "sicon_record": 1, "organization_id": 1}):
+        rec = c.get("sicon_record") or {}
+        items.append({"type": "Sicon record held for review", "priority": "medium", "ref": str(rec.get("sicon_customer_code") or ""),
+                      "name": f"{c['external_entity_type']} {c['external_id']} {rec.get('description') or rec.get('name') or ''}".strip(),
+                      "detail": "; ".join(c.get("reasons") or []), "owner": "", "source": "Sicon sync",
+                      "resolve": "Open Sicon onboarding review: link, create or ignore"})
+    async for lk in db.sicon_external_links.find({"migration_status": "needs_review"}, {"_id": 0}):
+        items.append({"type": "Unscoped Sicon link", "priority": "medium", "ref": str(lk.get("external_id")),
+                      "name": f"{lk.get('external_entity_type')} -> {lk.get('pulse_entity_id')}", "detail": lk.get("migration_reason", ""),
+                      "owner": "", "source": "Sicon link migration", "resolve": "Configure the Sicon connection company, then re-run the migration"})
     types = {}
     for it in items:
         types[it["type"]] = types.get(it["type"], 0) + 1
@@ -1295,7 +1383,7 @@ async def review_centre(type: Optional[str] = None, search: str = "", skip: int 
 # ---------------------------------------------------------------- unified import history
 @router.get("/history")
 async def import_history(limit: int = Query(100, le=500), user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.review")
     await _flip_stale()
     out = []
     async for j in db.customer_import_jobs.find({}, {"_id": 0}).sort("created_at", -1).limit(limit):
@@ -1343,7 +1431,7 @@ _DETECT_RULES = [
 @router.post("/detect")
 async def detect_source(file: UploadFile = File(None), file_id: Optional[str] = Form(None), user: dict = Depends(get_current_user)):
     """Tell the admin what a file is before anything is imported. Never guesses the destination silently."""
-    _require_admin(user)
+    _require_admin(user, "imports.prepare")
     raw, filename = await _file_bytes(user, file, file_id)
     if raw[:4] == b"%PDF":
         return {"type": "estate_documents", "label": "PDF invoice or agreement", "confidence": "needs_choice",
@@ -1369,7 +1457,7 @@ async def detect_source(file: UploadFile = File(None), file_id: Optional[str] = 
 @router.get("/activation")
 async def activation_queue(search: str = "", skip: int = 0, limit: int = Query(50, le=200), user: dict = Depends(get_current_user)):
     """Customers imported but not yet activated. Invitations are a separate, approved step (next release)."""
-    _require_admin(user)
+    _require_admin(user, "activation.view")
     q: dict = {"onboarding_status": "pending_activation"}
     if search:
         rx = {"$regex": _re_escape(search), "$options": "i"}
@@ -1391,9 +1479,120 @@ async def activation_queue(search: str = "", skip: int = 0, limit: int = Query(5
 
 @router.get("/templates/{kind}.csv")
 async def template(kind: Literal["sage_accounts", "sicon_contacts"], user: dict = Depends(get_current_user)):
-    _require_admin(user)
+    _require_admin(user, "imports.prepare")
     cols = S.SAGE_FIELDS if kind == "sage_accounts" else S.SICON_FIELDS
     buf = io.StringIO()
     csv.writer(buf).writerow(cols)
     return Response(buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{kind}-template.csv"'})
+
+
+# ---------------------------------------------------------------- Sicon external-link company scoping (audited migration)
+async def _link_migration_plan() -> dict:
+    from utils import sicon_links as L
+    plan, review = [], []
+    async for d in db.sicon_external_links.find({"source_company": {"$exists": False}}, {"_id": 0}):
+        company = await L.connection_company(d.get("organization_id"))
+        clash = company and await db.sicon_external_links.find_one(
+            {"integration_source": d["integration_source"], "source_company": company,
+             "external_entity_type": d["external_entity_type"], "external_id": d["external_id"]}, {"_id": 0, "pulse_entity_id": 1})
+        item = {k: d.get(k) for k in ("external_entity_type", "external_id", "organization_id", "pulse_entity_type", "pulse_entity_id")}
+        if not company:
+            review.append({**item, "reason": "No Sicon connection company configured for this organisation"})
+        elif clash:
+            review.append({**item, "reason": f"A scoped link already exists (-> {clash.get('pulse_entity_id')})"})
+        else:
+            plan.append({**item, "source_company": company})
+    return {"to_scope": plan, "needs_review": review}
+
+
+@router.get("/sicon-links/migration")
+async def sicon_link_migration_dry_run(user: dict = Depends(get_current_user)):
+    """Dry run: which legacy (unscoped) Sicon links would be scoped to their connection company, and which need review."""
+    _require_admin(user)
+    p = await _link_migration_plan()
+    return {"to_scope": len(p["to_scope"]), "needs_review": len(p["needs_review"]),
+            "sample": p["to_scope"][:50], "review": p["needs_review"][:200]}
+
+
+@router.post("/sicon-links/migration/apply")
+async def sicon_link_migration_apply(user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    p = await _link_migration_plan()
+    done = 0
+    for it in p["to_scope"]:
+        r = await db.sicon_external_links.update_one(
+            {"integration_source": "sicon", "external_entity_type": it["external_entity_type"], "external_id": it["external_id"],
+             "organization_id": it["organization_id"], "source_company": {"$exists": False}},
+            {"$set": {"source_company": it["source_company"], "scoped_at": _now(), "scoped_by": user.get("email")}})
+        done += r.modified_count
+    for it in p["needs_review"]:
+        await db.sicon_external_links.update_one(
+            {"integration_source": "sicon", "external_entity_type": it["external_entity_type"], "external_id": it["external_id"],
+             "organization_id": it["organization_id"], "source_company": {"$exists": False}},
+            {"$set": {"migration_status": "needs_review", "migration_reason": it["reason"]}})
+    await db.onboarding_audit_events.insert_one({"id": str(uuid.uuid4()), "action": "sicon_links_scoped",
+                                                 "detail": {"scoped": done, "needs_review": len(p["needs_review"])},
+                                                 "actor_email": user.get("email"), "at": _now()})
+    return {"scoped": done, "needs_review": len(p["needs_review"])}
+
+
+@router.post("/onboarding-projects/backfill")
+async def backfill_onboarding_projects(apply: bool = False, user: dict = Depends(get_current_user)):
+    """One onboarding project per already-imported LITE customer (dry run unless apply=true). Idempotent."""
+    _require_admin(user)
+    from routes.onboarding_projects import ensure_project_for_org
+    have = {p["organization_id"] async for p in db.onboarding_projects.find(
+        {"organization_id": {"$nin": [None, ""]}, "status": {"$ne": "archived"}}, {"_id": 0, "organization_id": 1})}
+    todo = [o async for o in db.organizations.find(
+        {"account_type": "lite", "onboarding_status": "pending_activation", "created_by_org_id": {"$in": [None, ""]}},
+        {"_id": 0, "id": 1, "name": 1}) if o["id"] not in have]
+    if apply:
+        for o in todo:
+            await ensure_project_for_org(o["id"], o.get("name") or "Customer", user.get("email"))
+    return {"missing_projects": len(todo), "created": len(todo) if apply else 0, "sample": todo[:20]}
+
+
+
+class DelegateIn(BaseModel):
+    email: str
+    permissions: list[str]
+
+
+@router.get("/delegates")
+async def list_delegates(user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    rows = [u async for u in db.users.find({"onboarding_permissions.0": {"$exists": True}},
+                                           {"_id": 0, "id": 1, "email": 1, "full_name": 1, "onboarding_permissions": 1})]
+    return {"permissions": DELEGATED_PERMISSIONS, "delegates": rows}
+
+
+@router.post("/delegates")
+async def set_delegate(body: DelegateIn, user: dict = Depends(get_current_user)):
+    """Grant Pulse Fitness staff specific onboarding permissions (Pulse staff accounts only)."""
+    _require_admin(user)
+    bad = [p for p in body.permissions if p not in DELEGATED_PERMISSIONS]
+    if bad:
+        raise HTTPException(400, f"Unknown permission(s): {', '.join(bad)}")
+    target = await db.users.find_one({"email": body.email.strip().lower()}, {"_id": 0, "id": 1, "email": 1, "organization_id": 1})
+    if not target:
+        raise HTTPException(404, "User not found")
+    op = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0, "id": 1}) or {}
+    pulse_org = target.get("organization_id") and (target["organization_id"] == op.get("id") or await db.users.find_one(
+        {"organization_id": target["organization_id"], "is_master_admin": True}, {"_id": 1}))
+    if not pulse_org:
+        raise HTTPException(400, "Only Pulse Fitness staff accounts can be given onboarding permissions")
+    await db.users.update_one({"id": target["id"]}, {"$set": {"onboarding_permissions": sorted(set(body.permissions)),
+                                                              "is_pulse_staff": bool(body.permissions)}})
+    await db.onboarding_audit_events.insert_one({"id": str(uuid.uuid4()), "action": "onboarding_permissions_set",
+                                                 "detail": {"email": target["email"], "permissions": sorted(set(body.permissions))},
+                                                 "actor_email": user.get("email"), "at": _now()})
+    return {"email": target["email"], "permissions": sorted(set(body.permissions))}
+
+
+@router.get("/orgs/{org_id}/sage-internal")
+async def sage_internal(org_id: str, user: dict = Depends(get_current_user)):
+    """Staff-only Sage finance / credit record. Never exposed to customers or to staff without the permission."""
+    if not _can_see_confidential(user):
+        raise HTTPException(403, "You need the 'See confidential Sage finance / credit fields' permission")
+    return {"records": [r async for r in db.customer_account_internal.find({"org_id": org_id}, {"_id": 0})]}

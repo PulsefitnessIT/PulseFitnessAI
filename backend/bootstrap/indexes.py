@@ -205,11 +205,16 @@ async def create_indexes() -> None:
     # Sicon ↔ Pulse external-id link table (spec §7) — the unique key makes
     # every read-side sync idempotent (same external id → same Pulse record).
     try:
+        # Scoped by the Sicon connection company so identical numeric ids in different companies never collide.
+        if "uniq_sicon_external_link" in await db.sicon_external_links.index_information():
+            await db.sicon_external_links.drop_index("uniq_sicon_external_link")
         await db.sicon_external_links.create_index(
-            [("integration_source", 1), ("external_entity_type", 1), ("external_id", 1)],
-            unique=True, name="uniq_sicon_external_link",
+            [("integration_source", 1), ("source_company", 1), ("external_entity_type", 1), ("external_id", 1)],
+            unique=True, name="uniq_sicon_external_link_v2",
         )
         await db.sicon_external_links.create_index([("external_entity_type", 1), ("sync_status", 1)])
+        await db.onboarding_projects.create_index("auto_org_key", unique=True, sparse=True)
+        await db.sicon_preview_fingerprints.create_index([("run_id", 1), ("entity", 1), ("external_id", 1)], unique=True)
         await db.sicon_external_links.create_index([("organization_id", 1), ("external_entity_type", 1)])
     except Exception as _e:  # pragma: no cover
         logger.warning(f"sicon_external_links index creation warning: {_e}")

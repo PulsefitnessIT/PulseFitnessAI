@@ -128,7 +128,9 @@ def test_source_company_isolation(H):
         db.sites.insert_one({"id": sid, "organization_id": toid, "name": "TEST site", "invoice_customer_ref": ref})
         try:
             jc = _analyze(H, _sage_csv([{"AccountNumber": ref, "AccountName": "TEST Site Ref Org"}]), "c.csv", "sage_accounts", a)
-            assert _row(H, jc["id"], ref)["outcome"]["category"] == "new_customer_organisation"
+            oc = _row(H, jc["id"], ref)["outcome"]
+            # never auto-linked through the site ref; same-name customer without a Sage account is offered for reconciliation
+            assert oc["category"] in ("new_customer_organisation", "possible_existing_customer") and not oc.get("org_id")
             jd = _analyze(H, _sage_csv([{"AccountNumber": ref, "AccountName": "TEST Site Ref Org"}]), "d.csv", "sage_accounts", "")
             od = _row(H, jd["id"], ref)["outcome"]
             assert od["org_id"] == toid, od

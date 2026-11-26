@@ -15,6 +15,8 @@ export const CAT = {
   unresolved_contact: { label: 'Awaiting Sage account', tone: 'amber' },
   ambiguous_contact: { label: 'Ambiguous contact', tone: 'red' },
   ambiguous_organisation: { label: 'Ambiguous organisation', tone: 'red' },
+  possible_existing_customer: { label: 'Possible existing customer', tone: 'amber' },
+  reconcile_existing_customer: { label: 'Link to existing customer', tone: 'sky' },
   conflicting_duplicate: { label: 'Conflicting duplicate', tone: 'red' },
   circular_relationship: { label: 'Circular head office', tone: 'red' },
   invalid_relationship: { label: 'Invalid head office', tone: 'red' },
@@ -54,6 +56,13 @@ const RowControls = ({ r, decide, locked }) => {
       )}
       {o.conflicts && Object.keys(o.conflicts).length > 0 && (
         <label className="flex items-center gap-1"><input type="checkbox" checked={!!d.apply_changes} onChange={(e) => decide({ apply_changes: e.target.checked })} data-testid={`ci-row-apply-${r.row}`} />Apply changes</label>
+      )}
+      {o.category === 'possible_existing_customer' && (
+        <select className="border rounded px-1 py-0.5" value="" onChange={(e) => decide(e.target.value === '__new__' ? { confirm_new: true } : { link_org_id: e.target.value })} data-testid={`ci-row-reconcile-${r.row}`}>
+          <option value="" disabled>Existing customer?</option>
+          {(o.candidates || []).map((c) => <option key={c.id} value={c.id}>Link to {c.name} (keeps its ID)</option>)}
+          <option value="__new__">No — create a new customer</option>
+        </select>
       )}
       {o.category === 'ambiguous_contact' && (
         <button type="button" className="text-left underline text-sky-700" onClick={() => decide({ contact_mode: 'new' })} data-testid={`ci-row-newcontact-${r.row}`}>Create as new contact</button>

@@ -22,6 +22,7 @@ import ExternalServiceProviders from './ExternalServiceProviders';
 import StaffOnboardingWizard from './StaffOnboardingWizard';
 import OnboardingProjects from './OnboardingProjects';
 import OnboardingReports from './OnboardingReports';
+import OnboardingDelegates from './CustomerImport/OnboardingDelegates';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -39,6 +40,7 @@ const TABS = [
   { id: 'mod-imports',   group: 'Specialist', label: 'MOD Sites (CSV)',      icon: FileSpreadsheet, description: 'MOD only: bulk MOD child sites with kiosk logins under the MOD access policy.' },
   { id: 'mod-equipment', group: 'Specialist', label: 'MOD Equipment & Readiness', icon: Dumbbell,   description: 'MOD only: per-site equipment and go-live checklist.' },
   { id: 'mod-providers', group: 'Specialist', label: 'External Service Providers', icon: Truck,     description: 'Overseas / external service providers and their field engineers.' },
+  { id: 'delegates',     group: 'Pulse staff', label: 'Staff Permissions',   icon: KeyRound,        description: 'Let Service Administration and Aftersales staff prepare, review, approve or undo imports without Master Admin access.' },
   { id: 'staff',         group: 'Pulse staff', label: 'Onboard Pulse Staff', icon: UserPlus,        description: 'Pulse Fitness employees only — not customer logins. They set their own password from a 72 h invite link.' },
 ];
 
@@ -116,6 +118,7 @@ const AdminOnboardingHub = ({ API: _api, isPulseAdmin = false, initialTab = 'das
       {tab === 'mod-imports'   && <MODBulkImport API={_api} />}
       {tab === 'mod-equipment' && <MODSiteOnboarding />}
       {tab === 'mod-providers' && <ExternalServiceProviders />}
+      {tab === 'delegates'     && <OnboardingDelegates />}
       {tab === 'staff'         && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}
     </div>
   );

@@ -470,7 +470,12 @@ export default function CRMSettings() {
   const runSageSync = async (direction) => {
     setSageSyncing(direction); setSageSyncResult(null);
     try {
-      const endpoint = direction === 'pull' ? '/crm/sage200/sync/customers' : '/crm/sage200/sync/customers-to-sage';
+      let endpoint = direction === 'pull' ? '/crm/sage200/sync/customers' : '/crm/sage200/sync/customers-to-sage';
+      if (direction === 'pull') {
+        const company = window.prompt('Which Sage company are these customers from? (as used in the Import Centre)', 'Pulse Fitness');
+        if (!company) { setSageSyncing(null); return; }
+        endpoint += `?source_company=${encodeURIComponent(company)}`;
+      }
       const res = await axios.post(`${API}${endpoint}`, {}, { headers: headers() });
       setSageSyncResult({ direction, ...res.data }); await fetchSageConfig();
     } catch (err) { setSageSyncResult({ direction, error: err.response?.data?.detail || 'Sync failed' }); }
@@ -648,7 +653,7 @@ export default function CRMSettings() {
                       ) : (
                         <span style={{ color: 'var(--color-success-alt)' }}>
                           <CheckCircle size={12} className="inline mr-1" />
-                          {sageSyncResult.direction === 'pull' ? `${sageSyncResult.created || 0} created, ${sageSyncResult.updated || 0} updated` : `${sageSyncResult.pushed || 0} pushed`}
+                          {sageSyncResult.direction === 'pull' ? `${sageSyncResult.records || 0} customers retrieved. ${sageSyncResult.message || ''}` : `${sageSyncResult.pushed || 0} pushed`}
                         </span>
                       )}
                     </div>

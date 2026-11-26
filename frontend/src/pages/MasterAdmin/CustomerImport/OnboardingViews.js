@@ -106,6 +106,10 @@ export function TemplatesGuidance() {
         <p><b>Safe by design:</b> imports never create logins, send emails or turn on paid products. New customers get Pulse Fitness LITE.</p>
         <p><b>Mistakes:</b> use Import History → Undo. Customers someone has started using are never removed.</p>
         <p><b>Confidential Sage fields</b> (balances, credit, memo) are kept in a staff-only record and never shown to customers.</p>
+        <p><b>Source company:</b> always enter the Sage company on upload (live Sicon is linked to <b>Pulse Fitness</b>). The same account number in two Sage companies is two different customers.</p>
+        <p><b>Manual customers:</b> if a customer was added by hand, the next Sage import offers to link the account to it, keeping its ID, sites, users and subscriptions.</p>
+        <p><b>Direct from Sage/Sicon:</b> a Sage pull creates an Import Centre job for review. A Sicon sync matches customers by account number under the configured Sage company. Equipment goes to that customer; unknown customers are held in the Review Centre. A sync is shown as <i>partial</i> when something could not be retrieved. For example, Sicon has no confirmed contract read API, so use the Maintenance Contracts template instead.</p>
+        <p><b>Staff access:</b> Onboarding → Staff Permissions lets Service Administration and Aftersales staff prepare, review, approve or undo imports without Master Admin access.</p>
       </Card>
     </div>
   );

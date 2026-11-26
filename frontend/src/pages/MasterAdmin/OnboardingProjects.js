@@ -480,7 +480,7 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
         </div>
 
         <div className="flex gap-1 mt-5 border-b border-zinc-200">
-          {[['checklist', 'Checklist'], ['readiness', 'Module readiness'], ['profile', 'Business profile'], ['emails', 'Emails'], ['golive', 'Go-live']].map(([id, label]) => (
+          {[['estate', 'Customer data'], ['checklist', 'Checklist'], ['readiness', 'Module readiness'], ['profile', 'Business profile'], ['emails', 'Emails'], ['golive', 'Go-live']].map(([id, label]) => (
             <button
               key={id} onClick={() => setTab(id)}
               data-testid={`onb-detail-tab-${id}`}
@@ -490,6 +490,8 @@ const ProjectDetail = ({ project, types, onClose, onChanged, onLaunchWizard }) =
             >{label}</button>
           ))}
         </div>
+
+        {tab === 'estate' && <EstateProgress projectId={p.id} />}
 
         {tab === 'checklist' && (
           <div className="mt-4 space-y-5" data-testid="onb-checklist">
@@ -742,3 +744,25 @@ const EmailsTab = ({ project }) => {
 };
 
 export default OnboardingProjects;
+
+// Progress worked out from the customer's real records (imports, sites, equipment, activation) — not ticked by hand.
+function EstateProgress({ projectId }) {
+  const [steps, setSteps] = useState(null);
+  useEffect(() => {
+    axios.get(`${API}/onboarding/projects/${projectId}/estate-progress`).then((r) => setSteps(r.data.steps)).catch(() => setSteps([]));
+  }, [projectId]);
+  if (!steps) return <div className="mt-4 text-sm text-zinc-500" data-testid="onb-estate-loading">Loading…</div>;
+  if (!steps.length) return <div className="mt-4 text-sm text-zinc-500" data-testid="onb-estate-empty">This project is not linked to a customer organisation yet.</div>;
+  const tone = { done: 'text-emerald-700 bg-emerald-50', todo: 'text-amber-700 bg-amber-50', not_required: 'text-zinc-500 bg-zinc-100' };
+  const label = { done: 'Done', todo: 'To do', not_required: 'Not required' };
+  return (
+    <ul className="mt-4 divide-y divide-zinc-100 border border-zinc-200 rounded-lg" data-testid="onb-estate-progress">
+      {steps.map((s) => (
+        <li key={s.key} className="flex items-center justify-between px-3 py-2 text-sm" data-testid={`onb-estate-step-${s.key}`}>
+          <span>{s.label}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${tone[s.status]}`}>{label[s.status]}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}

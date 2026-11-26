@@ -18,12 +18,15 @@ async def _run():
     op = f"TSTOP-{tag}"
     ref_a, ref_b = f"SHA{tag}", f"SHB{tag}"
     created = []
+    from utils import sicon_links as L
+    co = await L.sage_company_for(op)  # Sicon matches customers only under its configured Sage company
+    assert co
     try:
         # A: Sage-imported org that already has an internal CRM mirror.
         org_a, _ = await CI.provision_customer_org({"name": f"Shared Alpha {tag} Gym"}, source="test", actor="t", ref=ref_a,
-                                                   confirmed_new=True)
+                                                   company=co, confirmed_new=True)
         org_b, _ = await CI.provision_customer_org({"name": f"Zebra Bravo {tag} Leisure"}, source="test", actor="t", ref=ref_b,
-                                                   confirmed_new=True)
+                                                   company=co, confirmed_new=True)
         created += [org_a, org_b]
         mirror = str(uuid.uuid4())
         await db.crm2_companies.insert_one({"id": mirror, "organization_id": op, "name": "Alpha mirror",

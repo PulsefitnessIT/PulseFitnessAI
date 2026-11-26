@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Building2, Users, MapPin, Wrench, ScrollText, Layers, Wand2, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import AfsDocumentUploader from '../../CRM/Aftersales/AfsDocumentUploader';
+import EstateOnboarding from '../../CRM/Aftersales/EstateOnboarding';
 import SageSiconImport from './SageSiconImport';
 import ManualCustomerForm from './ManualCustomerForm';
 import AdminBulkImports from '../AdminBulkImports';
@@ -50,13 +51,27 @@ const Detector = ({ onDetected }) => {
   );
 };
 
-const EstateCard = () => (
-  <Card className="p-5 rounded-xl border-zinc-200 space-y-2 text-sm" data-testid="ic-estate">
-    <p className="font-semibold">Complete customer estates</p>
-    <p className="text-zinc-600">Use <b>CRM → Aftersales → Estate Onboarding</b> for inherited multi-sheet workbooks and PDF invoices. It extracts equipment, applies existing or Pulse-calculated maintenance prices and creates draft contracts. It uses the same customer check as this Import Centre, so an existing customer is never duplicated.</p>
-    <p className="text-zinc-600">MOD estates (HQs, overseas sites, kiosk logins) use the <b>MOD</b> specialist tabs in this Onboarding area.</p>
-  </Card>
-);
+const LIGHT = { text: '#18181b', textDim: '#71717a', border: '#e4e4e7' };
+
+// The specialist Aftersales estate workflow, run here in the Import Centre (same engine, same customer matching).
+const EstateCard = () => {
+  const [crmToken, setCrmToken] = useState('');
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    axios.post(`${API}/crm/auth/cross-login`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, withCredentials: true })
+      .then((r) => setCrmToken(r.data.token))
+      .catch((e) => setErr(e?.response?.data?.detail || 'Could not open the estate workflow.'));
+  }, []);
+  const crmHeaders = useCallback(() => ({ Authorization: `Bearer ${crmToken}` }), [crmToken]);
+  if (err) return <Card className="p-5 text-sm text-red-600" data-testid="ic-estate-error">{String(err)}</Card>;
+  if (!crmToken) return <div className="p-5 text-sm text-zinc-500 flex items-center gap-2" data-testid="ic-estate-loading"><Loader2 className="w-4 h-4 animate-spin" /> Opening estate workflow…</div>;
+  return (
+    <div className="space-y-3" data-testid="ic-estate">
+      <p className="text-xs text-zinc-500">Multi-sheet workbooks and PDF invoices: equipment extraction, model matching, inherited or Pulse-calculated pricing, exceptions and draft contracts. Existing customers, sites and equipment are matched, never duplicated. MOD estates use the MOD specialist tabs.</p>
+      <EstateOnboarding API={API} headers={crmHeaders} c={LIGHT} isDark={false} />
+    </div>
+  );
+};
 
 export default function ImportCentre({ initialType = '', initialOrg = '', openJobId = null }) {
   const [type, setType] = useState(initialType || (openJobId ? 'sage_accounts' : ''));

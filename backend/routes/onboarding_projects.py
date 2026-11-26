@@ -217,6 +217,54 @@ async def _audit(project_id: str, user: dict, action: str, detail: dict | None =
 
 # ── Reference data ──────────────────────────────────────────────────────────
 
+async def ensure_project_for_org(org_id: str, name: str, actor: str = "system") -> None:
+    """One onboarding project per Pulse-managed customer, keyed on the permanent organisation id (idempotent)."""
+    if await db.onboarding_projects.find_one({"organization_id": org_id, "status": {"$ne": "archived"}}, {"_id": 1}):
+        return
+    now = _now()
+    try:
+        await db.onboarding_projects.update_one({"auto_org_key": org_id}, {"$setOnInsert": {
+            "id": str(uuid.uuid4()), "auto_org_key": org_id, "customer_name": name, "customer_type": "single_site",
+            "modules": [], "organization_id": org_id, "profile": {}, "owner": None, "cs_owner": None, "support_level": None,
+            "go_live_target": None, "status": "in_progress", "checklist": build_checklist("single_site", []),
+            "go_live": {"approved": False, "approved_by": None, "approved_at": None, "summary": None},
+            "created_at": now, "updated_at": now, "created_by": actor, "created_via": "customer_provisioning"}}, upsert=True)
+    except Exception as e:  # DuplicateKey on a concurrent first import — the other writer created it
+        logger.info("onboarding project for %s: %s", org_id, e)
+
+
+async def estate_progress(org_id: str) -> list[dict]:
+    """Lifecycle steps derived from the real underlying data (never ticked by hand)."""
+    o = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
+    n_contacts = await db.crm2_contacts.count_documents({"linked_organization_id": org_id})
+    n_sites = await db.sites.count_documents({"organization_id": org_id})
+    n_proposed = await db.customer_proposed_sites.count_documents({"org_id": org_id, "status": "proposed"})
+    n_eq = await db.equipment.count_documents({"organization_id": org_id})
+    n_ct = await db.crm2_contracts.count_documents({"$or": [{"customer_org_id": org_id}, {"linked_organization_id": org_id}]})
+    steps = [
+        ("account_imported", "Account imported", bool(o.get("sage_account_refs") or o.get("customer_account_number"))),
+        ("contacts_imported", "Contacts imported", n_contacts > 0),
+        ("branch_verified", "Branch relationship verified", None if not o.get("sage_head_office_ref") else
+         o.get("head_office_link_status") in ("verified", "rejected")),
+        ("sites_confirmed", "Operational sites confirmed", n_sites > 0 and n_proposed == 0),
+        ("equipment_imported", "Equipment imported", n_eq > 0),
+        ("contracts_linked", "Maintenance contracts linked", None if not n_ct else True),
+        ("owner_invited", "Owner invited", o.get("owner_invitation_status") in ("sent", "accepted")),
+        ("portal_activated", "Portal activated", o.get("portal_access") not in (None, "not_activated")),
+    ]
+    return [{"key": k, "label": lbl, "status": "not_required" if done is None else ("done" if done else "todo")}
+            for k, lbl, done in steps]
+
+
+@router.get("/onboarding/projects/{project_id}/estate-progress")
+async def project_estate_progress(project_id: str, user: dict = Depends(get_current_user)) -> dict:
+    _require_pulse_or_master(user)
+    doc = await db.onboarding_projects.find_one({"id": project_id}, {"_id": 0, "organization_id": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"steps": await estate_progress(doc["organization_id"]) if doc.get("organization_id") else []}
+
+
 @router.get("/onboarding/customer-types")
 async def list_customer_types(user: dict = Depends(get_current_user)) -> dict:
     _require_pulse_or_master(user)

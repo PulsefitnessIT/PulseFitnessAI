@@ -9,6 +9,7 @@ Identity rules (organisations):
 """
 from __future__ import annotations
 
+import asyncio
 import re
 import uuid
 from datetime import datetime, timezone
@@ -61,6 +62,36 @@ async def find_orgs_by_ref(ref: str, company: str = "") -> list[str]:
     return sorted(live)  # references left behind by a rolled-back creation never block a new customer
 
 
+RESERVATION_TTL_SECONDS = 600
+RESERVATION_WAIT_STEPS = 10
+
+
+class RefReserved(Exception):
+    """Another job holds a live reservation for this reference (retryable)."""
+
+
+async def _reservation_active(d: dict) -> bool:
+    """A reservation whose organisation is missing is only abandoned when its job is no longer running
+    (rolled back, failed, interrupted) or, for job-less claims, it is older than the TTL."""
+    if d.get("job_id"):
+        for coll in ("customer_import_jobs", "crm2_afs_onboarding"):
+            j = await db[coll].find_one({"id": d["job_id"]}, {"_id": 0, "status": 1, "heartbeat_at": 1, "updated_at": 1})
+            if j:
+                if j.get("status") not in ("committing", "analysing", "running"):
+                    return False
+                hb = j.get("heartbeat_at") or j.get("updated_at") or d.get("created_at")
+                break
+        else:
+            hb = d.get("created_at")
+    else:
+        hb = d.get("taken_over_at") or d.get("created_at")
+    try:
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(hb)).total_seconds()
+    except (TypeError, ValueError):
+        return False
+    return age < RESERVATION_TTL_SECONDS
+
+
 async def claim_ref(ref: str, company: str, org_id: str, job_id: Optional[str] = None, source: str = "") -> str:
     """Bind an account reference to one organisation (unique). Returns the organisation that owns it."""
     try:
@@ -69,8 +100,19 @@ async def claim_ref(ref: str, company: str, org_id: str, job_id: Optional[str] =
         return org_id
     except DuplicateKeyError:
         key = {"system": "sage", "company": company, "ref": clean_ref(ref)}
-        d = await db.customer_account_refs.find_one(key, {"_id": 0, "org_id": 1})
+        d = await db.customer_account_refs.find_one(key, {"_id": 0})
         if d and d["org_id"] != org_id and not await db.organizations.find_one({"id": d["org_id"]}, {"_id": 1}):
+            # The owner may still be mid-provisioning in another job: wait for it, never steal an active reservation.
+            for _ in range(RESERVATION_WAIT_STEPS):
+                if not await _reservation_active(d):
+                    break
+                await asyncio.sleep(0.5)
+                if await db.organizations.find_one({"id": d["org_id"]}, {"_id": 1}):
+                    return d["org_id"]
+            else:
+                raise RefReserved(f"Account {clean_ref(ref)} is being provisioned by another import — retry shortly")
+            if await db.organizations.find_one({"id": d["org_id"]}, {"_id": 1}):
+                return d["org_id"]
             # The previous owner no longer exists (rolled back / deleted) — take the reference over atomically.
             took = await db.customer_account_refs.find_one_and_update({**key, "org_id": d["org_id"]},
                                                                        {"$set": {"org_id": org_id, "job_id": job_id, "source": source,
@@ -151,11 +193,19 @@ async def provision_customer_org(fields: dict, *, source: str, actor: str, ref: 
         owner = await claim_ref(ref, company, new_id, job_id, source)
         if owner != new_id:
             return owner, False
-    await db.organizations.insert_one(lite_org_doc(new_id, fields, ref=ref, company=company, source=source, job_id=job_id))
+    try:
+        await db.organizations.insert_one(lite_org_doc(new_id, fields, ref=ref, company=company, source=source, job_id=job_id))
+    except Exception:
+        if ref:  # release our reservation so a retry is not blocked
+            await db.customer_account_refs.delete_one({"system": "sage", "company": company, "ref": ref, "org_id": new_id})
+        raise
     await db.onboarding_audit_events.insert_one({"id": str(uuid.uuid4()), "action": "customer_org_provisioned",
                                                  "detail": {"org_id": new_id, "ref": ref, "company": company, "source": source,
                                                             "job_id": job_id, "confirmed_new": confirmed_new},
                                                  "actor_email": actor, "at": _now()})
+    if not fields.get("created_by_org_id"):  # Pulse-managed customers get their one onboarding project
+        from routes.onboarding_projects import ensure_project_for_org
+        await ensure_project_for_org(new_id, fields["name"].strip(), actor)
     return new_id, True
 
 
