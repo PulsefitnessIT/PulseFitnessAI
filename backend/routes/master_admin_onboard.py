@@ -180,6 +180,7 @@ async def _validate_head_office_payload(data: dict) -> dict:
 
 @router.post("/master-admin/onboard-head-office")
 async def onboard_head_office(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    raise HTTPException(410, "Customer creation has moved to Master Admin → Onboarding → Import Centre, so every customer goes through the same duplicate checks.")
     """Iter 215el — Create a Head Office customer with N sites in one pass.
 
     Architecture (Option A — confirmed by user):

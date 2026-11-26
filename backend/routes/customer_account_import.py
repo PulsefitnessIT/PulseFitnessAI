@@ -23,6 +23,7 @@ from pymongo.errors import DuplicateKeyError
 from routes.pulse_master_admin import MASTER_ADMIN_EMAIL, PULSE_ROLE
 from utils.auth import get_current_user
 from utils.database import db
+from utils import customer_identity as CI
 from utils import sage_sicon_import as S
 
 logger = logging.getLogger(__name__)
@@ -73,16 +74,7 @@ async def _operator_org() -> dict:
 
 # ---------------------------------------------------------------- account-reference lookup
 async def _orgs_for_ref(ref: str, company: str) -> list[str]:
-    ids = {d["org_id"] async for d in db.customer_account_refs.find({"system": "sage", "company": company, "ref": ref}, {"org_id": 1})}
-    q = {"$or": [{"customer_account_number": ref}, {"sage_customer_number": ref}, {"sicon_customer_number": ref},
-                 {"sage_account_refs": ref}]}
-    async for o in db.organizations.find(q, {"_id": 0, "id": 1, "sage_company": 1}):
-        if (o.get("sage_company") or "") == company:
-            ids.add(o["id"])
-    async for s in db.sites.find({"$or": [{"invoice_customer_ref": ref}, {"sicon_customer_ref": ref}]}, {"_id": 0, "organization_id": 1}):
-        if s.get("organization_id"):
-            ids.add(s["organization_id"])
-    return sorted(ids)
+    return await CI.find_orgs_by_ref(ref, company)
 
 
 async def _ref_index(refs: set, company: str) -> dict:
@@ -595,14 +587,7 @@ async def _result_counts(job_id: str) -> dict:
 
 
 async def _claim_ref(ref: str, company: str, org_id: str, job_id: str) -> str:
-    """Bind an account reference to one organisation (unique). Returns the org that owns it."""
-    try:
-        await db.customer_account_refs.insert_one({"system": "sage", "company": company, "ref": ref, "org_id": org_id,
-                                                   "job_id": job_id, "created_at": _now()})
-        return org_id
-    except DuplicateKeyError:
-        d = await db.customer_account_refs.find_one({"system": "sage", "company": company, "ref": ref}, {"_id": 0, "org_id": 1})
-        return d["org_id"]
+    return await CI.claim_ref(ref, company, org_id, job_id, "sage_customer_import")
 
 
 async def _log(job_id: str, org_id: str, coll: str, key: dict, *, delete=False, before: Optional[dict] = None,
@@ -625,32 +610,12 @@ async def _before(coll: str, key: dict, fields) -> Optional[dict]:
     return {f: cur.get(f) for f in fields}
 
 
-def _lite_org_doc(org_id: str, rec: dict, job: dict) -> dict:
+def _org_fields(rec: dict) -> dict:
     o = rec["org"]
-    return {
-        "id": org_id, "name": o["name"], "short_name": o["short_name"],
-        "portal_type": "operations",
-        "enabled_modules": list(LITE_MODULES),
-        "modules": {"operations": {"enabled": True, "tier": "lite", "source": "sage_import"}},
-        "subscription_tier": "free", "account_type": "lite",
-        "status": "active",  # organisation record is live internally; nobody can sign in until invited
-        "onboarding_status": "pending_activation", "portal_access": "not_activated",
-        "provisioning_state": "importing",
-        "company_code": str(uuid.uuid4())[:8].upper(),
-        "customer_account_number": rec["account_ref"], "sage_customer_number": rec["account_ref"],
-        "sage_account_refs": [rec["account_ref"]], "sage_company": job.get("source_company") or "",
-        "currency": o["currency"], "sage_country_code": o["sage_country_code"],
-        "website": o["website"], "phone": (o["phone"] or {}).get("display") or "",
-        "phone_parts": o["phone"] or {}, "fax_parts": o["fax"] or {},
-        "address_line1": o["address_line1"], "address_line2": o["address_line2"], "address_line3": o["address_line3"],
-        "address_line4": o["address_line4"], "city": o["city"], "county": o["county"], "postcode": o["postcode"],
-        "country": o["address_country_code"], "address_country_code": o["address_country_code"],
-        "address": ", ".join(x for x in (o["address_line1"], o["address_line2"], o["address_line3"], o["address_line4"],
-                                         o["city"], o["county"], o["postcode"]) if x),
-        "sage_office_type": rec["office_type"], "sage_head_office_ref": rec["head_office_ref"],
-        "features": {}, "notes": "",
-        "created_via": "sage_customer_import", "created_via_job_id": job["id"], "created_at": _now(),
-    }
+    return {**{k: o[k] for k in ("name", "short_name", "currency", "sage_country_code", "website", "address_line1", "address_line2",
+                                 "address_line3", "address_line4", "city", "county", "postcode", "address_country_code")},
+            "phone": (o["phone"] or {}).get("display") or "", "phone_parts": o["phone"] or {}, "fax_parts": o["fax"] or {},
+            "sage_office_type": rec["office_type"], "sage_head_office_ref": rec["head_office_ref"]}
 
 
 async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
@@ -688,13 +653,9 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
             await _add_ref(job["id"], org_id, "organizations", {"id": org_id}, "sage_account_refs", ref)
             res["org_outcome"] = "updated" if upd else "unchanged"
         else:
-            new_id = str(uuid.uuid4())
-            org_id = await _claim_ref(ref, company, new_id, job["id"])
-            if org_id == new_id:
-                await db.organizations.insert_one(_lite_org_doc(new_id, rec, job))
-                res["org_outcome"] = "created_lite"
-            else:
-                res["org_outcome"] = "unchanged"  # another run created it first — idempotent
+            org_id, created = await CI.provision_customer_org(_org_fields(rec), source="sage_customer_import",
+                                                              actor=user.get("email"), ref=ref, company=company, job_id=job["id"])
+            res["org_outcome"] = "created_lite" if created else "unchanged"  # not created = another run got there first
             if rel.get("head_office_ref"):
                 await db.organizations.update_one({"id": org_id}, {"$set": {"sage_head_office_ref": rel["head_office_ref"],
                                                                             "head_office_link_status": "proposed"}})
@@ -732,7 +693,7 @@ async def _commit_sage_row(job: dict, r: dict, op: dict, user: dict) -> dict:
 async def _crm_company(op: dict, org_id: str, ref: str, user: dict, job: dict) -> str:
     """Internal Pulse CRM company for this customer — matched by link or account number, never by name."""
     c = await db.crm2_companies.find_one({"organization_id": op["id"], "linked_organization_id": org_id}, {"_id": 0, "id": 1})
-    if not c:
+    if not c and ref:
         c = await db.crm2_companies.find_one({"organization_id": op["id"], "account_number": ref,
                                               "linked_organization_id": {"$in": [None, ""]}}, {"_id": 0, "id": 1})
         if c:
@@ -740,12 +701,13 @@ async def _crm_company(op: dict, org_id: str, ref: str, user: dict, job: dict) -
             await db.crm2_companies.update_one({"id": c["id"]}, {"$set": {"linked_organization_id": org_id, "linked_at": _now()}})
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
     if c:
-        await _add_ref(job["id"], org_id, "crm2_companies", {"id": c["id"]}, "sage_account_refs", ref)
+        if ref:
+            await _add_ref(job["id"], org_id, "crm2_companies", {"id": c["id"]}, "sage_account_refs", ref)
         return c["id"]
     cid = str(uuid.uuid4())
     await db.crm2_companies.insert_one({
         "id": cid, "organization_id": op["id"], "site_id": "", "name": org.get("name"), "status": "active", "type": "customer",
-        "linked_organization_id": org_id, "linked_at": _now(), "account_number": ref, "sage_account_refs": [ref],
+        "linked_organization_id": org_id, "linked_at": _now(), "account_number": ref, "sage_account_refs": [ref] if ref else [],
         "website": org.get("website", ""), "phone": org.get("phone", ""), "email": "",
         "address": org.get("address", ""), "address_line1": org.get("address_line1", ""), "city": org.get("city", ""),
         "postcode": org.get("postcode", ""), "sector": "", "company_number": "",
@@ -994,3 +956,249 @@ async def purge_initial_passwords(apply: bool = False, user: dict = Depends(get_
         await db.onboarding_audit_events.insert_one({"id": str(uuid.uuid4()), "action": "initial_passwords_purged",
                                                      "detail": {"count": n}, "actor_email": user.get("email"), "at": _now()})
     return {"organisations_with_stored_password": n, "purged": n if apply else 0}
+
+
+# ---------------------------------------------------------------- manual creation (same identity service)
+class ManualCustomer(BaseModel):
+    name: str
+    account_ref: str = ""
+    source_company: str = ""
+    address_line1: str = ""
+    address_line2: str = ""
+    city: str = ""
+    county: str = ""
+    postcode: str = ""
+    address_country_code: str = ""
+    website: str = ""
+    phone: str = ""
+    primary_contact_name: str = ""
+    primary_contact_email: str = ""
+    notes: str = ""
+    confirm_new: bool = False
+
+
+@router.get("/duplicates")
+async def duplicates(name: str = "", postcode: str = "", account_ref: str = "", source_company: str = "",
+                     user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    ids = await CI.find_orgs_by_ref(account_ref, source_company.strip().upper()) if account_ref else []
+    by_ref = await db.organizations.find({"id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1, "postcode": 1,
+                                                                 "customer_account_number": 1}).to_list(10)
+    return {"account_matches": by_ref, "suggestions": await CI.duplicate_suggestions(name, postcode)}
+
+
+@router.post("/manual")
+async def manual_customer(body: ManualCustomer, user: dict = Depends(get_current_user)):
+    """Create one customer by hand. Same rules as an import: LITE only, no logins, no emails."""
+    _require_admin(user)
+    await _ensure_indexes()
+    name = body.name.strip()
+    if not name or len(name) > 60:
+        raise HTTPException(422, "Customer name is required (up to 60 characters)")
+    ref, company = CI.clean_ref(body.account_ref), body.source_company.strip().upper()
+    if len(ref) > 8:
+        raise HTTPException(422, "Sage account numbers are up to 8 characters")
+    if ref:
+        ids = await CI.find_orgs_by_ref(ref, company)
+        if ids:
+            o = await db.organizations.find_one({"id": ids[0]}, {"_id": 0, "id": 1, "name": 1})
+            raise HTTPException(409, {"message": f"Account {ref} already belongs to {o.get('name') if o else 'another customer'}",
+                                      "existing": o})
+    email, ew = S._email(body.primary_contact_email)
+    if ew:
+        raise HTTPException(422, ew)
+    fields = {**body.model_dump(exclude={"account_ref", "source_company", "confirm_new"}), "name": name,
+              "postcode": body.postcode.strip().upper(), "primary_contact_email": email}
+    try:
+        org_id, created = await CI.provision_customer_org(fields, source="manual_customer_entry", actor=user.get("email"),
+                                                          ref=ref, company=company, confirmed_new=body.confirm_new)
+    except CI.DuplicateSuspected as e:
+        raise HTTPException(409, {"message": "Possible existing customer — check these before creating a new one",
+                                  "suggestions": e.suggestions})
+    op = await _operator_org()
+    job = {"id": f"manual-{org_id[:8]}"}
+    await _crm_company(op, org_id, ref, user, job)
+    if body.primary_contact_name or email:
+        first, _, last = body.primary_contact_name.strip().partition(" ")
+        cid = await db.crm2_companies.find_one({"organization_id": op["id"], "linked_organization_id": org_id}, {"_id": 0, "id": 1})
+        await _upsert_contact(op, org_id, cid["id"], ref, {"first_name": first, "last_name": last, "email": email,
+                                                           "telephone": {"number": body.phone, "display": body.phone} if body.phone else {},
+                                                           "role": "Primary contact"}, "manual", job, user)
+    await CI.mark_complete(org_id)
+    return await db.organizations.find_one({"id": org_id}, {"_id": 0})
+
+
+# ---------------------------------------------------------------- Review Centre (all open exceptions in one place)
+_REVIEW_ROW_CATS = {
+    "ambiguous_organisation": ("Possible duplicate / conflicting account reference", "high"),
+    "conflicting_duplicate": ("Conflicting account reference in file", "high"),
+    "circular_relationship": ("Unverified branch relationship", "medium"),
+    "invalid_relationship": ("Unverified branch relationship", "medium"),
+    "ambiguous_contact": ("Uncertain contact match", "medium"),
+    "invalid": ("Invalid source record", "medium"),
+    "uncertain_range": ("Uncertain data range", "low"),
+}
+
+
+@router.get("/review")
+async def review_centre(type: Optional[str] = None, search: str = "", skip: int = 0, limit: int = Query(50, le=200),
+                        user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    items: list[dict] = []
+    open_jobs = {j["id"]: j async for j in db.customer_import_jobs.find({"status": {"$in": ["analysed", "approved", "completed_with_errors", "interrupted"]}},
+                                                                      {"_id": 0, "id": 1, "filename": 1, "created_by": 1, "kind": 1})}
+    async for r in db.customer_import_rows.find({"job_id": {"$in": list(open_jobs)}, "$or": [
+            {"outcome.category": {"$in": list(_REVIEW_ROW_CATS)}}, {"commit_status": "failed"}]}, {"_id": 0, "record.internal": 0}).limit(5000):
+        j, cat = open_jobs[r["job_id"]], (r.get("outcome") or {}).get("category")
+        label, prio = ("Failed import row", "high") if r.get("commit_status") == "failed" else _REVIEW_ROW_CATS[cat]
+        rec = r.get("record") or {}
+        items.append({"type": label, "priority": prio, "ref": rec.get("account_ref", ""),
+                      "name": (rec.get("org") or {}).get("name") or " ".join(x for x in ((rec.get("contact") or {}).get("first_name"), (rec.get("contact") or {}).get("last_name")) if x),
+                      "detail": r.get("error") or (r.get("outcome") or {}).get("action", ""), "owner": j.get("created_by"),
+                      "source": f"{j['filename']} row {r['row']}", "job_id": j["id"], "resolve": "Open the import and decide this row"})
+    async for s in db.customer_contact_staging.find({"status": {"$in": ["awaiting_account", "needs_review"]}}, {"_id": 0}).limit(5000):
+        c = s["contact"]
+        items.append({"type": "Unmatched Sicon contact", "priority": "low", "ref": s["account_ref"],
+                      "name": " ".join(x for x in (c.get("first_name"), c.get("last_name")) if x) or c.get("email", ""),
+                      "detail": s.get("note") or "Waiting for this Sage account to be imported", "owner": "",
+                      "source": "Sicon contacts", "resolve": "Import the matching Sage account — the contact links automatically"})
+    async for p in db.customer_proposed_sites.find({"status": "proposed"}, {"_id": 0}).limit(5000):
+        items.append({"type": "Proposed operational site", "priority": "low", "ref": p["account_ref"], "name": p["name"],
+                      "detail": ", ".join(x for x in (p.get("address_line1"), p.get("city"), p.get("postcode")) if x), "owner": "",
+                      "source": "Sage address", "site_id": p["id"], "resolve": "Confirm it is a real gym location or mark it not a site"})
+    async for i in db.customer_account_internal.find({"$or": [{"sage_status.hidden": True}, {"sage_status.on_hold": True}]},
+                                                     {"_id": 0, "org_id": 1, "account_ref": 1, "sage_status": 1}).limit(5000):
+        o = await db.organizations.find_one({"id": i["org_id"]}, {"_id": 0, "name": 1}) or {}
+        items.append({"type": "Hidden Sage account" if i["sage_status"].get("hidden") else "Sage account on hold",
+                      "priority": "medium", "ref": i["account_ref"], "name": o.get("name", ""), "org_id": i["org_id"],
+                      "detail": "Do not invite until the account position is agreed", "owner": "", "source": "Sage status",
+                      "resolve": "Check with Accounts before activating this customer"})
+    async for o in db.organizations.find({"onboarding_status": "pending_activation", "sage_account_refs.0": {"$exists": True}},
+                                         {"_id": 0, "id": 1, "name": 1, "customer_account_number": 1}).limit(5000):
+        if not await db.crm2_contacts.count_documents({"linked_organization_id": o["id"], "email": {"$nin": ["", None]}}):
+            items.append({"type": "Missing owner details", "priority": "low", "ref": o.get("customer_account_number", ""),
+                          "name": o["name"], "org_id": o["id"], "detail": "No business contact with an email address", "owner": "",
+                          "source": "Customer record", "resolve": "Import Sicon contacts or add a contact before activation"})
+    async for r in db.customer_import_rows.find({"job_id": {"$in": list(open_jobs)}, "outcome.warnings": {"$regex": "^Invalid email"}},
+                                                 {"_id": 0, "row": 1, "job_id": 1, "record.account_ref": 1, "outcome.warnings": 1}).limit(2000):
+        items.append({"type": "Invalid contact email", "priority": "low", "ref": (r.get("record") or {}).get("account_ref", ""),
+                      "name": "", "detail": next(w for w in r["outcome"]["warnings"] if w.startswith("Invalid email")),
+                      "owner": open_jobs[r["job_id"]].get("created_by"), "source": f"{open_jobs[r['job_id']]['filename']} row {r['row']}",
+                      "job_id": r["job_id"], "resolve": "Correct the email in Sage/Sicon and re-import"})
+    types = {}
+    for it in items:
+        types[it["type"]] = types.get(it["type"], 0) + 1
+    if type:
+        items = [i for i in items if i["type"] == type]
+    if search:
+        sl = search.lower()
+        items = [i for i in items if sl in (i["name"] or "").lower() or sl in (i["ref"] or "").lower()]
+    order = {"high": 0, "medium": 1, "low": 2}
+    items.sort(key=lambda i: (order[i["priority"]], i["type"], i["ref"]))
+    return {"total": len(items), "types": types, "items": items[skip:skip + limit]}
+
+
+# ---------------------------------------------------------------- unified import history
+@router.get("/history")
+async def import_history(limit: int = Query(100, le=500), user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    out = []
+    async for j in db.customer_import_jobs.find({}, {"_id": 0}).sort("created_at", -1).limit(limit):
+        res, p = j.get("results") or {}, j.get("preview") or {}
+        out.append({"id": j["id"], "engine": "customer_import", "type": "Sage Customer Accounts" if j["kind"] == "sage_accounts" else "Sicon Customer Contacts",
+                    "filename": j["filename"], "by": j.get("created_by"), "at": j.get("created_at"), "status": j["status"],
+                    "processed": sum(p.values()), "created": res.get("org_created_lite", 0) + res.get("contact_created", 0),
+                    "updated": res.get("org_updated", 0) + res.get("contact_updated", 0),
+                    "skipped": res.get("org_unchanged", 0) + res.get("contact_unchanged", 0), "failed": res.get("failed", 0),
+                    "report": True, "undo": j["status"] in ("completed", "completed_with_errors", "interrupted")})
+    async for b in db.import_batches.find({}, {"_id": 0, "org_snapshots": 0}).sort("created_at", -1).limit(limit):
+        out.append({"id": b["id"], "engine": "bulk_import", "type": f"Bulk {b.get('kind', '')}".strip(), "filename": b.get("filename"),
+                    "by": b.get("actor_email"), "at": str(b.get("created_at") or ""), "status": "undone" if b.get("undone") else "completed",
+                    "processed": (b.get("inserted_count") or 0) + (b.get("updated_count") or 0) + (b.get("skipped_count") or 0),
+                    "created": b.get("inserted_count") or 0, "updated": b.get("updated_count") or 0, "skipped": b.get("skipped_count") or 0,
+                    "failed": 0, "report": False, "undo": not b.get("undone")})
+    async for e in db.onboarding_audit_events.find({"action": {"$in": ["import_committed", "customer_tenants_imported"]}}, {"_id": 0}).sort("at", -1).limit(limit):
+        rep = (e.get("detail") or {}).get("report") or {}
+        out.append({"id": e.get("id"), "engine": "guided_import", "type": f"Guided import — {(e.get('detail') or {}).get('type', 'customers')}",
+                    "filename": "", "by": e.get("actor_email"), "at": e.get("at"), "status": "completed",
+                    "processed": sum(v for v in rep.values() if isinstance(v, int)), "created": rep.get("created", 0),
+                    "updated": rep.get("updated", 0), "skipped": rep.get("skipped", 0), "failed": rep.get("failed", 0),
+                    "report": False, "undo": False})
+    async for a in db.crm2_afs_onboarding.find({}, {"_id": 0, "id": 1, "filename": 1, "status": 1, "created_at": 1, "created_by": 1,
+                                                    "summary": 1}).sort("created_at", -1).limit(limit):
+        out.append({"id": a["id"], "engine": "estate_onboarding", "type": "Aftersales estate onboarding", "filename": a.get("filename"),
+                    "by": (a.get("created_by") or {}).get("email") if isinstance(a.get("created_by"), dict) else a.get("created_by"),
+                    "at": str(a.get("created_at") or ""), "status": a.get("status", ""), "processed": 0, "created": 0, "updated": 0,
+                    "skipped": 0, "failed": 0, "report": False, "undo": False})
+    out.sort(key=lambda x: str(x["at"] or ""), reverse=True)
+    return {"imports": out[:limit]}
+
+
+# ---------------------------------------------------------------- source detection for the Import Centre
+_DETECT_RULES = [
+    ("equipment", {"sicon customer ref", "serial number", "model"}, "Equipment register (Sicon equipment template)"),
+    ("equipment", {"serial_number", "model"}, "Equipment register"),
+    ("contracts", {"contract_number", "start_date"}, "Maintenance contracts"),
+    ("contracts", {"contract number", "start date"}, "Maintenance contracts"),
+    ("sites", {"site_name"}, "Customer sites"),
+    ("sites", {"site name", "postcode"}, "Customer sites"),
+]
+
+
+@router.post("/detect")
+async def detect_source(file: UploadFile = File(None), file_id: Optional[str] = Form(None), user: dict = Depends(get_current_user)):
+    """Tell the admin what a file is before anything is imported. Never guesses the destination silently."""
+    _require_admin(user)
+    raw, filename = await _file_bytes(user, file, file_id)
+    if raw[:4] == b"%PDF":
+        return {"type": "estate_documents", "label": "PDF invoice or agreement", "confidence": "needs_choice",
+                "next": "Use Complete Customer Estate (Aftersales estate onboarding) to extract equipment from PDFs"}
+    try:
+        _, sheets = S.read_sheets(raw, filename)
+        det = S.detect(sheets)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    if det["format"] != "unknown":
+        return {"type": det["format"], "label": "Sage Customer Accounts" if det["format"] == "sage_accounts" else "Sicon Customer Contacts",
+                "confidence": "certain", "worksheet": det["worksheet"], "header_row": det["header_row"]}
+    for sh in sheets:
+        for row in sh["rows"][:15]:
+            cells = {c.strip().lower() for c in row if c}
+            for kind, need, label in _DETECT_RULES:
+                if need <= cells:
+                    return {"type": kind, "label": label, "confidence": "likely", "worksheet": sh["name"]}
+    return {"type": "unknown", "label": "Not recognised", "confidence": "needs_choice",
+            "next": "Choose the record type, then use guided column mapping"}
+
+
+@router.get("/activation")
+async def activation_queue(search: str = "", skip: int = 0, limit: int = Query(50, le=200), user: dict = Depends(get_current_user)):
+    """Customers imported but not yet activated. Invitations are a separate, approved step (next release)."""
+    _require_admin(user)
+    q: dict = {"onboarding_status": "pending_activation"}
+    if search:
+        rx = {"$regex": _re_escape(search), "$options": "i"}
+        q["$or"] = [{"name": rx}, {"customer_account_number": rx}]
+    total = await db.organizations.count_documents(q)
+    out = []
+    async for o in db.organizations.find(q, {"_id": 0, "id": 1, "name": 1, "customer_account_number": 1, "city": 1, "postcode": 1,
+                                             "created_via": 1, "created_at": 1}).sort("name", 1).skip(skip).limit(limit):
+        st = await db.customer_account_internal.find_one({"org_id": o["id"]}, {"_id": 0, "sage_status": 1}) or {}
+        o["contacts"] = await db.crm2_contacts.count_documents({"linked_organization_id": o["id"]})
+        o["contacts_with_email"] = await db.crm2_contacts.count_documents({"linked_organization_id": o["id"], "email": {"$nin": ["", None]}})
+        o["sites"] = await db.sites.count_documents({"organization_id": o["id"]})
+        o["on_hold"] = bool((st.get("sage_status") or {}).get("on_hold"))
+        o["hidden"] = bool((st.get("sage_status") or {}).get("hidden"))
+        o["users"] = await db.users.count_documents({"organization_id": o["id"]})
+        out.append(o)
+    return {"total": total, "customers": out}
+
+
+@router.get("/templates/{kind}.csv")
+async def template(kind: Literal["sage_accounts", "sicon_contacts"], user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    cols = S.SAGE_FIELDS if kind == "sage_accounts" else S.SICON_FIELDS
+    buf = io.StringIO()
+    csv.writer(buf).writerow(cols)
+    return Response(buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{kind}-template.csv"'})

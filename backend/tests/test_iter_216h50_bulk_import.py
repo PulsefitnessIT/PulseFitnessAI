@@ -66,19 +66,15 @@ def test_org_and_site(auth_headers):
         ],
     }
     
-    resp = requests.post(
-        f"{BASE_URL}/api/master-admin/onboard-head-office",
-        json=payload,
-        headers=auth_headers,
-    )
-    assert resp.status_code == 200, f"Failed to create test org: {resp.text}"
-    data = resp.json()
-    
-    # Extract org_id and site_id from response
-    org_id = data.get("organization", {}).get("id")
-    sites = data.get("sites", [])
-    site_id = sites[0].get("id") if sites else None
-    
+    # Customer creation endpoints were retired by the onboarding consolidation — seed the fixture directly.
+    from pymongo import MongoClient
+    env = dict(line.split("=", 1) for line in open("/app/backend/.env").read().splitlines() if "=" in line)
+    mdb = MongoClient(env["MONGO_URL"].strip('"'))[env["DB_NAME"].strip('"')]
+    org_id, site_id = str(uuid.uuid4()), str(uuid.uuid4())
+    mdb.organizations.insert_one({"id": org_id, "name": org_name, "account_type": "pulse_pro", "subscription_tier": "pro",
+                                  "enabled_modules": ["operations"], "status": "active", "created_via": "test"})
+    mdb.sites.insert_one({"id": site_id, "organization_id": org_id, "name": site_name, "invoice_customer_ref": invoice_ref,
+                          "city": "London", "postcode": "SW1A 1AA", "is_head_office": True, "status": "active"})
     yield {
         "org_id": org_id,
         "org_name": org_name,

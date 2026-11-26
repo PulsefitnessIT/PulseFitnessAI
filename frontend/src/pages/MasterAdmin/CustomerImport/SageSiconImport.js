@@ -25,9 +25,9 @@ const Overview = ({ o }) => (
   </div>
 );
 
-export default function SageSiconImport() {
+export default function SageSiconImport({ fixedMode = null, initialFileId = null, openJobId = null }) {
   const headers = useMemo(() => ({ Authorization: `Bearer ${localStorage.getItem('token')}` }), []);
-  const [mode, setMode] = useState('sage_accounts');
+  const [mode, setMode] = useState(fixedMode || 'sage_accounts');
   const [job, setJob] = useState(null);
   const [company, setCompany] = useState('');
   const [ov, setOv] = useState({});
@@ -38,6 +38,12 @@ export default function SageSiconImport() {
     setOv(a.data); setHistory(b.data.jobs || []); setTick((t) => t + 1);
   }, [headers, mode]);
   useEffect(() => { refresh().catch(() => {}); }, [refresh]);
+
+  useEffect(() => {
+    if (initialFileId) onUploaded({ id: initialFileId }).catch(() => {});
+    if (openJobId) axios.get(`${API}/jobs/${openJobId}`, { headers }).then((r) => { setJob(r.data); setMode(r.data.kind); }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFileId, openJobId]);
 
   const onUploaded = async (doc) => {
     const fd = new FormData();
@@ -55,14 +61,14 @@ export default function SageSiconImport() {
 
   return (
     <div className="space-y-4" data-testid="customer-import-centre">
-      <Overview o={ov} />
-      <div className="flex flex-wrap gap-2" role="tablist">
+      {!fixedMode && <Overview o={ov} />}
+      {!fixedMode && <div className="flex flex-wrap gap-2" role="tablist">
         {MODES.map((m) => (
           <button key={m.id} type="button" onClick={() => { setMode(m.id); setJob(null); }} role="tab" aria-selected={mode === m.id}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${mode === m.id ? 'seg-active' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
             data-testid={`ci-mode-${m.id}`}><m.icon size={14} />{m.label}</button>
         ))}
-      </div>
+      </div>}
       <Card className="p-5 rounded-xl border-zinc-200 space-y-3">
         <p className="text-sm text-zinc-600">{active.hint}</p>
         <p className="text-xs text-zinc-500 flex items-start gap-1.5"><Info size={13} className="mt-0.5 shrink-0" />
@@ -86,7 +92,7 @@ export default function SageSiconImport() {
           ))}
         </Card>
       )}
-      <ReviewQueues headers={headers} onChange={refresh} tick={tick} />
+      {!fixedMode && <ReviewQueues headers={headers} onChange={refresh} tick={tick} />}
     </div>
   );
 }

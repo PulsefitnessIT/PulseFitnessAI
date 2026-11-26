@@ -62,6 +62,15 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
     name = (body.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Organisation name is required")
+    # Shared customer identity: never create a second record for an existing customer.
+    from utils import customer_identity as CI
+    ref = CI.clean_ref(body.get("customer_account_number") or "")
+    if ref and await CI.find_orgs_by_ref(ref):
+        raise HTTPException(409, {"message": f"Account {ref} already belongs to an existing customer"})
+    if not ref and not body.get("confirm_new"):
+        sugg = await CI.duplicate_suggestions(name, body.get("postcode", ""))
+        if sugg:
+            raise HTTPException(409, {"message": "Possible existing customer", "suggestions": sugg})
 
     # Iter 215ar — `enabled_modules` is the new source of truth for
     # which modules an org has access to. The legacy `portal_type`
@@ -122,6 +131,8 @@ async def create_organization(body: dict = Body(...), user: dict = Depends(get_c
         "features": body.get("features", {}),
     }
     await db.organizations.insert_one(org_doc)
+    if ref:
+        await CI.claim_ref(ref, "", org_id, None, "master_admin_create")
 
     # Iter 215ar — auto-provision a user account for the primary contact
     # so the org owner can sign in immediately. Master admin can reveal the

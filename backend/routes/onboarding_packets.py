@@ -495,8 +495,15 @@ def _build_trial_fields(is_trial: bool, trial_days: int, now_dt: datetime) -> Di
 
 async def _create_organization(packet: Dict, packet_id: str) -> str:
     """Insert the top-level organization record; return its id."""
-    org_id = str(uuid.uuid4())
     org = packet["organisation"]
+    from utils import customer_identity as CI
+    ref = CI.clean_ref(org.get("customer_account_number") or org.get("sage_customer_number") or "")
+    ids = await CI.find_orgs_by_ref(ref) if ref else []
+    if ids:
+        raise HTTPException(409, f"Account {ref} already belongs to an existing customer — attach this packet to it instead")
+    if not ref and not packet.get("confirm_new_customer") and await CI.duplicate_suggestions(org.get("name", ""), org.get("postcode", "")):
+        raise HTTPException(409, "A customer with a similar name already exists — check Master Admin → Onboarding before provisioning")
+    org_id = str(uuid.uuid4())
     is_trial = bool(packet.get("is_trial"))
     trial_days = int(packet.get("trial_duration_days") or 14) if is_trial else 0
     now_dt = datetime.now(timezone.utc)
@@ -771,6 +778,8 @@ async def provision_packet(packet_id: str, user: dict = Depends(get_current_user
         return {"success": True, "organization_id": org_id,
                 "summary": {k: len(v) for k, v in created.items()}}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[Provision] Failed for packet {packet_id}: {e}")
         await _rollback_provisioning(created)

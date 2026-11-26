@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
- Download, Upload, Wrench, Users, FileSpreadsheet, ChevronRight,
+ Download, Upload, Wrench, FileSpreadsheet, ChevronRight,
  CheckCircle2, AlertCircle, Building2, Loader2, MapPin, ScrollText,
  Eye, RotateCcw, History, Lightbulb, RefreshCw,
 } from 'lucide-react';
@@ -46,11 +46,11 @@ const downloadTemplate = async (kind) => {
   URL.revokeObjectURL(url);
 };
 
-const AdminBulkImports = ({ API }) => {
+const AdminBulkImports = ({ API, only, initialOrg = '' }) => {
  const token = localStorage.getItem('token');
  const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
  const [orgs, setOrgs] = useState([]);
- const [orgId, setOrgId] = useState('');
+ const [orgId, setOrgId] = useState(initialOrg);
  const [busy, setBusy] = useState({ equipment: false, customers: false, sites: false, contracts: false });
  const [results, setResults] = useState({ equipment: null, customers: null, sites: null, contracts: null });
  const [previewBusy, setPreviewBusy] = useState(false);
@@ -58,7 +58,6 @@ const AdminBulkImports = ({ API }) => {
  const [batches, setBatches] = useState([]);
  const [undoBusy, setUndoBusy] = useState('');
  const equipmentInput = useRef(null);
- const customersInput = useRef(null);
  const sitesInput = useRef(null);
  const contractsInput = useRef(null);
  const previewInput = useRef(null);
@@ -382,22 +381,6 @@ const AdminBulkImports = ({ API }) => {
 
       {/* Unified Import Centre — one consistent flow: template → upload →
           auto-map → validate → dedupe → preview → import → report. */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <FileSpreadsheet size={18} className="text-[var(--color-brand-blue)]" />
-          <h2 className="text-base font-semibold">Import Centre</h2>
-          <Button size="sm" variant="outline" onClick={() => syncCrm(true)} disabled={syncing}
-            className="ml-auto" data-testid="bulk-sync-crm-btn"
-            title="Push all imported estates into the Pulse Fitness Ltd CRM">
-            {syncing ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <RefreshCw size={14} className="mr-1.5" />}
-            Sync
-          </Button>
-        </div>
-        <p className="text-xs text-zinc-500 mb-3">
-          Guided import with column auto-mapping, validation, duplicate detection and a preview before anything is written.
-        </p>
-        <ImportWizard />
-      </div>
 
 
  {/* Target picker */}
@@ -431,44 +414,38 @@ const AdminBulkImports = ({ API }) => {
  </div>
  </Card>
 
-      <div className="pt-2">
-        <h2 className="text-base font-semibold mb-1">Core records (quick CSV)</h2>
-        <p className="text-xs text-zinc-500 mb-3">Fast bulk loaders for sites, equipment, CRM customers and contracts with account-number auto-routing.</p>
+      <div className="flex items-center justify-end">
+        <Button size="sm" variant="outline" onClick={() => syncCrm(true)} disabled={syncing} data-testid="bulk-sync-crm-btn"
+          title="Push imported estates into the Pulse Fitness Ltd CRM">
+          {syncing ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <RefreshCw size={14} className="mr-1.5" />}
+          Sync to CRM
+        </Button>
       </div>
-
- <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
- <ImportCard
+ <div className="grid md:grid-cols-2 gap-4">
+ {(!only || only === 'sites') && <ImportCard
  kind="sites"
  icon={MapPin}
  title="Bulk import sites"
  description="Upload a CSV of all customer sites in one shot — alphabetised, with Sicon Invoice Customer Ref support. Pick the Target customer above first; sites are always org-scoped."
  headers={['site_name', 'invoice_customer_ref', 'address_line1', 'address_line2', 'city', 'county', 'postcode', 'country', 'phone', 'email', 'site_manager_name', 'site_manager_email', 'is_head_office', 'default_location']}
  inputRef={sitesInput}
- />
- <ImportCard
+ />}
+ {(!only || only === 'equipment') && <ImportCard
  kind="equipment"
  icon={Wrench}
  title="Bulk import equipment"
  description="Upload the Sicon equipment template (Excel or CSV). Rows route by Sicon Customer Ref (the customer/site account number). Re-importing the same serial numbers fills gaps instead of creating duplicates. Older Pulse templates are still accepted."
  headers={['Sicon Customer Ref', 'Location Description', 'Sublocation Description', 'Supplier Reference', 'Supplier Name', 'Contract Number', 'Contract Line No', 'SLA Name', 'Stock Item Code', 'Description', 'Make', 'Model', 'Serial Number', 'Install Date', 'Manufacturer Warranty Expiry Date', 'Last Service Date', 'Service Interval', 'Service Period', 'Next Service Date', 'ID Number', 'Service Template', 'Equipment Group', 'service_provider', 'unit_price', 'replacement_cost', 'length', 'width', 'height', 'MOD-Force', 'MOD Code', 'Asset Tag', 'Condition', 'Equipment Type', 'Manufacture Date', 'Contract Start Date', 'Contract End Date']}
  inputRef={equipmentInput}
- />
- <ImportCard
- kind="customers"
- icon={Users}
- title="Bulk import customers"
- description="Upload a CSV roster of CRM contacts (members, key accounts). When auto-routing, the customer_account_number column decides which tenant each contact lands in."
- headers={['customer_account_number', 'first_name', 'last_name', 'email', 'phone', 'company', 'title', 'tags', 'linkedin', 'address']}
- inputRef={customersInput}
- />
- <ImportCard
+ />}
+ {(!only || only === 'contracts') && <ImportCard
  kind="contracts"
  icon={ScrollText}
  title="Bulk import contracts"
  description="Upload a CSV of existing service contracts (the Sicon Contracts API is push-only, so there is no auto-pull). Links to a CRM company by company_name; captures sicon_contract_id for ongoing two-way sync. Duplicates by contract_number are skipped."
  headers={['customer_account_number', 'contract_number', 'title', 'company_name', 'type', 'tier', 'status', 'start_date', 'end_date', 'renewal_date', 'annual_value', 'total_value', 'billing_frequency', 'sla_response_hours', 'sla_resolution_hours', 'auto_renew', 'sicon_contract_id', 'sage_reference']}
  inputRef={contractsInput}
- />
+ />}
  </div>
 
  <Card className="p-5 rounded-xl border-zinc-200 bg-zinc-50">
@@ -485,6 +462,11 @@ const AdminBulkImports = ({ API }) => {
  <ChevronRight size={12} className="text-zinc-400" />
  </p>
  </Card>
+
+ <details className="rounded-xl border border-zinc-200 p-4" data-testid="bulk-guided-mapping">
+   <summary className="text-sm font-semibold cursor-pointer">Different column layout? Use guided column mapping</summary>
+   <div className="mt-3"><ImportWizard /></div>
+ </details>
 
  {/* Recent imports — one-click undo */}
  <Card className="p-5 rounded-xl border-zinc-200" data-testid="bulk-import-recent-card">

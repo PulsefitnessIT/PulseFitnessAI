@@ -148,7 +148,7 @@ async def import_types(user: dict = Depends(get_current_user)) -> dict:
         {"id": t, "label": s["label"], "dedupe_keys": s["dedupe_keys"],
          "creates_tenant": bool(s.get("creates_tenant")),
          "fields": [{"key": f["key"], "label": f["label"], "required": f["required"], "kind": f["kind"]} for f in s["fields"]]}
-        for t, s in TYPE_REGISTRY.items()
+        for t, s in TYPE_REGISTRY.items() if not s.get("creates_tenant")  # customers: Import Centre only
     ]}
 
 
@@ -573,6 +573,8 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
 @router.post("/onboarding/import/commit")
 async def commit(body: CommitBody, user: dict = Depends(get_current_user)) -> dict:
     _require_pulse_or_master(user)
+    if TYPE_REGISTRY.get(body.import_type, {}).get("creates_tenant"):
+        raise HTTPException(410, "Customer creation has moved to Master Admin → Onboarding → Import Centre, so every customer goes through the same duplicate checks.")
     spec = _type_or_404(body.import_type)
     if body.dedupe_action not in {"skip", "update", "create"}:
         raise HTTPException(status_code=400, detail="Invalid dedupe_action")

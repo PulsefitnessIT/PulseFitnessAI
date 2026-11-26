@@ -145,7 +145,16 @@ const useMasterAdminActions = ({ API, headers, loadData, loadSectionData }) => {
 
   const createOrganization = useCallback(async (orgForm) => {
     try {
-      const res = await axios.post(`${API}/master-admin/organizations`, orgForm, { headers });
+      let res;
+      try {
+        res = await axios.post(`${API}/master-admin/organizations`, orgForm, { headers });
+      } catch (e) {
+        const sugg = e.response?.status === 409 && e.response?.data?.detail?.suggestions;
+        if (!sugg) throw e;
+        const list = sugg.map((s) => `• ${s.name}${s.postcode ? ` (${s.postcode})` : ''} — ${s.reason}`).join('\n');
+        if (!window.confirm(`These existing customers look similar:\n${list}\n\nCreate a new, separate organisation anyway?`)) return null;
+        res = await axios.post(`${API}/master-admin/organizations`, { ...orgForm, confirm_new: true }, { headers });
+      }
       const data = res.data || {};
       // Iter 216h26 — the backend now mints a 72 h invite link for the
       // primary contact alongside the legacy plaintext password.

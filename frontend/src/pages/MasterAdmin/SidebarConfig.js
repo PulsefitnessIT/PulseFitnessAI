@@ -62,9 +62,15 @@ export const SIDEBAR_ITEMS = [
     subTabs: [
       { id: 'organizations',     label: 'List',                  icon: Building },
       { id: 'all-sites',         label: 'All sites',             icon: MapPin },
-      { id: 'onboarding',        label: 'Onboarding',            icon: Rocket },
       { id: 'estate-rollup',     label: 'Module subscriptions',  icon: BarChart3 },
-      { id: 'activation-funnel', label: 'Customer activation',   icon: TrendingUp },
+      { id: 'activation-funnel', label: 'Activation funnel',     icon: TrendingUp },
+    ],
+  },
+  // Onboarding — one area for every Pulse-managed customer import, review and activation.
+  {
+    id: 'onboarding', label: 'Onboarding', icon: Rocket, group: 'main',
+    subTabs: [
+      { id: 'onboarding', label: 'Onboarding Centre', icon: Rocket },
     ],
   },
   // 4. Catalogue & Library — equipment master data (manufacturer
@@ -216,7 +222,7 @@ export const SECTION_TO_GROUP = (() => {
   // correct nav entry and render the group's sub-tab bar.
   map['audit-logs'] = 'compliance-security';   // → merged into 'audit-log' (Audit & compliance)
   map['design-system'] = 'platform-tools';     // → merged into 'theme-settings' (Branding & design)
-  map['staff-onboarding'] = 'organizations';   // → folded into the unified Onboarding hub (staff tab)
+  map['staff-onboarding'] = 'onboarding';   // → folded into the unified Onboarding hub (staff tab)
   return map;
 })();
 
@@ -257,7 +263,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'custom-domains':     'settings-compliance',
   'locked-staff':       'roles',
   'staff-onboarding':   'roles',
-  'onboarding':         'organizations',
+  'onboarding':         'onboarding',
   'estate-rollup':      'organizations',
   'activation-funnel':  'organizations',
   'catalogue':          'catalogue',
@@ -390,7 +396,7 @@ export const sectionDescriptions = {
   'canned-replies': 'Manage the global library of reusable reply templates surfaced in the Communications inbox composer.',
   roles: 'Pulse Admins · Customer Owners · Customer Staff · CRM contacts — all in one directory.',
   'staff-onboarding': 'Unified onboarding hub — provision customer sites, head offices, packets & bulk imports, plus invite team members.',
-  onboarding: 'Unified onboarding hub — provision customer sites, head offices, packets & bulk imports, plus invite team members.',
+  onboarding: 'Onboarding Centre — import, review and activate Pulse-managed customers in one place.',
   'stripe-connect': 'Connect Pulse Fitness to Stripe via OAuth, tune the platform fee, preview profit per customer',
   support: 'Tools for customer support',
   emails: 'Outbound email audit trail',

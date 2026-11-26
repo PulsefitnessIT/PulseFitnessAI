@@ -8,13 +8,13 @@
  */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard, BarChart3, Dumbbell, Truck } from 'lucide-react';
+import { Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard, BarChart3, Dumbbell, Truck, ListChecks, KeyRound, History, BookOpen } from 'lucide-react';
 
-import PulseOnboardingWizard from '../PulseOnboardingWizard';
-import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
 import AdminOnboardingPackets from './AdminOnboardingPackets';
-import AdminBulkImports from './AdminBulkImports';
-import SageSiconImport from './CustomerImport/SageSiconImport';
+import ImportCentre from './CustomerImport/ImportCentre';
+import ReviewCentre from './CustomerImport/ReviewCentre';
+import ImportHistory from './CustomerImport/ImportHistory';
+import { OnboardingDashboard, CustomerActivation, TemplatesGuidance } from './CustomerImport/OnboardingViews';
 import MODBulkImport from './MODBulkImport';
 import MODEstateWizard from './MODEstateWizard';
 import MODSiteOnboarding from './MODSiteOnboarding';
@@ -26,30 +26,39 @@ import OnboardingReports from './OnboardingReports';
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const TABS = [
-  { id: 'dashboard',    group: 'Manage',    label: 'Dashboard',           icon: LayoutDashboard, description: 'Track every customer onboarding — progress, checklist, missing data and go-live readiness in one place.' },
-  { id: 'reports',      group: 'Manage',    label: 'Reports',             icon: BarChart3,       description: 'Onboarding analytics, go-live success rate, exports (CSV/Excel/PDF) and the customer-portal toggle.' },
-  { id: 'site',         group: 'Customers', label: 'Onboard Site',        icon: Building2,       description: 'Step-through wizard for a single brand-new customer site.' },
-  { id: 'head-office',  group: 'Customers', label: 'Head Office (multi-site)', icon: Building,   description: 'Create a corporate Head Office and N sites under it in one pass — for chains and multi-location operators.' },
-  { id: 'packets',      group: 'Customers', label: 'Onboarding Packets',  icon: Clipboard,       description: 'Shareable self-service forms for customers to complete themselves.' },
-  { id: 'sage-import',  group: 'Customers', label: 'Sage & Sicon Customer Import', icon: Building2, description: 'Import the Sage 200 customer accounts and Sicon contacts. Upload, review matches and relationships, approve, then import. New customers get LITE only. No logins or emails.' },
-  { id: 'imports',      group: 'Customers', label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of sites, equipment and customers.' },
-  { id: 'mod-estate',   group: 'Customers', label: 'MOD Estate Setup',    icon: ShieldCheck,     description: 'Guided MOD setup — three independent service Head Offices (Army / RAF / Navy), global sites per service, external suppliers for overseas bases, and a whole-of-MOD reporting view.' },
-  { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (CSV bulk)', icon: FileSpreadsheet, description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
-  { id: 'mod-equipment', group: 'Customers', label: 'MOD Equipment & Readiness', icon: Dumbbell, description: 'Onboard each MOD site\'s equipment on their behalf (bulk CSV/Excel, like commercial) and track a per-site go-live checklist — Equipment, Staff, Suppliers, Documents, Check Sheets.' },
-  { id: 'mod-providers', group: 'Customers', label: 'External Service Providers', icon: Truck, description: 'Overseas / external service providers — onboard each company with its field engineers in one pass. Engineers flagged MOD/BFPO get a MOD portal login plus the sites they cover, via invite link or temporary password.' },
-  { id: 'staff',        group: 'Team',      label: 'Onboard Staff',       icon: UserPlus,        description: 'Invite a new team member — admin, owner, manager or staff. Five quick steps; they set their own password from a 72 h invite link.' },
+  { id: 'dashboard',     group: 'Onboarding', label: 'Onboarding Dashboard', icon: LayoutDashboard, description: 'Where every Pulse-managed customer is in onboarding: imported, waiting for review, awaiting activation.' },
+  { id: 'import-centre', group: 'Onboarding', label: 'Import Centre',        icon: FileSpreadsheet, description: 'The one place to import customer accounts, contacts, sites, equipment and contracts. Every route uses the same customer matching, review and approval.' },
+  { id: 'projects',      group: 'Onboarding', label: 'Onboarding Projects',  icon: Clipboard,       description: 'One onboarding project per customer: checklist, missing data and go-live readiness.' },
+  { id: 'review',        group: 'Onboarding', label: 'Review Centre',        icon: ListChecks,      description: 'Everything an import could not decide on its own, in one list: possible duplicates, unmatched contacts, proposed sites, Sage holds.' },
+  { id: 'activation',    group: 'Onboarding', label: 'Customer Activation',  icon: KeyRound,        description: 'Customers imported but not yet activated. Nobody can sign in until an owner is verified and invited.' },
+  { id: 'history',       group: 'Onboarding', label: 'Import History',       icon: History,         description: 'Every import that changed a customer estate, with reports and Undo.' },
+  { id: 'guidance',      group: 'Onboarding', label: 'Templates & Guidance', icon: BookOpen,        description: 'Templates for each import type and the onboarding process in plain English.' },
+  { id: 'reports',       group: 'Onboarding', label: 'Reports',              icon: BarChart3,       description: 'Onboarding analytics, go-live success rate and exports.' },
+  { id: 'packets',       group: 'Specialist', label: 'Customer Questionnaires', icon: Clipboard,    description: 'Self-service onboarding forms customers fill in. Provisioning checks for existing customers first.' },
+  { id: 'mod-estate',    group: 'Specialist', label: 'MOD Estate Setup',     icon: ShieldCheck,     description: 'MOD only: Army / RAF / Navy head offices, global sites and overseas suppliers.' },
+  { id: 'mod-imports',   group: 'Specialist', label: 'MOD Sites (CSV)',      icon: FileSpreadsheet, description: 'MOD only: bulk MOD child sites with kiosk logins under the MOD access policy.' },
+  { id: 'mod-equipment', group: 'Specialist', label: 'MOD Equipment & Readiness', icon: Dumbbell,   description: 'MOD only: per-site equipment and go-live checklist.' },
+  { id: 'mod-providers', group: 'Specialist', label: 'External Service Providers', icon: Truck,     description: 'Overseas / external service providers and their field engineers.' },
+  { id: 'staff',         group: 'Pulse staff', label: 'Onboard Pulse Staff', icon: UserPlus,        description: 'Pulse Fitness employees only — not customer logins. They set their own password from a 72 h invite link.' },
 ];
 
-const GROUPS = ['Manage', 'Customers', 'Team'];
+// Old tab ids and bookmarks → the consolidated screens.
+const REDIRECT = { site: 'import-centre', 'head-office': 'import-centre', 'sage-import': 'import-centre', imports: 'import-centre' };
+
+const GROUPS = ['Onboarding', 'Specialist', 'Pulse staff'];
 
 // Map a checklist step launched from a project to the relevant wizard tab.
 const STEP_TO_TAB = {
-  primary_site: 'site', sites: 'imports', site_hierarchy: 'head-office',
-  assets: 'imports', contacts: 'imports', members: 'imports', primary_users: 'site',
+  primary_site: 'import-centre', sites: 'import-centre', site_hierarchy: 'import-centre',
+  assets: 'import-centre', contacts: 'import-centre', members: 'import-centre', primary_users: 'activation',
 };
 
-const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initialTab = 'dashboard' }) => {
-  const [tab, setTab] = useState(TABS.some((t) => t.id === initialTab) ? initialTab : 'dashboard');
+const AdminOnboardingHub = ({ API: _api, isPulseAdmin = false, initialTab = 'dashboard' }) => {
+  const params = new URLSearchParams(window.location.search);
+  const want = REDIRECT[params.get('tab') || initialTab] || params.get('tab') || initialTab;
+  const [tab, setTab] = useState(TABS.some((t) => t.id === want) ? want : 'dashboard');
+  const [openJob, setOpenJob] = useState(null);
+  const openJobIn = (id) => { setOpenJob(id); setTab('import-centre'); };
   const [types, setTypes] = useState([]);
   const active = TABS.find((t) => t.id === tab) || TABS[0];
 
@@ -94,18 +103,20 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
       <p className="text-xs text-zinc-500" data-testid="onboarding-subtab-caption">{active.description}</p>
 
       {/* Active panel */}
-      {tab === 'dashboard'   && <OnboardingProjects types={types} onLaunchWizard={(stepKey) => setTab(STEP_TO_TAB[stepKey] || 'imports')} />}
-      {tab === 'reports'     && <OnboardingReports types={types} />}
-      {tab === 'site'        && <PulseOnboardingWizard onComplete={onComplete} />}
-      {tab === 'head-office' && <HeadOfficeOnboardingWizard onComplete={onComplete} />}
-      {tab === 'packets'     && <AdminOnboardingPackets />}
-      {tab === 'imports'     && <AdminBulkImports API={_api} />}
-      {tab === 'sage-import' && <SageSiconImport />}
-      {tab === 'mod-estate'  && <MODEstateWizard />}
-      {tab === 'mod-imports' && <MODBulkImport API={_api} />}
+      {tab === 'dashboard'     && <OnboardingDashboard go={setTab} />}
+      {tab === 'import-centre' && <ImportCentre key={openJob || 'ic'} initialType={params.get('type') || ''} initialOrg={params.get('org') || ''} openJobId={openJob} />}
+      {tab === 'projects'      && <OnboardingProjects types={types} onLaunchWizard={(stepKey) => setTab(STEP_TO_TAB[stepKey] || 'import-centre')} />}
+      {tab === 'review'        && <ReviewCentre onOpenJob={openJobIn} />}
+      {tab === 'activation'    && <CustomerActivation />}
+      {tab === 'history'       && <ImportHistory onOpenJob={openJobIn} />}
+      {tab === 'guidance'      && <TemplatesGuidance />}
+      {tab === 'reports'       && <OnboardingReports types={types} />}
+      {tab === 'packets'       && <AdminOnboardingPackets />}
+      {tab === 'mod-estate'    && <MODEstateWizard />}
+      {tab === 'mod-imports'   && <MODBulkImport API={_api} />}
       {tab === 'mod-equipment' && <MODSiteOnboarding />}
       {tab === 'mod-providers' && <ExternalServiceProviders />}
-      {tab === 'staff'       && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}
+      {tab === 'staff'         && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}
     </div>
   );
 };

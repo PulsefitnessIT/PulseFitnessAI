@@ -145,7 +145,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
     } catch (e) {
       const d = e?.response?.data?.detail;
       if (d && d.code === 'customer_match_required') setMatchCands(d.candidates || []);
-      else setErr(typeof d === 'string' ? d : (d?.message || 'Commit failed.'));
+      else setErr(typeof d === 'string' ? d : `${d?.message || 'Commit failed.'}${d?.suggestions ? ` Similar: ${d.suggestions.map((x) => x.name).join(', ')}` : ''}`);
     } finally { setBusy(false); }
   };
 

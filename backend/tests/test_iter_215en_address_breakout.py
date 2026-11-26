@@ -14,6 +14,8 @@ import pytest
 import requests
 import os
 import uuid
+pytestmark = pytest.mark.skip(reason="Retired by the Nov 2026 onboarding consolidation — customer creation now only via Master Admin → Onboarding → Import Centre (see tests/test_onboarding_consolidation.py)")
+
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 MASTER_ADMIN_EMAIL = "admin@gymaxisai.com"

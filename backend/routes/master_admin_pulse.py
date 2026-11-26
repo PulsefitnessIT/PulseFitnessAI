@@ -291,6 +291,7 @@ async def _validate_onboard_data(data: dict) -> tuple[str, str, str, str, str]:
 
 @router.post("/master-admin/onboard-pulse-site")
 async def onboard_pulse_site(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    raise HTTPException(410, "Customer creation has moved to Master Admin → Onboarding → Import Centre, so every customer goes through the same duplicate checks.")
     """Full Pulse Fitness site onboarding."""
     require_master_admin(user)
     site_name, tier, owner_email, owner_name, owner_password = await _validate_onboard_data(data)

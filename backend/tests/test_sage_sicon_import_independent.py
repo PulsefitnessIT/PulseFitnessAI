@@ -302,24 +302,13 @@ def test_legacy_onboarding_import(H):
     body = {"import_type": "customer_orgs", "send_welcome": True,
             "mapping": {"name": "Name", "primary_contact_email": "Email", "customer_account_number": "Acct"},
             "rows": [{"Name": "TEST Legacy Gym", "Email": email, "Acct": acct}]}
+    # Consolidation: legacy customer creation is closed — customers come only through the Import Centre.
     r = requests.post(f"{BASE}/api/onboarding/import/commit", headers=H, json=body, timeout=60)
-    assert r.status_code == 200 and r.json()["report"]["created"] == 1, r.text
-    org = db.organizations.find_one({"customer_account_number": acct}, {"_id": 0})
-    try:
-        assert org["onboarding_status"] == "pending_activation" and "primary_contact_initial_password" not in org
-        assert db.users.count_documents({"email": email}) == 0 and db.crm_users.count_documents({"email": email}) == 0
-        assert db.email_send_events.count_documents({"to": email}) == 0
-        # re-import with a different name but same account number -> matched, not duplicated
-        body["rows"][0]["Name"] = "TEST Legacy Gym Renamed"
-        r2 = requests.post(f"{BASE}/api/onboarding/import/commit", headers=H, json=body, timeout=60).json()["report"]
-        assert r2["created"] == 0 and r2["skipped"] == 1
-        assert db.organizations.count_documents({"customer_account_number": acct}) == 1
-    finally:
-        db.crm2_companies.delete_many({"linked_organization_id": org["id"]})
-        db.organizations.delete_one({"id": org["id"]})
+    assert r.status_code == 410, r.text
+    assert db.organizations.count_documents({"customer_account_number": acct}) == 0
+    assert db.users.count_documents({"email": email}) == 0 and db.email_send_events.count_documents({}) == before_emails
 
 
-# Rollback completeness: a Sicon job (and a Sage job onto an existing org) should undo the contacts it created
 def test_rollback_completeness_for_contacts(H):
     from tests.test_sage_sicon_customer_import import _sicon_csv
     db = _db()

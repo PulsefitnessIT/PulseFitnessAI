@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { X, MapPin, Loader2, Crown, Plus, Upload, Download, ChevronRight } from 'lucide-react';
 import SiteModulesOverride from '@/components/sites/SiteModulesOverride';
@@ -42,7 +42,6 @@ const OrgSitesPanel = ({ org, onClose }) => {
   const [newSite, setNewSite] = useState({ name: '', address_line1: '', city: '', county: '', postcode: '', country: 'United Kingdom', phone: '', email: '', site_manager_email: '', is_head_office: false });
   const [csvBusy, setCsvBusy] = useState(false);
   const [csvPreview, setCsvPreview] = useState(null); // { sites: [], errors: [] }
-  const fileRef = useRef(null);
 
   const loadSites = async () => {
     setLoading(true);
@@ -165,21 +164,7 @@ const OrgSitesPanel = ({ org, onClose }) => {
     }
   };
 
-  const onCsvSelected = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setCsvBusy(true);
-    try {
-      const fd = new FormData(); fd.append('file', file);
-      const r = await axios.post(`${API}/master-admin/sites/preview-csv`, fd, { headers: authHeaders() });
-      setCsvPreview(r.data);
-    } catch (err) {
-      notifyApiError(notify, err, 'CSV parse failed');
-    } finally {
-      setCsvBusy(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
+
 
   const commitCsv = async () => {
     if (!csvPreview?.sites?.length) return;
@@ -227,10 +212,11 @@ const OrgSitesPanel = ({ org, onClose }) => {
           >
             <Download size={11} /> CSV template
           </button>
-          <label className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-md border bg-white text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer">
-            <Upload size={11} /> Import CSV
-            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={onCsvSelected} data-testid={`org-sites-csv-input-${org.id}`} />
-          </label>
+          <a href={`/master-admin?section=onboarding&tab=import-centre&type=sites&org=${org.id}`}
+            className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-md border bg-white text-blue-700 border-blue-200 hover:bg-blue-50"
+            data-testid={`org-sites-import-link-${org.id}`} title="Opens the Import Centre with this customer selected">
+            <Upload size={11} /> Import sites
+          </a>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 ml-1"><X size={16} /></button>
         </div>
       </div>

@@ -757,6 +757,19 @@ async def commit(import_id: str, data: dict = Body(default={}), user=Depends(req
         raise
 
 
+async def _shared_customer(name: str, ref: str, user: dict, data: dict) -> str:
+    """Estate onboarding uses the same customer identity service as the Import Centre (no duplicate customers)."""
+    from utils import customer_identity as CI
+    try:
+        org_id, _ = await CI.provision_customer_org({"name": name}, source="afs_estate_onboarding", actor=user.get("email"),
+                                                    ref=ref, confirmed_new=bool(data.get("confirm_new_customer") or data.get("create_new_customer")))
+    except CI.DuplicateSuspected as e:
+        raise HTTPException(409, {"message": "This customer may already exist. Pick the existing customer, or confirm it is new.",
+                                  "suggestions": e.suggestions})
+    await CI.mark_complete(org_id)
+    return org_id
+
+
 async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op_org):
     grouping = doc.get("grouping", "per_site")
     now = datetime.now(timezone.utc)
@@ -768,19 +781,11 @@ async def _do_commit(import_id, doc, rows, customer, company, data, user, of, op
         customer = company.get("name") or customer
         cust_org_id = company.get("linked_organization_id")
         if not cust_org_id:
-            cust_org_id = _id()
-            await db.organizations.insert_one({
-                "id": cust_org_id, "name": customer, "account_type": "lite",
-                "enabled_modules": ["operations"], "created_via": "afs_estate_onboarding",
-                "created_at": _now(), "updated_at": _now()})
+            cust_org_id = await _shared_customer(customer, company.get("account_number") or "", user, data)
             await db.crm2_companies.update_one({"id": crm_company_id}, {"$set": {
                 "linked_organization_id": cust_org_id, "updated_at": _now()}})
     else:
-        cust_org_id = _id()
-        await db.organizations.insert_one({
-            "id": cust_org_id, "name": customer, "account_type": "lite",
-            "enabled_modules": ["operations"], "created_via": "afs_estate_onboarding",
-            "created_at": _now(), "updated_at": _now()})
+        cust_org_id = await _shared_customer(customer, data.get("account_ref") or "", user, data)
         crm_company_id = _id()
         await db.crm2_companies.insert_one({
             "id": crm_company_id, "organization_id": op_org, "name": customer,

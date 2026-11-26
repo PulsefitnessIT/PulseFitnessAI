@@ -239,6 +239,7 @@ class TestBulkImportEquipmentRowErrors:
         assert isinstance(data["error_count"], int), "error_count must be an integer"
 
 
+@pytest.mark.skip(reason="bulk-import/customers retired (customers: Import Centre only)")
 class TestBulkImportCustomersRowErrors:
     """
     P1: POST /api/master-admin/bulk-import/customers must return row-level

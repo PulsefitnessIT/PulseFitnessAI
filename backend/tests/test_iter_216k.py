@@ -366,6 +366,7 @@ class TestInviteLink:
         print(f"✓ Invite link returned: {invite_url[:80]}...")
 
 
+@pytest.mark.skip(reason="onboard-head-office retired by onboarding consolidation")
 class TestOnboardHeadOffice:
     """Test POST /api/master-admin/onboard-head-office."""
 
