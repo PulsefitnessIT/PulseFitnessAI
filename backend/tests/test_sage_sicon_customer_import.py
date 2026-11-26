@@ -18,10 +18,17 @@ BASE = open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].spli
 API = f"{BASE}/api/master-admin/customer-import"
 
 
+_DB = None
+
+
 def _db():
-    from pymongo import MongoClient
-    env = dict(line.split("=", 1) for line in open("/app/backend/.env").read().splitlines() if "=" in line)
-    return MongoClient(env["MONGO_URL"].strip('"'))[env["DB_NAME"].strip('"')]
+    """One shared client for the whole test session (a client per call exhausted mongod connections)."""
+    global _DB
+    if _DB is None:
+        from pymongo import MongoClient
+        env = dict(line.split("=", 1) for line in open("/app/backend/.env").read().splitlines() if "=" in line)
+        _DB = MongoClient(env["MONGO_URL"].strip('"'))[env["DB_NAME"].strip('"')]
+    return _DB
 
 
 def _token(email):

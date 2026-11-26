@@ -12,7 +12,8 @@ OP = "3ece2d0c-57ea-4acd-a6b4-d748478ed117"  # Pulse operator company (multi-cus
 
 
 def test_release_ab_identity():
-    asyncio.run(_run())
+    from tests.shared_loop import run_async
+    run_async(_run())
 
 
 class FakeSicon:

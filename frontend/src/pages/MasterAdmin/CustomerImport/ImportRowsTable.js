@@ -57,8 +57,8 @@ const RowControls = ({ r, decide, locked }) => {
       {o.conflicts && Object.keys(o.conflicts).length > 0 && (
         <label className="flex items-center gap-1"><input type="checkbox" checked={!!d.apply_changes} onChange={(e) => decide({ apply_changes: e.target.checked })} data-testid={`ci-row-apply-${r.row}`} />Apply changes</label>
       )}
-      {o.category === 'possible_existing_customer' && (
-        <select className="border rounded px-1 py-0.5" value="" onChange={(e) => decide(e.target.value === '__new__' ? { confirm_new: true } : { link_org_id: e.target.value })} data-testid={`ci-row-reconcile-${r.row}`}>
+      {(o.category === 'possible_existing_customer' || (o.category === 'reconcile_existing_customer' && o.candidates)) && (
+        <select className="border rounded px-1 py-0.5" value={d.link_org_id || ''} onChange={(e) => decide(e.target.value === '__new__' ? { confirm_new: true } : { link_org_id: e.target.value })} data-testid={`ci-row-reconcile-${r.row}`}>
           <option value="" disabled>Existing customer?</option>
           {(o.candidates || []).map((c) => <option key={c.id} value={c.id}>Link to {c.name} (keeps its ID)</option>)}
           <option value="__new__">No — create a new customer</option>

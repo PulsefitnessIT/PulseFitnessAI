@@ -337,8 +337,9 @@ async def _evaluate_sage(job: dict, rows: list[dict]) -> None:
                 o.update(category="branch_merged_into_head_office", org_id=rel.get("head_office_org_id"))
             elif d.get("link_org_id"):
                 ex = await db.organizations.find_one({"id": d["link_org_id"]}, {"_id": 0, "name": 1})
+                cands = {c["id"]: c for c in (manual_ref.get(ref) or []) + (unref.get(CI.norm_name(rec["org"]["name"])) or [])}
                 o.update(category="reconcile_existing_customer", org_id=d["link_org_id"], org_name=(ex or {}).get("name"),
-                         action="" if ex else "The chosen customer no longer exists")
+                         candidates=list(cands.values())[:8], action="" if ex else "The chosen customer no longer exists")
                 if not ex:
                     o["category"] = "ambiguous_organisation"
             elif not d.get("confirm_new") and (manual_ref.get(ref) or unref.get(CI.norm_name(rec["org"]["name"]))):
@@ -479,7 +480,7 @@ async def _job_view(job_id: str) -> dict:
     p = job.get("preview") or {}
     job["summary"] = {
         "new_lite_organisations": p.get("new_customer_organisation", 0),
-        "existing_organisations": p.get("existing_update_proposed", 0) + p.get("existing_unchanged", 0),
+        "existing_organisations": p.get("existing_update_proposed", 0) + p.get("existing_unchanged", 0) + p.get("reconcile_existing_customer", 0),
         "existing_paid_preserved": await db.customer_import_rows.count_documents({"job_id": job_id, "outcome.paid_preserved": True}),
         "branches_merged": p.get("branch_merged_into_head_office", 0),
         "contacts_to_create": p.get("new_business_contact", 0) + (await db.customer_import_rows.count_documents(
@@ -1524,7 +1525,8 @@ async def sicon_link_migration_apply(user: dict = Depends(get_current_user)):
         r = await db.sicon_external_links.update_one(
             {"integration_source": "sicon", "external_entity_type": it["external_entity_type"], "external_id": it["external_id"],
              "organization_id": it["organization_id"], "source_company": {"$exists": False}},
-            {"$set": {"source_company": it["source_company"], "scoped_at": _now(), "scoped_by": user.get("email")}})
+            {"$set": {"source_company": it["source_company"], "scoped_at": _now(), "scoped_by": user.get("email")},
+             "$unset": {"migration_status": "", "migration_reason": ""}})
         done += r.modified_count
     for it in p["needs_review"]:
         await db.sicon_external_links.update_one(
@@ -1596,3 +1598,13 @@ async def sage_internal(org_id: str, user: dict = Depends(get_current_user)):
     if not _can_see_confidential(user):
         raise HTTPException(403, "You need the 'See confidential Sage finance / credit fields' permission")
     return {"records": [r async for r in db.customer_account_internal.find({"org_id": org_id}, {"_id": 0})]}
+
+
+
+@router.get("/config")
+async def import_config(user: dict = Depends(get_current_user)):
+    """Default Sage company for uploads = the company the live Sicon connection belongs to, so file imports and
+    direct Sicon/Sage retrieval resolve to the same customers."""
+    _require_admin(user, "imports.prepare")
+    import os
+    return {"default_sage_company": (os.environ.get("SICON_SAGE_COMPANY") or "").strip()}

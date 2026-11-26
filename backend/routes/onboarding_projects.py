@@ -22,10 +22,20 @@ from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
 from utils.database import db
-from routes.pulse_master_admin import _require_pulse_or_master, MASTER_ADMIN_EMAIL, PULSE_ROLE
+from routes.pulse_master_admin import _require_pulse_or_master as _base_require, MASTER_ADMIN_EMAIL, PULSE_ROLE
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _require_pulse_or_master(user: dict) -> None:
+    """Pulse admins, or Service Desk agents who are Pulse staff. Onboarding projects hold every customer's data, so a
+    customer tenant's own service-desk user must never read them."""
+    _base_require(user)
+    if user.get("is_service_desk") and not (user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin")
+                                            or user.get("role") == PULSE_ROLE or user.get("is_pulse_admin")
+                                            or user.get("is_pulse_staff")):
+        raise HTTPException(status_code=403, detail="Pulse Fitness staff access required")
 
 
 def _require_admin_no_desk(user: dict) -> None:

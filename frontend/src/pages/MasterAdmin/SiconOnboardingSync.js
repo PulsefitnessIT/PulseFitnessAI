@@ -97,6 +97,8 @@ export default function SiconOnboardingSync({ API, headers }) {
           {shown.retrieved && (
             <p className="text-[11px] text-zinc-500" data-testid="sicon-sync-retrieved">
               Retrieved: {Object.entries(shown.retrieved).map(([k, v]) => `${k} ${v.records} records / ${v.pages} pages`).join(' · ')}
+              {shown.counts?.equipment?.held_no_customer ? ` · ${shown.counts.equipment.held_no_customer} equipment held (customer not found)` : ''}
+              {Object.values(shown.counts || {}).reduce((n, c) => n + (c?.changed_since_preview || 0), 0) ? ` · ${Object.values(shown.counts || {}).reduce((n, c) => n + (c?.changed_since_preview || 0), 0)} changed since preview (in review)` : ''}
               {shown.sage_company ? ` · Sage company ${shown.sage_company}` : ''}{shown.source_company ? ` · Sicon company ${shown.source_company}` : ''}
             </p>
           )}

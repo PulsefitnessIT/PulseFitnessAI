@@ -33,7 +33,8 @@ class Pager:
 
 
 def test_large_estate_sync():
-    asyncio.run(_run())
+    from tests.shared_loop import run_async
+    run_async(_run())
 
 
 async def _run():

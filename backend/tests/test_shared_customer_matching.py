@@ -6,7 +6,8 @@ from utils.database import db
 
 
 def test_sicon_and_afs_use_shared_identity():
-    asyncio.run(_run())
+    from tests.shared_loop import run_async
+    run_async(_run())
 
 
 async def _run():

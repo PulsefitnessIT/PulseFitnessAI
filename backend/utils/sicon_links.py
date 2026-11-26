@@ -50,7 +50,7 @@ async def connection_company(organization_id: Optional[str]) -> Optional[str]:
     if not cid:
         from routes.integrations import get_integration_config
         integ = await get_integration_config("sicon") or {}
-        creds = integ.get("credentials") if isinstance(integ.get("credentials"), dict) else {}
+        creds = integ.get("credentials") if isinstance(integ.get("credentials"), dict) and integ.get("enabled") else {}
         cid = creds.get("company_id") or os.environ.get("SICON_COMPANY_ID")
     val = str(cid).strip() if cid not in (None, "", 0, "0") else None
     _COMPANY_CACHE[organization_id] = (val, datetime.now(timezone.utc).timestamp())
@@ -72,11 +72,10 @@ def _base(external_entity_type: str, external_id: str) -> Dict[str, Any]:
 async def _find(external_entity_type: str, external_id: str, organization_id: Optional[str],
                 source_company: Optional[str]) -> Optional[Dict[str, Any]]:
     base = _base(external_entity_type, external_id)
-    company = source_company or await connection_company(organization_id)
-    if company:
-        d = await db.sicon_external_links.find_one({**base, "source_company": company}, {"_id": 0})
-        if d:
-            return d
+    company = source_company or await connection_company(organization_id) or "unscoped"
+    d = await db.sicon_external_links.find_one({**base, "source_company": company}, {"_id": 0})
+    if d:
+        return d
     # Legacy (pre-scoping) links are only honoured for the organisation that created them, until migrated.
     q = {**base, "source_company": {"$exists": False}}
     if organization_id:
@@ -104,15 +103,15 @@ async def get_pulse_id(external_entity_type: str, external_id: str,
 async def _key_for_write(external_entity_type: str, external_id: str, organization_id: Optional[str],
                          source_company: Optional[str]) -> Dict[str, Any]:
     base = _base(external_entity_type, external_id)
-    company = source_company or await connection_company(organization_id)
-    if company and await db.sicon_external_links.find_one({**base, "source_company": company}, {"_id": 1}):
+    company = source_company or await connection_company(organization_id) or "unscoped"
+    if await db.sicon_external_links.find_one({**base, "source_company": company}, {"_id": 1}):
         return {**base, "source_company": company}
     legacy = {**base, "source_company": {"$exists": False}}
     if organization_id:
         legacy["organization_id"] = organization_id
     if await db.sicon_external_links.find_one(legacy, {"_id": 1}):
         return legacy  # keep using the legacy link (no duplicate) until the audited migration scopes it
-    return {**base, "source_company": company} if company else {**base, "source_company": "unscoped"}
+    return {**base, "source_company": company}
 
 
 async def upsert_link(external_entity_type: str, external_id: str,
@@ -127,8 +126,8 @@ async def upsert_link(external_entity_type: str, external_id: str,
     now = _now()
     key = await _key_for_write(external_entity_type, external_id, organization_id, source_company)
     existing = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1, "sync_status": 1})
-    if not reassign and pulse_entity_id and sync_status == "linked" and existing and existing.get("pulse_entity_id") \
-            and existing["pulse_entity_id"] != str(pulse_entity_id) and existing.get("sync_status") == "linked":
+    if not reassign and pulse_entity_id and existing and existing.get("pulse_entity_id") \
+            and existing["pulse_entity_id"] != str(pulse_entity_id):
         await db.sicon_external_links.update_one(key, {"$set": {"sync_status": "conflict", "last_synced_at": now,
                                                                 "status_reason": f"Also claimed by {pulse_entity_type} {pulse_entity_id}"}})
         logger.warning("sicon link %s/%s already linked to %s; not reassigned", external_entity_type, external_id,

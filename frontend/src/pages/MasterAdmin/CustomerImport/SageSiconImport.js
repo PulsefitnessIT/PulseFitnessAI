@@ -30,6 +30,10 @@ export default function SageSiconImport({ fixedMode = null, initialFileId = null
   const [mode, setMode] = useState(fixedMode || 'sage_accounts');
   const [job, setJob] = useState(null);
   const [company, setCompany] = useState('');
+  useEffect(() => {
+    axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/master-admin/customer-import/config`, { headers })
+      .then((r) => setCompany((c) => c || r.data.default_sage_company || '')).catch(() => {});
+  }, [headers]);
   const [ov, setOv] = useState({});
   const [history, setHistory] = useState([]);
   const [tick, setTick] = useState(0);
@@ -74,8 +78,8 @@ export default function SageSiconImport({ fixedMode = null, initialFileId = null
         <p className="text-xs text-zinc-500 flex items-start gap-1.5"><Info size={13} className="mt-0.5 shrink-0" />
           Importing never creates logins, sends emails or switches on paid products. New customers get Pulse Fitness LITE and stay
           “awaiting activation” until you invite named people.</p>
-        <label className="text-xs text-zinc-600 flex items-center gap-2">Sage company code (only if you run more than one Sage company)
-          <input className="border rounded px-2 py-1 w-28 uppercase" maxLength={12} value={company} onChange={(e) => setCompany(e.target.value)} data-testid="ci-company-input" />
+        <label className="text-xs text-zinc-600 flex items-center gap-2">Sage company these accounts belong to
+          <input className="border rounded px-2 py-1 w-48 uppercase" maxLength={40} value={company} onChange={(e) => setCompany(e.target.value)} data-testid="ci-company-input" />
         </label>
         <AfsDocumentUploader c={C} accept=".xls,.xlsx,.csv" typesLabel="XLS, XLSX or CSV" maxMb={50} onUploaded={onUploaded} testId="ci-upload" />
       </Card>
