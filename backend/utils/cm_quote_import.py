@@ -87,9 +87,8 @@ async def extract_document(pdf: bytes, doc_type: str) -> dict:
         raise HTTPException(422, "The document has no readable pages.")
     short: list = []
     results = list(await asyncio.gather(*jobs))
-    expected_re = re.compile(r"\b(?:qty|quantity)\b", re.I)
     for i, sec in enumerate(doc["sections"]):
-        want = sum(1 for t in sec["text"].splitlines() if expected_re.search(t))
+        want = sum(1 for t in sec["text"].splitlines() if _QTY.search(t))
         got = len((results[i][1] or {}).get("lines") or [])
         if want and got < want:  # AI dropped lines → re-read this part in halves once
             ls = sec["text"].splitlines()
@@ -162,7 +161,9 @@ def verify_quantities(lines: list, pdf: bytes) -> list:
             if _QTY_LABEL.search(hit[2]):  # "Qty two", "Qty -" — a quantity is printed but unreadable
                 ln["quantity_ai"], ln["quantity"], ln["qty_validation"] = ai, None, "invalid"
                 continue
-            nums = re.findall(r"(?<![\w.£,-])(\d{1,4})(?![\w.,%])", hit[2])
+            body = re.sub(r"^\s*\d{1,4}[.)]?\s+", "", hit[2])  # drop a leading row number
+            ident = " ".join(str(ln.get(k) or "") for k in ("model", "item_code", "description"))
+            nums = [n for n in re.findall(r"(?<![\w.£,-])(\d{1,4})(?![\w.,%])", body) if n not in set(re.findall(r"\d+", ident))]
             if ai is not None and str(ai).isdigit() and str(int(ai)) in nums:
                 ln["qty_validation"] = "column_match"  # unlabelled quantity column contains the same number
             else:

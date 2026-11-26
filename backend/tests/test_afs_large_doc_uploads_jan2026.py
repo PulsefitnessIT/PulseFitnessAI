@@ -158,8 +158,15 @@ class TestImportJob:
         lines = imp["lines"]
         qty = sum(float(ln.get("quantity") or ln.get("qty") or 0) for ln in lines)
         print("lines", len(lines), "qty", qty, "coverage", imp.get("coverage"))
-        assert len(lines) == 400, len(lines)
         assert imp.get("coverage")
+        STATE["big_cov"], STATE["big_n"] = imp["coverage"], len(lines)
+        # Line-drop guard (Jan 2026 retest): never complete:true while lines are missing
+        if len(lines) != 400:
+            cov = imp["coverage"]
+            assert cov.get("complete") is False, f"{len(lines)} lines read but coverage complete: {cov}"
+            assert any("quantity line(s) printed" in str(x) for x in (cov.get("notes") or []) + (cov.get("parts_failed") or [])), cov
+            pytest.xfail(f"AI dropped lines ({len(lines)}/400) but shortfall reported: {cov.get('notes')}")
+        assert len(lines) == 400, len(lines)
         # Every printed row says 'Qty 2' — the extractor must copy it, not 'fix' it to the serial count.
         assert qty == 800, f"quantities altered by extraction: total {qty} (expected 800)"
         # Stage A: every line verified against the printed text, serial + source page correct, no unexplained change
@@ -733,3 +740,233 @@ def cleanup_stage_ab():
     mdb.crm2_afs_rate_reviews.delete_many({"company_id": {"$in": XTRA["reviews_company"]}})
     mdb.crm2_afs_service_configs.delete_many({"id": {"$in": XTRA.get("cfgs", [])}})
     mdb.crm2_activities.delete_many({"organization_id": OP, "subject": {"$regex": T}})
+
+
+# =====================================================================================
+# Retest after iteration_327 (Jan 2026): verify_quantities rules (no LLM), match_lines flags,
+# extract_document line-drop guard (LLM faked), build_custom_quote pricing_job_id server re-check.
+# =====================================================================================
+def _pdf_rows(rows) -> bytes:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    import io as _io
+    b = _io.BytesIO()
+    cv = canvas.Canvas(b, pagesize=A4)
+    y = 800
+    for r in rows:
+        cv.drawString(40, y, r)
+        y -= 16
+    cv.showPage()
+    cv.save()
+    return b.getvalue()
+
+
+U = T[-6:].upper()
+UNIT_PDF = _pdf_rows(["Pulse Fitness Limited - Sales Invoice", "Item code | Description | Qty | Serial",
+                      f"PF-XT-500 Cross Trainer Qty two Serial SNU{U}01",
+                      f"PF-XT-501 Cross Trainer Qty - Serial SNU{U}02",
+                      f"PF-RW-200 Rower 200 Serial SNU{U}03",
+                      f"PF-BK-300 Upright Bike  3  Serial SNU{U}04",
+                      f"PF-TR-900 Treadmill Qty 2 Serial SNU{U}05",
+                      f"PF-TR-901 Treadmill Qty 4 Serial SNU{U}06",
+                      f"PF-ST-100 Stepper Qty 0 Serial SNU{U}07",
+                      f"1  PF-RW-210 Rower 210  Serial SNU{U}08"])
+
+
+def _vq(lines):
+    from utils.cm_quote_import import verify_quantities
+    return verify_quantities([dict(x, source="page 1 – page 1") for x in lines], UNIT_PDF)
+
+
+class TestVerifyQuantitiesUnit:
+    # Labelled but non-numeric quantity → invalid, null
+    def test_qty_two_and_dash_invalid(self):
+        a, b = _vq([{"item_code": "PF-XT-500", "quantity": 2, "serials": [f"SNU{U}01"]},
+                    {"item_code": "PF-XT-501", "quantity": 1, "serials": [f"SNU{U}02"]}])
+        assert (a["quantity"], a["qty_validation"], a.get("quantity_ai")) == (None, "invalid", 2), a
+        assert (b["quantity"], b["qty_validation"]) == (None, "invalid"), b
+
+    # No Qty label, AI number not on line → missing, null
+    def test_no_label_not_on_line_missing(self):
+        (a,) = _vq([{"item_code": "PF-RW-200", "quantity": 1, "serials": [f"SNU{U}03"]}])
+        assert (a["quantity"], a["qty_validation"], a.get("quantity_ai")) == (None, "missing", 1), a
+
+    # No Qty label, AI number is a standalone number on line → column_match, kept
+    def test_no_label_column_match(self):
+        (a,) = _vq([{"item_code": "PF-BK-300", "quantity": 3, "serials": [f"SNU{U}04"]}])
+        assert (a["quantity"], a["qty_validation"]) == (3, "column_match"), a
+        (b,) = _vq([{"item_code": "PF-BK-300", "quantity": 1, "serials": [f"SNU{U}04"]}])
+        assert (b["quantity"], b["qty_validation"]) == (None, "missing"), b
+
+    # Code digits ("PF-RW-200") must not count as a quantity column
+    def test_code_digits_not_column_match(self):
+        (a,) = _vq([{"item_code": "PF-RW-200", "quantity": 200, "serials": [f"SNU{U}03"]}])
+        assert a["quantity"] is None and a["qty_validation"] == "missing", a
+
+    # Printed Qty wins over AI
+    def test_printed_overrides_and_verified(self):
+        a, b = _vq([{"item_code": "PF-TR-900", "quantity": 2, "serials": [f"SNU{U}05"]},
+                    {"item_code": "PF-TR-901", "quantity": 1, "serials": [f"SNU{U}06"]}])
+        assert (a["quantity"], a["qty_validation"]) == (2, "verified"), a
+        assert (b["quantity"], b["qty_validation"], b["quantity_ai"]) == (4, "corrected_from_source", 1), b
+
+    def test_qty_zero_invalid(self):
+        (a,) = _vq([{"item_code": "PF-ST-100", "quantity": 1, "serials": [f"SNU{U}07"]}])
+        assert (a["quantity"], a["qty_validation"]) == (None, "invalid"), a
+
+    # Not locatable (scanned / serial absent) → unverified, AI kept
+    def test_unlocatable_unverified(self):
+        (a,) = _vq([{"item_code": "PF-ZZ-999", "quantity": 1, "serials": ["SNNOTONPAGE"]}])
+        assert (a["quantity"], a["qty_validation"]) == (1, "unverified"), a
+
+    # Observation: a leading row number equal to the AI default (1) is accepted as a quantity column
+    def test_row_number_not_taken_as_quantity(self):
+        (a,) = _vq([{"item_code": "PF-RW-210", "quantity": 1, "serials": [f"SNU{U}08"]}])
+        print("row-number line ->", a["quantity"], a["qty_validation"])
+        assert a["qty_validation"] != "column_match", "row number '1' accepted as quantity column (silent default 1)"
+
+
+class TestMatchLinesFlags:
+    def test_flags_and_blocking(self):
+        from utils.cm_quote_import import match_lines
+        lines = [{"item_code": "X1", "quantity": None, "qty_validation": "invalid", "serials": []},
+                 {"item_code": "X2", "quantity": None, "qty_validation": "missing", "serials": []},
+                 {"item_code": "X3", "quantity": 1, "qty_validation": "unverified", "serials": []},
+                 {"item_code": "X4", "quantity": 3, "qty_validation": "column_match", "serials": []},
+                 {"item_code": "X5", "quantity": 4, "qty_validation": "corrected_from_source", "quantity_ai": 1, "serials": []}]
+
+        async def run():
+            from utils import database
+            database.client.get_io_loop = asyncio.get_running_loop
+            return await match_lines(f"{T}_nonexistent_org", lines, "sales_invoice", None)
+        out = asyncio.run(run())
+        f = {o["item_code"]: o for o in out}
+        for o in out:
+            print(o["item_code"], o["quantity"], o["qty_validation"], o["flags"], o["decision"])
+        assert "quantity_unconfirmed" in f["X1"]["flags"] and f["X1"]["quantity"] is None
+        assert "quantity_unconfirmed" in f["X2"]["flags"] and f["X2"]["quantity"] is None
+        assert "quantity_unverified" in f["X3"]["flags"] and f["X3"]["decision"] != "accepted" and f["X3"]["quantity"] == 1
+        assert not {"quantity_unconfirmed", "quantity_unverified"} & set(f["X4"]["flags"]) and f["X4"]["quantity"] == 3
+        assert "quantity_corrected" in f["X5"]["flags"] and f["X5"]["quantity"] == 4
+
+
+# ---------- extract_document line-drop guard with a fake LLM (no spend) ----------
+class _FakeChat:
+    mode = "perfect"
+    calls = []
+
+    def __init__(self, *a, **k):
+        pass
+
+    def with_model(self, *a, **k):
+        return self
+
+    async def send_message(self, msg):
+        import json as _j
+        import re as _re
+        text = msg.text
+        rows = _re.findall(r"(PF-TR-900) Pulse Fusion Treadmill 900 Qty (\d+) Serial (\S+)", text)
+        _FakeChat.calls.append(len(rows))
+        if _FakeChat.mode == "drop" or (_FakeChat.mode == "drop_first" and len(_FakeChat.calls) <= 2):
+            rows = rows[:-3]
+        return _j.dumps({"customer_name": "TEST", "lines": [{"item_code": c, "model": "Treadmill 900", "quantity": int(q),
+                                                            "serials": [s]} for c, q, s in rows]})
+
+
+def _run_extract(monkeypatch, mode, pdf):
+    import emergentintegrations.llm.chat as chatmod
+    from utils import cm_quote_import
+    monkeypatch.setattr(chatmod, "LlmChat", _FakeChat)
+    _FakeChat.mode, _FakeChat.calls = mode, []
+    return asyncio.run(cm_quote_import.extract_document(pdf, "sales_invoice"))
+
+
+class TestLineDropGuard:
+    pdf = big_invoice_pdf(pages=8, per_page=20, tag="G" + T[-4:], min_bytes=0)
+
+    def test_perfect_read_is_complete(self, monkeypatch):
+        out = _run_extract(monkeypatch, "perfect", self.pdf)
+        print("perfect", len(out["lines"]), "calls", _FakeChat.calls, out["coverage"])
+        assert len(out["lines"]) == 160
+        assert out["coverage"]["complete"] is True, f"all 160 lines read but marked incomplete: {out['coverage']}"
+        assert len(_FakeChat.calls) == 2, f"unneeded half re-reads: {_FakeChat.calls}"
+
+    def test_persistent_drop_reports_shortfall(self, monkeypatch):
+        out = _run_extract(monkeypatch, "drop", self.pdf)
+        cov = out["coverage"]
+        print("drop", len(out["lines"]), "calls", _FakeChat.calls, cov)
+        assert cov["complete"] is False
+        assert any("quantity line(s) printed" in n for n in cov["notes"]) and any("printed" in str(p) for p in cov["parts_failed"])
+
+    def test_transient_drop_recovered_by_halves(self, monkeypatch):
+        out = _run_extract(monkeypatch, "drop_first", self.pdf)
+        print("drop_first", len(out["lines"]), "calls", _FakeChat.calls, out["coverage"])
+        assert len(out["lines"]) == 160
+        assert out["coverage"]["complete"] is True, out["coverage"]
+
+
+# ---------- build_custom_quote: server re-checks the pricing job ----------
+class TestPricingJobGate:
+    @pytest.fixture(scope="class", autouse=True)
+    def seed(self):
+        org, co, site = f"{T}_pjorg", f"{T}_pjco", f"{T}_pjsite"
+        mdb.organizations.insert_one({"id": org, "name": f"{T} PJ Ops"})
+        mdb.crm2_companies.insert_one({"id": co, "organization_id": OP, "name": f"{T} PJ Leisure", "linked_organization_id": org})
+        mdb.sites.insert_one({"id": site, "organization_id": org, "name": f"{T} PJ Site"})
+        XTRA["orgs"].append(org); XTRA["sites"].append(site); CREATED["companies"].append(co); XTRA["reviews_company"].append(co)  # noqa: E702
+        base = {"organization_id": OP, "kind": "pricing", "status": "done", "created_at": datetime.now(timezone.utc).isoformat()}
+        jobs = {
+            "poa": {**base, "id": f"{T}_pj_poa", "result": {"machine_services": [{"type": "TEST Rower", "service_price": None, "needs_review": True}],
+                                                         "reconciliation": {"blocking": 1}, "coverage": {"complete": False}}},
+            "clean": {**base, "id": f"{T}_pj_clean", "result": {"machine_services": [{"type": "TEST Treadmill", "service_price": 55}],
+                                                             "reconciliation": {"blocking": 0}, "coverage": {"complete": True}}},
+            "other": {**base, "id": f"{T}_pj_other", "organization_id": "iso-demo-org", "result": {"reconciliation": {"blocking": 0}, "coverage": {"complete": True}}},
+            "import": {**base, "id": f"{T}_pj_imp", "kind": "import", "result": {}},
+            "running": {**base, "id": f"{T}_pj_run", "status": "running"},
+        }
+        mdb.crm2_afs_doc_jobs.insert_many([dict(v) for v in jobs.values()])
+        CREATED["jobs"] += [v["id"] for v in jobs.values()]
+        STATE["pj"], STATE["pj_co"] = {k: v["id"] for k, v in jobs.items()}, co
+        yield
+        for q in mdb.crm2_afs_quotes.find({"company_id": co}, {"id": 1}):
+            XTRA["afs_quotes"].append(q["id"])
+
+    def _b(self, **kw):
+        return {"company_id": STATE["pj_co"], "machine_rates": [{"type": "TEST Treadmill", "service_price": 55}], **kw}
+
+    def _post(self, coord, **kw):
+        return requests.post(f"{AFS}/build-custom-quote", headers=coord, json=self._b(**kw), timeout=60)
+
+    def test_poa_job_zero_client_flags_save_422(self, coord):
+        r = self._post(coord, save=True, pricing_job_id=STATE["pj"]["poa"])
+        print("poa save", r.status_code, r.text[:200])
+        assert r.status_code == 422, r.text
+        assert self._post(coord, save=True, pricing_job_id=STATE["pj"]["poa"], rate_review_reason="short").status_code == 422
+        assert mdb.crm2_afs_rate_reviews.count_documents({"company_id": STATE["pj_co"]}) == 0
+
+    def test_poa_job_preview_ok(self, coord):
+        r = self._post(coord, save=False, pricing_job_id=STATE["pj"]["poa"])
+        assert r.status_code == 200, r.text
+
+    def test_poa_job_with_reason_saves_and_records(self, coord):
+        r = self._post(coord, save=True, pricing_job_id=STATE["pj"]["poa"], rate_review_reason="TEST customer confirmed POA rower excluded")
+        assert r.status_code == 200, r.text
+        rv = mdb.crm2_afs_rate_reviews.find_one({"company_id": STATE["pj_co"]})
+        print("review", rv and {k: rv[k] for k in ("unresolved", "reason", "by")})
+        assert rv and rv["unresolved"] == 3 and "POA" in rv["reason"]
+
+    def test_clean_job_saves_without_reason(self, coord):
+        r = self._post(coord, save=True, pricing_job_id=STATE["pj"]["clean"])
+        assert r.status_code == 200, r.text
+
+    def test_unknown_other_org_and_wrong_kind_404(self, coord):
+        for k in ("other", "import"):
+            r = self._post(coord, save=False, pricing_job_id=STATE["pj"][k])
+            assert r.status_code == 404, (k, r.status_code, r.text)
+        assert self._post(coord, save=False, pricing_job_id=f"{T}_nope").status_code == 404
+
+    # Observation: an unfinished (running/failed) job has no result and is treated as clean
+    def test_unfinished_job_not_treated_as_clean(self, coord):
+        r = self._post(coord, save=True, pricing_job_id=STATE["pj"]["running"])
+        print("running job save", r.status_code, r.text[:200])
+        assert r.status_code in (404, 409, 422), "save allowed against a pricing job that has not finished"

@@ -1470,9 +1470,11 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(require_crm_perm(
         raise HTTPException(404, "Company not found")
     unresolved = sum(1 for x in body.machine_rates + body.travel_rates + body.repair_rates if x.get("needs_review")) + (body.source_blocking or 0)
     if body.pricing_job_id:  # trust the server's own extraction result, not client flags
-        job = await db.crm2_afs_doc_jobs.find_one({"id": body.pricing_job_id, "organization_id": _org(user), "kind": "pricing"}, {"_id": 0, "result": 1})
+        job = await db.crm2_afs_doc_jobs.find_one({"id": body.pricing_job_id, "organization_id": _org(user), "kind": "pricing"}, {"_id": 0, "result": 1, "status": 1})
         if not job:
             raise HTTPException(404, "Pricing extraction not found")
+        if job.get("status") != "done":
+            raise HTTPException(409, "Pricing extraction has not finished successfully — wait for it or re-upload the document")
         res = job.get("result") or {}
         server = (res.get("reconciliation") or {}).get("blocking", 0) + sum(
             1 for k in ("machine_services", "travel", "repairs") for x in res.get(k) or [] if x.get("needs_review"))

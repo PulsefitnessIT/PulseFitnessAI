@@ -39558,3 +39558,11 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Maintenance Master: SUBSTANTIVE_FIELDS edits require a reason of at least 5 characters (422).
 - MOD dispatch re-checks expiry, recipient and revision. Chase chips separate "task created", "emailed" and "contacted".
 - Verified on the preview gateway: 2.4/13.6/33.8/50.8 MB PDFs read all lines and quantities exactly (400/300/360/480). xlsx tender 210/210 rates exact, CSV 700/700. Tests: tests/test_afs_large_doc_uploads_jan2026.py (22 pass); iteration_326.
+
+## Jun 2026 — Final production sprint, Stage A (preview-verified, iterations 327–328)
+- Invoice quantities: the printed value wins over the AI reading (verified / corrected_from_source / column_match / missing / invalid / unverified). A missing or unreadable quantity blocks apply until the coordinator confirms it. A line-drop guard re-reads a section once; if lines are still short, coverage.complete=false.
+- CSV/Excel tenders are parsed straight from the cells, with full source-row reconciliation (700 of 700 exact). Saving a custom quote re-checks the server's pricing job (pricing_job_id). Unresolved rates need a reason, which is logged to crm2_afs_rate_reviews.
+- Renewals: approving with the email switch off gives "Approved — awaiting issue" (never "sent"). Mark issued / Cancel email require renewals.approve.
+- Doc jobs: one job per file (deduplicated), heartbeat, stale-job detection and retry.
+- Production (deployer, read-only): healthy. Year 4: all 43 rate rows on the live list af73ec. Nothing to reconcile in renewals. The CM_RENEWAL_EMAIL_LIVE, MOD_QUOTE_NOTIFY_LIVE, SICON_ALLOW_WRITES and AFS_IMPORT_MAX_MB flags are absent (emails and Sicon writes are off).
+- Pending: deploy these fixes, then run a production smoke test of a >2 MiB Aftersales upload. Contracts real-staff check, Maintenance Master reconciliation, CI frozen-lockfile proof, and classification of the full regression suite.
