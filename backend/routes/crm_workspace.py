@@ -178,6 +178,18 @@ async def renewal_cancel_email(renewal_id: str, data: dict = None, user=Depends(
     return res
 
 
+@router.post("/renewals/{renewal_id}/mark-issued")
+async def renewal_mark_issued(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.approve"))):
+    from utils.cm_renewals import mark_renewal_issued_manually
+    evidence = ((data or {}).get("evidence") or "").strip()
+    if len(evidence) < 5:
+        raise HTTPException(422, "Record how the renewal reached the customer (e.g. 'handed to site manager 26/11')")
+    res = await mark_renewal_issued_manually(renewal_id, user, evidence)
+    if not res.get("ok"):
+        raise HTTPException(409, res.get("error"))
+    return res
+
+
 @router.post("/renewals/{renewal_id}/declined")
 async def renewal_declined(renewal_id: str, data: dict = None, user=Depends(require_crm_perm("renewals.review"))):
     from utils.cm_renewals import record_outcome

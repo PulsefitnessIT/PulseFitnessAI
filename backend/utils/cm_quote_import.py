@@ -96,12 +96,70 @@ async def extract_document(pdf: bytes, doc_type: str) -> dict:
             if k != "lines" and v not in (None, "", []) and merged.get(k) in (None, "", []):
                 merged[k] = v
         lines += [{**ln, "source": part} for ln in out.get("lines") or [] if isinstance(ln, dict)]
-    merged["lines"] = lines
+    merged["lines"] = verify_quantities(lines, pdf)
     cov = doc["coverage"]
     failed = [part for part, out in results if out is None]
     merged["coverage"] = {**cov, "parts_total": len(results), "parts_read": len(ok), "parts_failed": failed,
                           "complete": not failed and not cov.get("unread")}
     return merged
+
+
+_QTY = re.compile(r"\b(?:qty|quantity|units?)\s*[:.=]?\s*(\d+(?:\.\d+)?)\b", re.I)
+
+
+def verify_quantities(lines: list, pdf: bytes) -> list:
+    """Check every AI-read quantity against the printed page text. The printed value wins; any change
+    is recorded (quantity_ai → quantity). Scanned pages / unlabelled quantities stay 'unverified'."""
+    from utils.afs_doc_sections import pdf_pages
+    try:
+        pages = pdf_pages(pdf)
+    except Exception:  # noqa: BLE001
+        return lines
+    page_lines = {i: [t for t in txt.splitlines() if t.strip()] for i, txt in enumerate(pages, 1)}
+    used: set = set()
+
+    def _range(src: str) -> list:
+        nums = [int(n) for n in re.findall(r"page (\d+)", src or "")]
+        return list(range(min(nums), max(nums) + 1)) if nums else list(page_lines)
+
+    for ln in lines:
+        serials = [str(x).strip() for x in ln.get("serials") or [] if str(x).strip()]
+        code = (ln.get("item_code") or "").strip()
+        hit = None
+        for pg in _range(ln.get("source", "")):
+            for k, text in enumerate(page_lines.get(pg, [])):
+                if (pg, k) in used:
+                    continue
+                if (serials and any(re.search(rf"(?<![\w-]){re.escape(sn)}(?![\w-])", text) for sn in serials)) or (
+                        not serials and code and re.search(rf"(?<![\w-]){re.escape(code)}(?![\w-])", text)):
+                    hit = (pg, k, text)
+                    break
+            if hit:
+                break
+        ai = ln.get("quantity")
+        if not hit:
+            ln["qty_validation"] = "unverified"
+            continue
+        used.add(hit[:2])
+        ln["source_text"] = hit[2].strip()[:300]
+        m = _QTY.search(hit[2])
+        if not m:
+            ln["qty_validation"] = "unverified"
+            continue
+        printed = float(m.group(1))
+        ln["quantity_text"] = m.group(0)
+        if printed != int(printed) or printed <= 0:
+            ln["quantity"], ln["qty_validation"] = None, "invalid"
+            continue
+        try:
+            same = ai is not None and float(ai) == printed
+        except (TypeError, ValueError):
+            same = False
+        if not same:
+            ln["quantity_ai"], ln["quantity"], ln["qty_validation"] = ai, int(printed), "corrected_from_source"
+        else:
+            ln["quantity"], ln["qty_validation"] = int(printed), "verified"
+    return lines
 
 
 _CI = {"locale": "en", "strength": 2}          # case-insensitive, index-backed
@@ -209,11 +267,12 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
     out = []
     for n, ln in enumerate(lines, start=1):
         code = (ln.get("item_code") or "").strip()
-        qty = ln.get("quantity") or 1
+        # Never default or clamp: an unreadable quantity stays empty and blocks the line until confirmed.
         try:
-            qty = max(1, min(int(qty), 200))
+            qty = int(ln["quantity"]) if ln.get("quantity") not in (None, "") and float(ln["quantity"]) == int(float(ln["quantity"])) else None
+            qty = qty if qty and qty > 0 else None
         except (TypeError, ValueError):
-            qty = 1
+            qty = None
         serials = [str(s).strip() for s in ln.get("serials") or [] if str(s).strip()]
         flags, cfg, basis = [], None, None
         product = await db.crm_products.find_one({"organization_id": org_id, "sku": code}, {"_id": 0}) if code else None
@@ -243,7 +302,11 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
         status_txt = f"{(product or {}).get('status', '')} {(cfg or {}).get('approval_status', '')}".lower()
         if "discontinu" in status_txt:
             flags.append("discontinued")
-        if serials and len(serials) != qty:
+        if qty is None:
+            flags.append("quantity_unconfirmed")
+        elif ln.get("qty_validation") == "corrected_from_source":
+            flags.append("quantity_corrected")
+        if serials and qty and len(serials) != qty:
             flags.append("serial_mismatch")
         if len(set(serials)) != len(serials):
             flags.append("duplicate_serials")
@@ -265,7 +328,7 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
             flags.append("already_covered")
         if doc_type == "maintenance_invoice":
             flags.append("evidence_only_price")
-        blocking = {"unknown_code", "spare_part", "already_covered", "variant_review", "serial_mismatch",
+        blocking = {"unknown_code", "spare_part", "already_covered", "variant_review", "serial_mismatch", "quantity_unconfirmed",
                     "duplicate_serials", "discontinued", "model_match_only", "unsupported"}
         ident_flags = set(flags) & (blocking - {"already_covered", "unsupported"})
         identification = ("matched" if cfg and not ident_flags else "spare_part" if "spare_part" in flags
@@ -274,6 +337,8 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
         out.append({
             "line_no": n, "item_code": code or None, "make": ln.get("make"), "model": ln.get("model"),
             "description": ln.get("description"), "quantity": qty, "serials": serials,
+            "source": ln.get("source"), "source_text": ln.get("source_text"), "quantity_text": ln.get("quantity_text"),
+            "quantity_ai": ln.get("quantity_ai"), "qty_validation": ln.get("qty_validation") or "unverified",
             "document_amount": ln.get("amount"),
             "matched": {"config_id": cfg.get("id"), "model": cfg.get("model"), "console_type": cfg.get("console_type") or "",
                         "reference_sku": cfg.get("reference_sku"), "basis": basis,

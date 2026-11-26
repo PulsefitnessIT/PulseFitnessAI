@@ -15,7 +15,7 @@ figures come only from these authorised rules or an authorised manual override.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import asyncio
@@ -1274,6 +1274,17 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
     doc = read_document(filename, data)
     if not doc["sections"] and not doc["vision_batches"]:
         raise HTTPException(422, "No readable text found in that document.")
+    from utils.afs_doc_sections import structured_pricing
+    sp = structured_pricing(doc["rows"]) if doc.get("rows") else None
+    if sp:
+        # Spreadsheet/CSV: values come straight from the cells — no AI interpretation of prices or rows.
+        rec = sp.pop("reconciliation")
+        return {"currency": "GBP", **sp, "summary": {"headline": "", "term": "", "ppm_visits": "", "sla": "", "key_points": []},
+                "source_filename": filename, "extracted_chars": 0, "reconciliation": rec,
+                "coverage": {**doc["coverage"], "method": "structured cells", "parts_total": 1, "parts_read": 1, "parts_failed": [],
+                             "complete": rec["blocking"] == 0,
+                             "notes": [f"{rec['source_rows']} source row(s): {rec['verified']} verified, {rec['review']} POA/review, "
+                                       f"{rec['invalid']} invalid, {rec['excluded']} excluded, {rec['conflicts']} conflicting rate(s)"]}}
     system = (
         "You extract commercial pricing from maintenance/service tender agreements. "
         "Return STRICT JSON only. Never invent prices — only include what is written. "
@@ -1441,6 +1452,8 @@ class CustomQuoteIn(BaseModel):
     overwrite_quote_id: Optional[str] = None          # edit an existing saved quote (keeps number)
     include_site_annexe: bool = False                 # append a per-site equipment appendix to the PDF
     save: bool = False
+    source_blocking: int = 0                          # unresolved rows from the document reconciliation
+    rate_review_reason: Optional[str] = None          # required to save while imported rates still need review
 
 
 @router.post("/build-custom-quote")
@@ -1454,6 +1467,13 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(require_crm_perm(
     company = await db.crm2_companies.find_one({"id": body.company_id, **of}, {"_id": 0})
     if not company:
         raise HTTPException(404, "Company not found")
+    unresolved = sum(1 for x in body.machine_rates + body.travel_rates + body.repair_rates if x.get("needs_review")) + (body.source_blocking or 0)
+    if body.save and unresolved and len((body.rate_review_reason or "").strip()) < 10:
+        raise HTTPException(422, f"{unresolved} imported rate(s) or source row(s) still need review — correct them, or record why "
+                                 "they are accepted/excluded before saving the quote.")
+    if body.save and unresolved:
+        await db.crm2_afs_rate_reviews.insert_one({"id": _id(), **of, "company_id": body.company_id, "unresolved": unresolved,
+                                                  "reason": body.rate_review_reason.strip(), "by": user.get("email"), "at": _now()})
     linked = await _resolve_linked_org_for_company(company, user)
     if not linked:
         raise HTTPException(400, "This company is not linked to an operations organisation — no estate to quote.")
@@ -4218,9 +4238,14 @@ async def doc_job_status(job_id: str, user=Depends(require_crm_perm("quotes.main
     j = await db.crm2_afs_doc_jobs.find_one({"id": job_id, "organization_id": _org(user)}, {"_id": 0})
     if not j:
         raise HTTPException(404, "Job not found")
-    if j["status"] == "running" and j.get("started_at", "") < (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat():
-        await db.crm2_afs_doc_jobs.update_one({"id": job_id, "status": "running"}, {"$set": {"status": "failed", "error": "Processing was interrupted — please try again"}})
-        j = {**j, "status": "failed", "error": "Processing was interrupted — please try again"}
+    beat = j.get("heartbeat_at") or j.get("started_at", "")
+    if j["status"] == "running" and (beat < (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat()
+                                     or j.get("started_at", "") < (datetime.now(timezone.utc) - timedelta(minutes=45)).isoformat()):
+        # Worker restarted / replaced (no heartbeat) or ran past the time limit → recoverable failure, retry is safe.
+        msg = "Processing was interrupted (server restart or time limit) — press Retry; the upload is kept"
+        await db.crm2_afs_doc_jobs.update_one({"id": job_id, "status": "running"},
+                                              {"$set": {"status": "failed", "interrupted": True, "error": msg}, "$unset": {"active_key": ""}})
+        j = {**j, "status": "failed", "interrupted": True, "error": msg}
     if j["status"] == "done" and j["kind"] == "import":
         j["import"] = await db.crm2_afs_quote_imports.find_one({"id": j["result"]["import_id"], **_of(user)}, _PUBLIC)
     return j
@@ -4238,23 +4263,44 @@ _DOC_TASKS: set = set()
 
 async def _start_job(user: dict, kind: str, dedupe: str, work) -> dict:
     """One active job per document (repeat clicks return the same job); the work runs after the response."""
-    active = await db.crm2_afs_doc_jobs.find_one({"organization_id": _org(user), "dedupe": dedupe, "status": {"$in": ["queued", "running"]}}, {"_id": 0})
-    if active:
-        return {"job_id": active["id"], "status": active["status"]}
+    from pymongo.errors import DuplicateKeyError
+    await db.crm2_afs_doc_jobs.create_index("active_key", unique=True, sparse=True)
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat()
+    # A job whose worker died (no heartbeat) must not block a retry forever.
+    await db.crm2_afs_doc_jobs.update_many({"active_key": f"{_org(user)}:{dedupe}", "status": "running", "heartbeat_at": {"$lt": stale}},
+                                           {"$set": {"status": "failed", "interrupted": True,
+                                                     "error": "Processing was interrupted — press Retry"}, "$unset": {"active_key": ""}})
     jid = _id()
-    await db.crm2_afs_doc_jobs.insert_one({"id": jid, "organization_id": _org(user), "kind": kind, "dedupe": dedupe,
-                                          "status": "running", "created_by": user.get("email"), "created_at": _now(), "started_at": _now()})
+    try:  # atomic: two simultaneous clicks → one job (unique active_key)
+        await db.crm2_afs_doc_jobs.insert_one({"id": jid, "organization_id": _org(user), "kind": kind, "dedupe": dedupe,
+                                              "active_key": f"{_org(user)}:{dedupe}", "status": "running", "created_by": user.get("email"),
+                                              "created_at": _now(), "started_at": _now(), "heartbeat_at": _now()})
+    except DuplicateKeyError:
+        active = await db.crm2_afs_doc_jobs.find_one({"active_key": f"{_org(user)}:{dedupe}"}, {"_id": 0, "id": 1, "status": 1})
+        return {"job_id": active["id"], "status": active["status"], "joined": True}
+
+    async def beat():
+        while True:
+            await asyncio.sleep(30)
+            await db.crm2_afs_doc_jobs.update_one({"id": jid, "status": "running"}, {"$set": {"heartbeat_at": _now()}})
 
     async def runner():
+        hb = asyncio.create_task(beat())
         try:
-            res = await work()
-            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "done", "result": res, "finished_at": _now()}})
+            res = await asyncio.wait_for(work(), timeout=40 * 60)
+            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "done", "result": res, "finished_at": _now()}, "$unset": {"active_key": ""}})
+        except TimeoutError:
+            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "failed", "error": "Processing took longer than 40 minutes — split the document or retry",
+                                                                        "finished_at": _now()}, "$unset": {"active_key": ""}})
         except HTTPException as e:
-            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "failed", "error": str(e.detail), "finished_at": _now()}})
+            await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "failed", "error": str(e.detail), "finished_at": _now()}, "$unset": {"active_key": ""}})
         except Exception as e:  # noqa: BLE001
             logging.getLogger(__name__).exception("[afs-doc-job] %s failed", jid)
             await db.crm2_afs_doc_jobs.update_one({"id": jid}, {"$set": {"status": "failed", "error": "The document could not be processed",
-                                                                        "diagnostic": f"{type(e).__name__}: {str(e)[:300]}", "finished_at": _now()}})
+                                                                        "diagnostic": f"{type(e).__name__}: {str(e)[:300]}", "finished_at": _now()},
+                                                               "$unset": {"active_key": ""}})
+        finally:
+            hb.cancel()
     t = asyncio.create_task(runner())
     _DOC_TASKS.add(t)
     t.add_done_callback(_DOC_TASKS.discard)
@@ -4336,6 +4382,7 @@ class ImportLineDecision(BaseModel):
     decision: str                       # accepted | excluded
     config_id: Optional[str] = None     # coordinator-chosen machine for unknown / ambiguous lines
     reuse_equipment_ids: List[str] = []  # coordinator-confirmed: these serial-less units ARE the machines on this line
+    quantity: Optional[int] = Field(None, ge=1)  # coordinator-confirmed quantity for an unverified / missing source quantity
 
 
 class ImportApplyIn(BaseModel):
@@ -4373,6 +4420,12 @@ async def apply_quote_import(import_id: str, body: ImportApplyIn, user=Depends(r
                 raise HTTPException(400, f"Line {ln['line_no']}: {cfg.get('model')} is not eligible for maintenance — exclude it.")
             ln["matched"] = {"config_id": cfg["id"], "model": cfg.get("model"), "console_type": cfg.get("console_type") or "",
                              "reference_sku": cfg.get("reference_sku"), "basis": "chosen by coordinator"}
+        if decision == "accepted" and d and d.quantity:
+            ln["quantity_confirmed_from"], ln["quantity"] = ln.get("quantity"), d.quantity
+            ln["qty_validation"] = "confirmed_by_coordinator"
+        if decision == "accepted" and not ln.get("quantity"):
+            raise HTTPException(400, f"Line {ln['line_no']} ({ln.get('model') or ln.get('item_code')}): the quantity could not be read "
+                                     "from the document — enter the quantity or exclude the line.")
         ln["decision"], ln["decided_by"] = decision, (user.get("email") if d else "auto")
         if decision == "excluded":
             continue

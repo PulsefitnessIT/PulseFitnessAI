@@ -743,6 +743,8 @@ const FLAG_LABEL = {
 const MATCH_STATUSES = [['exact', 'Exact match'], ['suggested', 'Suggested match'], ['review', 'Manual review required'],
   ['unmatched', 'Not matched'], ['excluded', 'Excluded'], ['registered', 'Already registered']];
 const MATCH_LABEL = Object.fromEntries(MATCH_STATUSES);
+const QTY_LABEL = { verified: 'qty matches document', corrected_from_source: 'qty taken from document', unverified: 'qty not checked — confirm',
+  invalid: 'qty unreadable — enter it', confirmed_by_coordinator: 'qty confirmed by coordinator' };
 function matchStatus(ln, decision) {
   const k = decision === 'excluded' ? 'excluded'
     : (ln.flags || []).includes('already_covered') || (ln.existing_equipment || []).length > 0 ? 'registered'
@@ -875,6 +877,15 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
           </div>
           {imp.coverage && <CoverageNote cov={imp.coverage} testId="afs-aq-import-coverage" />}
           {lines.length > 0 && (
+            <p className="text-[11px] my-1" style={{ color: c.text }} data-testid="afs-aq-import-totals">
+              {lines.length} line(s) · {lines.reduce((t, ln) => t + (ln.quantity || 0), 0)} unit(s) ·{' '}
+              {lines.filter(ln => ln.qty_validation === 'verified').length} quantities checked against the printed document ·{' '}
+              {lines.filter(ln => ln.qty_validation === 'corrected_from_source').length} corrected from the document ·{' '}
+              <span style={{ color: lines.some(ln => !ln.quantity) ? 'var(--color-danger)' : c.text }}>{lines.filter(ln => !ln.quantity).length} need a quantity</span> ·{' '}
+              {lines.filter(ln => state(ln) === 'review').length} need review · {lines.filter(ln => state(ln) === 'excluded').length} excluded
+            </p>
+          )}
+          {lines.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 my-2 text-xs" data-testid="afs-aq-import-tools">
               <input data-testid="afs-aq-import-line-search" placeholder="Search code, model or serial…" value={lineQ} onChange={e => { setLineQ(e.target.value); setPage(0); }} className="px-2 py-1 rounded-md w-56" style={inpStyle} />
               <select data-testid="afs-aq-import-line-filter" value={lineFilter} onChange={e => { setLineFilter(e.target.value); setPage(0); }} className="px-2 py-1 rounded-md" style={inpStyle}>
@@ -894,7 +905,16 @@ function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
                 <tr key={ln.line_no} className="border-t align-top" style={{ borderColor: c.border, color: c.text }} data-testid={`afs-aq-import-line-${ln.line_no}`}>
                   <td className="py-1">{ln.item_code || '—'}{ln.source && <div className="text-[10px]" style={{ color: c.textDim }}>{ln.source}</div>}</td>
                   <td>{ln.model || ln.description}{ln.flags.length > 0 && <div className="text-[10px]" style={{ color: 'var(--color-accent-amber)' }}>{ln.flags.map(f => FLAG_LABEL[f] || f).join(' · ')}</div>}</td>
-                  <td className="text-center">{ln.quantity}</td>
+                  <td className="text-center" data-testid={`afs-aq-import-qty-${ln.line_no}`}>
+                    {ln.quantity ?? (
+                      <input type="number" min={1} aria-label={`Quantity for line ${ln.line_no}`} placeholder="Qty?" value={dec[ln.line_no]?.quantity || ''}
+                        onChange={e => setDec(d => ({ ...d, [ln.line_no]: { ...(d[ln.line_no] || { decision: 'accepted' }), quantity: Number(e.target.value) || undefined } }))}
+                        className="w-14 px-1 py-0.5 rounded border text-center" style={inpStyle} data-testid={`afs-aq-import-qty-input-${ln.line_no}`} />
+                    )}
+                    <div className="text-[10px]" title={ln.source_text || ''} style={{ color: ln.qty_validation === 'verified' ? 'var(--color-success-alt)' : 'var(--color-accent-amber)' }}>
+                      {QTY_LABEL[ln.qty_validation] || 'not checked'}{ln.qty_validation === 'corrected_from_source' ? ` (AI read ${ln.quantity_ai ?? '—'})` : ''}
+                    </div>
+                  </td>
                   <td className="text-[11px]" style={{ color: c.textDim }}>{ln.serials.join(', ') || '—'}{ln.existing_equipment.length > 0 && <div>{ln.existing_equipment.length} on register</div>}</td>
                   <td className="text-[11px]">{ln.matched ? `${ln.matched.model}${ln.matched.console_type ? ` / ${ln.matched.console_type}` : ''} · ${ln.matched.basis}` : '—'}
                     {ln.commercial && !ln.flags.includes('already_covered') && <div data-testid={`afs-aq-import-commercial-${ln.line_no}`} className="text-[10px]" style={{ color: ln.commercial.ready ? 'var(--color-success-alt)' : 'var(--color-accent-amber)' }}>{ln.commercial.label}</div>}
@@ -1005,6 +1025,8 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
     } finally { setSavingCard(false); }
   };
   const [pricingCoverage, setPricingCoverage] = useState(null);
+  const [pricingRecon, setPricingRecon] = useState(null);
+  const [rateReviewReason, setRateReviewReason] = useState('');
   const onPricingUploaded = async (doc, f) => {
     setUploadBusy(true); setCustomData(null); setCustomResult(null); setPricingCoverage(null);
     try {
@@ -1012,6 +1034,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
       const ex = { data: (await waitForJob(axios, API, headers, job.data.job_id)).result };
       setCustomData({ machine_services: ex.data.machine_services || [], travel: ex.data.travel || [], repairs: ex.data.repairs || [], summary: ex.data.summary || null });
       setPricingCoverage(ex.data.coverage || null);
+      setPricingRecon(ex.data.reconciliation || null); setRateReviewReason('');
       setLastFilename(ex.data.source_filename || f.name || '');
       if (customMode === 'wizard') setWizStep(2);
     } finally { setUploadBusy(false); }
@@ -1020,6 +1043,22 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
     <>
       <AfsDocumentUploader c={c} accept=".pdf,.xlsx,.xlsm,.docx,.csv,.txt" typesLabel="PDF, Excel, Word or CSV" testId={tid} onUploaded={onPricingUploaded} />
       {pricingCoverage && <CoverageNote cov={pricingCoverage} testId={`${tid}-coverage`} />}
+      {(() => {
+        const conflicts = ['machine_services', 'travel', 'repairs'].flatMap(k => (customData?.[k] || []).filter(x => x.needs_review));
+        const issues = pricingRecon?.issues || [];
+        if (!conflicts.length && !issues.length) return null;
+        return (
+          <div className="mt-2 rounded-lg border p-2 text-[11px]" style={{ borderColor: 'var(--color-accent-amber)', color: c.text }} data-testid={`${tid}-blocking`}>
+            <p className="font-semibold" style={{ color: 'var(--color-accent-amber)' }}>{conflicts.length + issues.length} imported rate(s) need review before this quote can be saved</p>
+            <ul className="mt-1 max-h-32 overflow-y-auto">
+              {issues.map(x => <li key={x.ref}>{x.ref}: {x.reason} — {x.text}</li>)}
+              {conflicts.map((x, i) => <li key={`c${i}`}>{x.type || x.location}: {x.review_reason}</li>)}
+            </ul>
+            <input value={rateReviewReason} onChange={e => setRateReviewReason(e.target.value)} placeholder="After checking, record why these are accepted or excluded (required to save)"
+              className="mt-1 w-full px-2 py-1 rounded-md border" style={{ borderColor: c.border, color: c.text, background: 'transparent' }} data-testid={`${tid}-review-reason`} />
+          </div>
+        );
+      })()}
     </>
   );
   const buildCustom = async (save) => {
@@ -1030,9 +1069,10 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/build-custom-quote`, {
         company_id: companyId, site_ids,
-        machine_rates: incl.service ? (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price) })) : [],
-        travel_rates: incl.travel ? (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price) })) : [],
-        repair_rates: incl.repairs ? (customData.repairs || []).map(rp => ({ type: rp.type, hourly_rate: Number(rp.hourly_rate) })) : [],
+        machine_rates: incl.service ? (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price), needs_review: !!m.needs_review })) : [],
+        travel_rates: incl.travel ? (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price), needs_review: !!t.needs_review })) : [],
+        repair_rates: incl.repairs ? (customData.repairs || []).map(rp => ({ type: rp.type, hourly_rate: Number(rp.hourly_rate), needs_review: !!rp.needs_review })) : [],
+        source_blocking: (pricingRecon?.issues || []).length, rate_review_reason: rateReviewReason,
         estimated_repair_hours: incl.repairs ? Number(estHours || 0) : 0,
         term_years: Number(term), quote_discount_pct: Number(discount),
         visits_per_year: Number(visits || 1), vat_pct: Number(vatPct || 0) / 100,

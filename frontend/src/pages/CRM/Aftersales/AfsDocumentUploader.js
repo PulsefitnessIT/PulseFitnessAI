@@ -27,11 +27,15 @@ export function friendlyError(e, fallback) {
 
 /** Poll a background reading job until it finishes; resolves with the job, throws a readable error on failure. */
 export async function waitForJob(axios, API, headers, jobId) {
-  for (;;) {
+  const started = Date.now();
+  for (let i = 0; ; i += 1) {
+    if (Date.now() - started > 45 * 60 * 1000) {
+      throw Object.assign(new Error('timeout'), { response: { status: 422, data: { detail: 'Still processing after 45 minutes — press Retry; the upload is kept.' } } });
+    }
     const r = await axios.get(`${API}/crm/v2/aftersales/build-quote/jobs/${jobId}`, { headers: headers() });
     if (r.data.status === 'done') return r.data;
     if (r.data.status === 'failed') throw Object.assign(new Error(r.data.error), { response: { status: 422, data: { detail: r.data.error } } });
-    await new Promise((res) => setTimeout(res, 3000));
+    await new Promise((res) => setTimeout(res, i < 20 ? 3000 : 6000));
   }
 }
 

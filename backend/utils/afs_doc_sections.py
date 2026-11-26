@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import csv
 import io
+import re
 
 from fastapi import HTTPException
 
@@ -89,18 +90,19 @@ def read_document(filename: str, data: bytes, max_chars: int = SECTION_CHARS) ->
         if name.endswith((".xlsx", ".xlsm")):
             from openpyxl import load_workbook
             wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-            blocks, rows = [], 0
+            blocks, rows, table = [], 0, []
             for ws in wb.worksheets:
                 for r, row in enumerate(ws.iter_rows(values_only=True), 1):
                     cells = [str(c).strip() for c in row if c not in (None, "")]
                     if cells:
                         rows += 1
                         blocks.append((f"{ws.title}!row {r}", f"[{ws.title} row {r}] " + " | ".join(cells)))
+                        table.append({"sheet": ws.title, "row": r, "cells": ["" if c is None else str(c).strip() for c in row]})
             cov.update(sheets=[ws.title for ws in wb.worksheets], rows=rows)
-            return {"kind": "xlsx", "sections": _pack(blocks, min(max_chars, TABLE_SECTION_CHARS)), "vision_batches": [], "coverage": cov}
+            return {"kind": "xlsx", "rows": table, "sections": _pack(blocks, min(max_chars, TABLE_SECTION_CHARS)), "vision_batches": [], "coverage": cov}
         if name.endswith(".csv") or name.endswith(".txt"):
             text = _decode(data)
-            blocks, bad = [], 0
+            blocks, bad, table = [], 0, []
             reader = csv.reader(io.StringIO(text))
             header = None
             for r, row in enumerate(reader, 1):
@@ -112,10 +114,11 @@ def read_document(filename: str, data: bytes, max_chars: int = SECTION_CHARS) ->
                 elif len(cells) != len(header):
                     bad += 1
                 blocks.append((f"row {r}", f"[row {r}] " + " | ".join(cells)))
+                table.append({"sheet": "CSV", "row": r, "cells": cells})
             cov.update(rows=len(blocks), malformed_rows=bad, header=header or [])
             if bad:
                 cov["notes"].append(f"{bad} row(s) have a different number of columns from the header — check them")
-            return {"kind": "csv", "sections": _pack(blocks, min(max_chars, TABLE_SECTION_CHARS)), "vision_batches": [], "coverage": cov}
+            return {"kind": "csv", "rows": table, "sections": _pack(blocks, min(max_chars, TABLE_SECTION_CHARS)), "vision_batches": [], "coverage": cov}
         if name.endswith(".docx"):
             from docx import Document
             from docx.table import Table
@@ -137,3 +140,105 @@ def read_document(filename: str, data: bytes, max_chars: int = SECTION_CHARS) ->
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(422, f"Could not read that document ({type(exc).__name__}). Try a text-based PDF, Excel, CSV or Word file.")
     raise HTTPException(415, "File type not supported — use PDF, Excel (.xlsx), CSV or Word (.docx).")
+
+
+_PRICE_H = re.compile(r"price|£|rate|charge|cost|fee|amount|gbp", re.I)
+_NAME_H = re.compile(r"machine|type|equipment|item|description|model|location|site|depot|product", re.I)
+_SECT_H = re.compile(r"^(section|category|schedule|group|service)$", re.I)
+_CODE_H = re.compile(r"code|sku|ref", re.I)
+
+
+def _money(v: str):
+    t = (v or "").replace("£", "").replace(",", "").replace("GBP", "").strip()
+    if not t:
+        return None, "blank"
+    if re.fullmatch(r"(?i)poa|p\.o\.a\.?|price on application|tbc|quote", t):
+        return None, "poa"
+    try:
+        return round(float(t), 2), "ok"
+    except ValueError:
+        return None, "invalid"
+
+
+def _kind(text: str) -> str:
+    t = (text or "").lower()
+    if re.search(r"travel|mileage|call.?out|journey", t):
+        return "travel"
+    if re.search(r"repair|labour|labor|hourly|per hour", t):
+        return "repairs"
+    return "service"
+
+
+def structured_pricing(rows: list) -> dict | None:
+    """Deterministic rate extraction from CSV/Excel cells — every source row gets an outcome.
+    Returns None when no priced table is recognisable (caller falls back to AI reading)."""
+    by_sheet: dict = {}
+    for r in rows:
+        by_sheet.setdefault(r["sheet"], []).append(r)
+    out = {"machine_services": [], "travel": [], "repairs": []}
+    recon, found = [], False
+    for sheet, srows in by_sheet.items():
+        hdr = next((r for r in srows if sum(1 for c in r["cells"] if c and _money(c)[1] == "invalid") >= 2), None)
+        if not hdr:
+            continue
+        h = [c.lower() for c in hdr["cells"]]
+        price_i = [i for i, c in enumerate(h) if _PRICE_H.search(c)]
+        name_i = next((i for i, c in enumerate(h) if _NAME_H.search(c) and i not in price_i and not _SECT_H.match(c)), None)
+        if not price_i or name_i is None:
+            continue
+        found = True
+        sect_i = next((i for i, c in enumerate(h) if _SECT_H.match(c)), None)
+        code_i = next((i for i, c in enumerate(h) if _CODE_H.search(c) and i not in price_i and i != name_i), None)
+        for r in srows:
+            if r is hdr or r["row"] < hdr["row"]:
+                continue
+            cells = r["cells"] + [""] * len(h)
+            ref = f"{sheet} row {r['row']}" if sheet != "CSV" else f"row {r['row']}"
+            name = cells[name_i].strip()
+            raw = cells[price_i[0]]
+            price, st = _money(raw)
+            if not name and st == "blank":
+                continue
+            if re.match(r"(?i)^(sub)?total\b", name):
+                recon.append({"ref": ref, "outcome": "excluded", "reason": "total row", "text": " | ".join(cells[:len(h)])})
+                continue
+            kind = _kind(f"{cells[sect_i] if sect_i is not None else ''} {sheet} {h[price_i[0]]}")
+            item = {"source": ref, "source_text": " | ".join(c for c in cells[:len(h)] if c), "price_text": raw,
+                    **({"item_code": cells[code_i]} if code_i is not None and cells[code_i] else {})}
+            if st == "ok":
+                key = {"travel": "location", "repairs": "type", "service": "type"}[kind]
+                pk = {"travel": "price", "repairs": "hourly_rate", "service": "service_price"}[kind]
+                out["machine_services" if kind == "service" else kind].append({key: name, pk: price, **item})
+                recon.append({"ref": ref, "outcome": "verified", "kind": kind})
+            elif st == "poa":
+                recon.append({"ref": ref, "outcome": "review", "reason": "POA — no price to apply", "text": item["source_text"]})
+            else:
+                recon.append({"ref": ref, "outcome": "invalid", "reason": f"price '{raw or 'blank'}' is not a number", "text": item["source_text"]})
+    if not found:
+        return None
+    for key, nk, pk in (("machine_services", "type", "service_price"), ("travel", "location", "price"), ("repairs", "type", "hourly_rate")):
+        merged: dict = {}
+        for it in out[key]:
+            k = (it[nk].lower(), it[pk])
+            if k in merged:  # identical name AND price → one rate, every source row recorded
+                merged[k]["source_rows"].append(it["source"])
+            else:
+                merged[k] = {**it, "source_rows": [it["source"]]}
+        rows_ = list(merged.values())
+        names: dict = {}
+        for it in rows_:
+            names.setdefault(it[nk].lower(), []).append(it)
+        for same in names.values():
+            if len(same) > 1:  # same name, different prices — keep all, never pick one
+                for it in same:
+                    it["needs_review"] = True
+                    it["review_reason"] = "Different prices for the same item: " + ", ".join(f"{x[pk]:,.2f} ({x['source']})" for x in same)
+        out[key] = rows_
+    blocking = [x for x in recon if x["outcome"] in ("invalid", "review")]
+    conflicts = sum(1 for k in out for it in out[k] if it.get("needs_review"))
+    out["reconciliation"] = {"source_rows": len(recon), "verified": sum(1 for x in recon if x["outcome"] == "verified"),
+                             "review": sum(1 for x in recon if x["outcome"] == "review"),
+                             "invalid": sum(1 for x in recon if x["outcome"] == "invalid"),
+                             "excluded": sum(1 for x in recon if x["outcome"] == "excluded"),
+                             "conflicts": conflicts, "blocking": len(blocking) + conflicts, "issues": blocking[:200]}
+    return out

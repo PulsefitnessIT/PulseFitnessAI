@@ -8,11 +8,13 @@ const TONE = {
   approved_not_delivered: 'var(--color-danger)', declined: 'var(--color-danger)', expired: 'var(--color-danger)',
   awaiting_price_approval: 'var(--color-accent-amber)', pending_approval: 'var(--color-accent-amber)',
   delivered: 'var(--color-info-ios)', accepted: 'var(--color-success-alt)',
-  awaiting_dispatch: 'var(--color-accent-amber)', email_cancelled: 'var(--color-danger)',
+  awaiting_dispatch: 'var(--color-accent-amber)', email_cancelled: 'var(--color-danger)', issued_manually: 'var(--color-info-ios)',
 };
 
 /** Renewals in progress — recoverable accept link + truthful delivery status. */
 export default function RenewalsInProgress() {
+  const [ask, setAsk] = useState(null);
+  const [askText, setAskText] = useState('');
   const { API, headers, c } = useCRM();
   const [rows, setRows] = useState(null);
   const load = useCallback(() => {
@@ -30,9 +32,21 @@ export default function RenewalsInProgress() {
     catch (e) { toast.error(e.response?.data?.detail || 'Action failed'); }
   };
   if (!rows || rows.length === 0) return null;
+  const submitAsk = async () => { const a = ask; setAsk(null); await act(a.id, a.path, a.ok, { [a.field]: askText.trim() }); setAskText(''); };
   return (
     <div className="rounded-2xl p-4 mb-5" style={{ background: c.surface, border: `1px solid ${c.border}` }} data-testid="cm-renewals-in-progress">
       <h3 className="text-sm font-bold mb-3" style={{ color: c.text }}>Renewals in progress</h3>
+      {ask && (
+        <div className="rounded-xl p-3 mb-3 border" style={{ borderColor: c.border, background: c.bg || c.surface }} data-testid="cm-renewal-ask" role="dialog" aria-label={ask.title}>
+          <p className="text-xs font-semibold mb-1" style={{ color: c.text }}>{ask.title}</p>
+          <input autoFocus value={askText} onChange={(e) => setAskText(e.target.value)} placeholder={ask.label} aria-label={ask.label}
+            className="w-full text-xs px-2 py-1.5 rounded-md border" style={{ borderColor: c.border, color: c.text, background: 'transparent' }} data-testid="cm-renewal-ask-input" />
+          <div className="flex gap-2 mt-2 text-xs">
+            <button disabled={askText.trim().length < 5} onClick={submitAsk} className="px-2 py-1 rounded-md border font-semibold disabled:opacity-40" style={{ borderColor: c.border, color: c.text }} data-testid="cm-renewal-ask-confirm">Confirm</button>
+            <button onClick={() => { setAsk(null); setAskText(''); }} className="px-2 py-1" style={{ color: c.textMuted }} data-testid="cm-renewal-ask-cancel">Back</button>
+          </div>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-xs text-left">
           <thead><tr style={{ color: c.textMuted }}><th className="pb-2">Renewal</th><th className="pb-2">New term</th><th className="pb-2">Value</th><th className="pb-2">Status</th><th /></tr></thead>
@@ -49,8 +63,12 @@ export default function RenewalsInProgress() {
                     <button onClick={() => copyAcceptLink(r.renewal_accept_link)}
                       className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-copy-${r.id}`}>Copy link</button>
                   )}
+                  {['awaiting_dispatch', 'approved_not_delivered', 'email_cancelled'].includes(r.comms_status) && r.status === 'renewal_approved' && (
+                    <button onClick={() => setAsk({ id: r.id, path: 'mark-issued', field: 'evidence', title: 'Record manual issue', label: 'How did the renewal reach the customer?', ok: 'Renewal recorded as issued' })}
+                      className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-mark-issued-${r.id}`}>Mark issued</button>
+                  )}
                   {r.comms_status === 'awaiting_dispatch' && (
-                    <button onClick={() => { const reason = window.prompt('Why should this customer email not be sent?'); if (reason?.trim()) act(r.id, 'cancel-email', 'Customer email cancelled', { reason }); }}
+                    <button onClick={() => setAsk({ id: r.id, path: 'cancel-email', field: 'reason', title: 'Cancel customer email', label: 'Why should this email not be sent?', ok: 'Customer email cancelled' })}
                       className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-cancel-email-${r.id}`}>Cancel customer email</button>
                   )}
                   {['approved_not_delivered', 'delivered'].includes(r.comms_status) && (
