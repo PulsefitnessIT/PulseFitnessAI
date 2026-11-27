@@ -117,7 +117,7 @@ def test_owner_invite_invalid_role_and_owner_role_refused(H):
 # Gym floor: faults only for own-site equipment; sign-out/enable; restricted manager scope
 def test_gym_floor_fault_scope_signout_enable_and_manager_scope(H):
     db = _db()
-    oid = _mk_org(db, onboarding_status="active", account_type="pulse_pro")
+    oid = _mk_org(db, onboarding_status="active", portal_access="activated", account_type="pulse_pro")
     sa, sb = f"{oid}-a", f"{oid}-b"
     db.sites.insert_many([{"id": sa, "organization_id": oid, "name": "A"}, {"id": sb, "organization_id": oid, "name": "B"}])
     db.equipment.insert_many([{"id": f"{oid}-ea", "organization_id": oid, "site_id": sa, "name": "Tread A", "serial_number": "TSA"},

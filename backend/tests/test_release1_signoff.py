@@ -203,3 +203,17 @@ def test_test_mailbox_allowlist_only(monkeypatch):
         loop.close()
     assert a["mode"] == "sent" and b["mode"] == "held" and [x[0] for x in sent] == ["it.test@pulsefitness.example"]
     assert sent[0][1].endswith("/accept-invite#token=" + "t" * 40)
+
+
+def test_purchase_gate_covers_imported_customers_activated_any_way_but_not_mod_estates():
+    db = _db()
+    imp = _mk_org(db, onboarding_status="active", portal_access="activated", created_via="sage_customer_import")
+    mod = _mk_org(db, onboarding_status="active", portal_access="activated", created_via="mod_bulk_import")
+    try:
+        _, _, hi = _user(db, imp)
+        _, _, hm = _user(db, mod)
+        assert requests.post(f"{BASE}/api/me/upgrade-to-pro", headers=hi, json={}).status_code == 403
+        assert requests.post(f"{BASE}/api/me/upgrade-to-pro", headers=hm, json={}).status_code != 403
+    finally:
+        _purge(db, imp)
+        _purge(db, mod)

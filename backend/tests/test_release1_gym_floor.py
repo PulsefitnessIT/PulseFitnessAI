@@ -13,8 +13,8 @@ G = f"{BASE}/api/gym-floor"
 
 
 def _setup(db):
-    oid = _mk_org(db, onboarding_status="active", account_type="pulse_pro")
-    other = _mk_org(db, onboarding_status="active", account_type="pulse_pro")
+    oid = _mk_org(db, onboarding_status="active", portal_access="activated", account_type="pulse_pro")
+    other = _mk_org(db, onboarding_status="active", portal_access="activated", account_type="pulse_pro")
     sa, sb = f"{oid}-a", f"{oid}-b"
     db.sites.insert_many([{"id": sa, "organization_id": oid, "name": "A"}, {"id": sb, "organization_id": oid, "name": "B"},
                           {"id": f"{other}-x", "organization_id": other, "name": "X"}])

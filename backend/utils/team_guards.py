@@ -66,6 +66,8 @@ async def org_blocked(org_id) -> bool:
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "onboarding_status": 1, "portal_access": 1,
                                                            "provisioning_state": 1, "is_operator_company": 1})
     blocked = org_access_blocked(org or {})
+    if len(_ORG_CACHE) > 5000:
+        _ORG_CACHE.clear()  # bounded
     _ORG_CACHE[org_id] = (now, blocked)
     return blocked
 

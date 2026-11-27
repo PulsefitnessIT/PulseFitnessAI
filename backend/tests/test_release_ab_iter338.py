@@ -189,11 +189,21 @@ def test_sage_pull_company_from_config_and_write_guard(monkeypatch):
     assert call(SG.push_contacts_to_sage(u))[0] == 503  # guard passed; nothing configured, nothing pushed
 
 
+def _crm_session(email, pw):
+    """CRM session as the product issues it. Accounts that need platform MFA can't use a CRM password login
+    (Release 1); they reach CRM through their MFA-verified portal session, so mint that token directly."""
+    r = requests.post(f"{BASE}/api/crm/auth/login", json={"email": email, "password": pw}, timeout=30)
+    if r.status_code == 200:
+        return r.json()["token"]
+    assert r.status_code == 403 and "Two-step" in r.text, r.text
+    from routes.crm_auth import crm_create_token
+    cu = _db().crm_users.find_one({"email": email}, {"id": 1})
+    return crm_create_token(cu["id"], mfa=True)
+
+
 def test_sage_http_tenant_forbidden_admin_readonly():
     def tok(email, pw):
-        r = requests.post(f"{BASE}/api/crm/auth/login", json={"email": email, "password": pw}, timeout=30)
-        assert r.status_code == 200, r.text
-        return {"Authorization": f"Bearer {r.json()['token']}"}
+        return {"Authorization": f"Bearer {_crm_session(email, pw)}"}
     from tests.test_release_ab_onboarding import requests as _r  # noqa: F401
     t = tok("owner@isodemo.com", "IsoDemo123!")
     for m, p in (("get", "/config"), ("post", "/config"), ("get", "/customers"), ("post", "/sync/customers"),

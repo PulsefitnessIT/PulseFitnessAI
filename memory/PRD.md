@@ -39663,3 +39663,12 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Company-code joining closed for all orgs; legacy invite migration endpoint; unified staff permission rules (auth.py + account.py); ownership transfer; disabled accounts lose sessions; unactivated org members can't sign in; legacy gym-floor org-wide logins can't bypass sites; owner-with-other-org-login flagged for activation review; interrupted acceptance recovery; Sicon sample-restricted apply; imported-customer purchase gate; trial reminder retry cap.
 - CI: ruff fixed, zero-trust gate fixed (2 reviewed public routes in baseline). `make regression` failures shown to predate the release (baseline commit ae183314).
 - Full report and READY / NOT READY table: memory/RELEASE_1_REPORT.md. Tests: tests/test_release1_*.py.
+
+# ═══ 2026-11-27 · LAUNCH SIGN-OFF round ═══
+- One organisation access-state check (team_guards.assert_user_may_access) on login, sessions, refresh, CRM and gym floor.
+- CRM tokens carry iat and mfa claims, so revocation, MFA, disabled, orphan and membership checks apply to CRM.
+- Invitation acceptance is idempotent at every stage; signing in recovers an interrupted owner activation.
+- Purchase gate covers 8 routes.
+- `INVITATION_TEST_RECIPIENTS` allowlist for one approved test mailbox.
+- Equivalent-conditions regression comparison: candidate vs ae183314 shows no new failures.
+- Report: memory/LAUNCH_SIGNOFF.md.

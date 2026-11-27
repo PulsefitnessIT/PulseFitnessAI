@@ -125,8 +125,7 @@ def test_transferred_pulse_user_loses_all_pulse_access(H):
 
 
 def test_sage_connection_is_pulse_only_and_read_only(H):
-    def crm_token(email, pw):
-        return requests.post(f"{BASE}/api/crm/auth/login", json={"email": email, "password": pw}, timeout=30).json()["token"]
+    from tests.test_release_ab_iter338 import _crm_session as crm_token
     tenant = {"Authorization": f"Bearer {crm_token('owner@isodemo.com', 'IsoDemo123!')}"}
     for m, path in (("get", "/config"), ("post", "/config"), ("get", "/customers"), ("post", "/sync/customers"),
                     ("post", "/sync/customers-to-sage")):

@@ -686,7 +686,7 @@ async def crm_cross_login(
         org = await db.organizations.find_one({"id": crm_user["organization_id"]}, {"_id": 0, "name": 1})
         org_name = (org or {}).get("name", "")
 
-    _xl_mfa = _mfa_map.get((main_user or {}).get("id"), any(_mfa_map.values()))
+    _xl_mfa = _mfa_map.get((main_user or {}).get("id"), False)  # only the CRM user's OWN verified session counts
     crm_token = crm_create_token(crm_user["id"], mfa=bool(_xl_mfa))
     from utils.crm_workspace import workspace_context
     _main_org = await db.organizations.find_one({"id": main_org_id}, {"_id": 0}) if main_org_id else None

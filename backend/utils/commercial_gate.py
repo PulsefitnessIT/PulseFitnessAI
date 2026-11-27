@@ -12,8 +12,10 @@ async def assert_imported_purchase_allowed(user: dict) -> None:
     if os.environ.get("IMPORTED_CUSTOMER_PURCHASES_ENABLED", "").strip().lower() == "true":
         return
     org = await db.organizations.find_one({"id": user.get("organization_id")},
-                                          {"_id": 0, "activated_via_invitation": 1, "onboarding_status": 1})
-    if org and (org.get("activated_via_invitation") or org.get("onboarding_status") == "pending_activation"):
+                                          {"_id": 0, "activated_via_invitation": 1, "onboarding_status": 1, "created_via": 1})
+    # Only customers created by the Sage/Sicon customer import (not e.g. MOD estates set up by Pulse staff).
+    imported = (org or {}).get("created_via") in ("sage_customer_import", "sicon_customer_import")
+    if org and (imported or org.get("activated_via_invitation") or org.get("onboarding_status") == "pending_activation"):
         raise HTTPException(status_code=403, detail="Online purchasing for your account isn't open yet. Contact Pulse Fitness to add products.")
 
 
