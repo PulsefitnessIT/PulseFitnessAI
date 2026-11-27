@@ -43,5 +43,5 @@ _INFO = {"commit": _commit(), "started_at": _STARTED, "fingerprint": _fingerprin
 async def build_info(user=Depends(get_current_user)):
     if not (user.get("is_master_admin") or user.get("is_pulse_admin") or (user.get("role") or "").lower() in ("owner", "admin")):
         raise HTTPException(403, "Administrators only")
-    flags = {k: os.environ.get(k, "").lower() == "true" for k in ("CM_RENEWAL_EMAIL_LIVE", "MOD_QUOTE_NOTIFY_LIVE", "SICON_ALLOW_WRITES")}
+    flags = {k: os.environ.get(k, "").lower() == "true" for k in ("CM_RENEWAL_EMAIL_LIVE", "MOD_QUOTE_NOTIFY_LIVE", "SICON_ALLOW_WRITES", "SAGE_ALLOW_WRITES", "SICON_NIGHTLY_SYNC_ENABLED", "INVITATION_EMAILS_LIVE", "IMPORTED_CUSTOMER_PURCHASES_ENABLED")}
     return {**_INFO, "flags": flags, "afs_import_max_mb": int(os.environ.get("AFS_IMPORT_MAX_MB", "50"))}

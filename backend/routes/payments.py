@@ -215,9 +215,21 @@ async def _record_pending_payment(session, user: dict, package_id: str, package:
     })
 
 
+async def _imported_purchase_gate(user: dict) -> None:
+    """Release 1 — customers imported from Sage/Sicon can't buy online until Pulse completes a genuine Stripe
+    test-mode lifecycle and sets IMPORTED_CUSTOMER_PURCHASES_ENABLED=true. Existing signup journeys are unaffected."""
+    if os.environ.get("IMPORTED_CUSTOMER_PURCHASES_ENABLED", "").strip().lower() == "true":
+        return
+    org = await db.organizations.find_one({"id": user.get("organization_id")},
+                                          {"_id": 0, "activated_via_invitation": 1, "onboarding_status": 1})
+    if org and (org.get("activated_via_invitation") or org.get("onboarding_status") == "pending_activation"):
+        raise HTTPException(status_code=403, detail="Online purchasing for your account isn't open yet. Contact Pulse Fitness to add products.")
+
+
 @router.post("/payments/checkout")
 async def create_checkout(body: dict, request: Request, user: dict = Depends(get_current_user)) -> dict:
     """Create a Stripe Checkout Session for a subscription."""
+    await _imported_purchase_gate(user)
     package, origin_url = _validate_checkout_request(body)
     package_id = body["package_id"]
     trial_meta = await _resolve_trial_metadata(user)
@@ -247,6 +259,7 @@ async def create_flex_checkout(body: dict, request: Request, user: dict = Depend
     501 with a helpful message so the frontend falls back to the trial
     signup flow.
     """
+    await _imported_purchase_gate(user)
     origin_url = body.get("origin_url", "").rstrip("/")
     if not origin_url:
         raise HTTPException(status_code=400, detail="origin_url is required")

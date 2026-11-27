@@ -216,6 +216,18 @@ class _Run:
         self.preview_run_id: Optional[str] = None
         self.multi_customer: Optional[bool] = None
         self.dest_cache: Dict[str, Optional[str]] = {}
+        # Supervised acceptance: an apply may be restricted to approved sample customers; everything else is untouched.
+        self.sample: set = set((config or {}).get("sample_org_ids") or [])
+
+    async def outside_sample(self, code) -> bool:
+        if not (self.apply and self.sample):
+            return False
+        dest = await self.destination_org(code)
+        if dest in self.sample:
+            return False
+        self.counts.setdefault("outside_sample", {"skipped": 0})
+        self.counts["outside_sample"]["skipped"] += 1
+        return True
 
     async def destination_org(self, code) -> Optional[str]:
         """Which customer organisation owns this Sicon record. A tenant syncing its own Sicon owns everything; the Pulse
@@ -306,6 +318,8 @@ class _Run:
             c["differences"] += 1
 
     async def customer_and_site(self, cid, code, name, sub_id, label) -> None:
+        if self.apply and self.sample and await self.destination_org(code) not in self.sample:
+            return
         key = str(cid if cid is not None else code or "")
         if key and key not in self.seen_customers:
             try:
@@ -334,6 +348,8 @@ async def _equipment_phase(run: _Run, client) -> None:
         for rec in records:
             try:
                 norm = imp.normalise_equipment(rec)
+                if await run.outside_sample(norm.get("sicon_customer_code")):
+                    continue
                 await run.customer_and_site(norm.get("sicon_customer_id"), norm.get("sicon_customer_code"),
                                             norm.get("customer_name"), norm.get("sicon_sub_location_id"),
                                             norm.get("location_full"))
@@ -395,6 +411,8 @@ async def _cases_phase(run: _Run, client) -> None:
             try:
                 norm = imp.normalise_case(rec)
                 if not await run.unchanged_since_preview("case", norm.get("si_sm_case_id"), rec):
+                    continue
+                if await run.outside_sample(norm.get("sicon_customer_code")):
                     continue
                 await run.customer_and_site(norm.get("sicon_customer_id"), norm.get("sicon_customer_code"),
                                             norm.get("customer_name"), norm.get("sicon_sub_location_id"), None)

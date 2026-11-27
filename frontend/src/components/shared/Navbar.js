@@ -916,18 +916,7 @@ fontFamily: "'Proxima Nova', system-ui, sans-serif",
  data-testid="auth-fullname-input"
  />
  </div>
- <div>
- <Label htmlFor="company_code" className="text-white">Company Code (Join existing gym)</Label>
- <Input
- id="company_code"
- value={formData.company_code}
- onChange={(e) => setFormData({...formData, company_code: e.target.value.toUpperCase()})}
- placeholder="Leave blank to create new organization"
- className="bg-[var(--color-ink-alt)] border-white/10 text-white font-mono"
- data-testid="auth-company-code-input"
- />
- <p className="text-xs text-[var(--color-text-muted)] mt-1">Enter code to join an existing gym, or leave blank to create your own</p>
- </div>
+ <p className="text-xs text-[var(--color-text-muted)]" data-testid="auth-join-hint">Joining an existing gym? Use the invitation link your manager sent you.</p>
  {!formData.company_code && (
  <div>
  <Label htmlFor="company_name" className="text-white">Your Gym Name</Label>

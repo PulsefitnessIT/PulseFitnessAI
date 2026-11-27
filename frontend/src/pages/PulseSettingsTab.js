@@ -266,7 +266,7 @@ const PulseSettingsTab = () => {
                       <Copy size={14} className="mr-1" /> Copy
                     </Button>
                   </div>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Share this code with team members to join during signup</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Your organisation reference. Add team members with a secure invitation from Team.</p>
                 </div>
               </div>
             </Card>

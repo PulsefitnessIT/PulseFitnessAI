@@ -118,9 +118,14 @@ async def create_invitation(*, kind: str, org: dict, email: str, full_name: str,
         raise HTTPException(400, "A valid email address is required")
     existing = await db.users.find_one({"email": email}, {"_id": 0, "organization_id": 1})
     if existing:
-        same = existing.get("organization_id") == org["id"]
-        raise HTTPException(409, "This person already has a login in this organisation" if same else
-                            "This email already has a Pulse Fitness login with another organisation. Use a different email.")
+        if existing.get("organization_id") == org["id"]:
+            raise HTTPException(409, "This person already has a login in this organisation")
+        # One person = one identity. Until multi-organisation access exists, flag for review instead of duplicating.
+        await db.organizations.update_one({"id": org["id"]}, {"$set": {"activation_review_required": {
+            "reason": "person_has_login_in_another_organisation", "email": email, "kind": kind,
+            "flagged_by": actor.get("id"), "at": _now().isoformat()}}})
+        raise HTTPException(409, "This person already has a Pulse Fitness login with another organisation. "
+                                 "The customer has been flagged for activation review until multi-organisation access is available.")
     now = _now()
     # One owner invitation per organisation (any email); otherwise one per person.
     sup = {"organization_id": org["id"], "status": "pending"}
@@ -194,6 +199,8 @@ async def _find(token: str) -> Optional[dict]:
 def _state(inv: Optional[dict]) -> str:
     if not inv:
         return "invalid"
+    if inv["status"] == "accepting" and inv.get("accepting_at", "") < (_now() - timedelta(minutes=5)).isoformat():
+        return "valid" if not _expired(inv) else "expired"  # interrupted acceptance can be retried
     if inv["status"] == "pending" and _expired(inv):
         return "expired"
     return {"pending": "valid", "accepted": "used", "accepting": "used"}.get(inv["status"], "revoked")
@@ -234,8 +241,10 @@ async def accept(token: str, *, full_name: str, password: str, email_confirm: st
         raise HTTPException(400, "That email address doesn't match this invitation")
     validate_password_strength(password)
     await assert_password_not_breached(password)
+    stale = (_now() - timedelta(minutes=5)).isoformat()
     claimed = await db.secure_invitations.find_one_and_update(
-        {"id": inv["id"], "status": "pending", "expires_at": {"$gt": _now().isoformat()}},
+        {"id": inv["id"], "expires_at": {"$gt": _now().isoformat()},
+         "$or": [{"status": "pending"}, {"status": "accepting", "accepting_at": {"$lt": stale}}]},
         {"$set": {"status": "accepting", "accepting_at": _now().isoformat()}}, projection={"_id": 0})
     if not claimed:
         raise HTTPException(410, _STATE_MSG["used"])
@@ -245,7 +254,12 @@ async def accept(token: str, *, full_name: str, password: str, email_confirm: st
             "status": "revoked", "revoked_at": _now().isoformat(), "revoked_reason": "organisation_already_activated"}})
         raise HTTPException(410, "This organisation has already been activated. Ask its owner to invite you.")
     try:
-        user = await _create_user(claimed, full_name, hash_password(password))
+        # Recovery: an interrupted earlier attempt may already have created this person's login.
+        user = await db.users.find_one({"invited_via": claimed["id"]}, {"_id": 0})
+        if user:
+            await db.users.update_one({"id": user["id"]}, {"$set": {"password": hash_password(password)}})
+        else:
+            user = await _create_user(claimed, full_name, hash_password(password))
     except Exception:
         await db.secure_invitations.update_one({"id": inv["id"], "status": "accepting"}, {"$set": {"status": "pending"}})
         raise
@@ -292,3 +306,43 @@ async def _activate_org(inv: dict, user: dict) -> None:
     if not (org or {}).get("owner_id"):
         s["owner_id"] = user["id"]
     await db.organizations.update_one({"id": inv["organization_id"]}, {"$set": s})
+
+
+async def migrate_legacy_invites(*, apply: bool, actor: dict) -> dict:
+    """Reissue pending legacy `invites` (company-code era) through this service. Dry run by default.
+    Role is capped at manager/staff; no site scope is invented (owners can narrow it when re-sending).
+    Legacy rows are marked `migrated`, never deleted."""
+    rows = await db.invites.find({"status": "pending"}, {"_id": 0}).to_list(5000)
+    plan = []
+    for r in rows:
+        org = await db.organizations.find_one({"id": r.get("organization_id")}, {"_id": 0})
+        email = (r.get("email") or "").strip().lower()
+        reason = None
+        if not org:
+            reason = "organisation_missing"
+        elif not email or "@" not in email:
+            reason = "invalid_email"
+        elif await db.users.find_one({"email": email}, {"_id": 1}):
+            reason = "already_has_login"
+        elif org_awaiting_activation(org):
+            reason = "organisation_awaiting_activation"  # owners of imported customers come only via owner activation
+        plan.append({"legacy_id": r.get("id"), "organization_id": r.get("organization_id"), "email": email,
+                     "role": r.get("role") if r.get("role") in ("manager", "staff") else "staff",
+                     "action": "skip" if reason else "reissue", "reason": reason})
+    done = 0
+    if apply:
+        for p in plan:
+            if p["action"] != "reissue":
+                await db.invites.update_one({"id": p["legacy_id"], "status": "pending"},
+                                            {"$set": {"status": "retired", "retired_reason": p["reason"], "retired_at": _now().isoformat()}})
+                continue
+            legacy = next(r for r in rows if r.get("id") == p["legacy_id"])
+            inviter = await db.users.find_one({"id": legacy.get("invited_by")}, {"_id": 0}) or actor
+            org = await db.organizations.find_one({"id": p["organization_id"]}, {"_id": 0})
+            out = await create_invitation(kind="staff", org=org, email=p["email"], full_name=legacy.get("full_name") or "",
+                                          role=p["role"], actor=inviter, require_mfa=p["role"] == "manager")
+            await db.invites.update_one({"id": p["legacy_id"]}, {"$set": {
+                "status": "migrated", "migrated_to": out["invitation"]["id"], "migrated_at": _now().isoformat(),
+                "migrated_by": actor.get("id")}})
+            done += 1
+    return {"apply": apply, "pending_legacy": len(rows), "reissued": done, "plan": plan}

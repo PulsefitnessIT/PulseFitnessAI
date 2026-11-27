@@ -5,7 +5,7 @@ See /app/memory/SICON_INTEGRATION_SPEC.md for the full field model.
 """
 from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 import logging
 
 from utils.database import db
@@ -1314,7 +1314,8 @@ async def _onboarding_client(user: dict, org_id: str):
     return client
 
 
-async def _start_onboarding(user: dict, apply: bool, preview_run_id: Optional[str] = None) -> Dict[str, Any]:
+async def _start_onboarding(user: dict, apply: bool, preview_run_id: Optional[str] = None,
+                            sample_org_ids: Optional[list] = None) -> Dict[str, Any]:
     import uuid as _uuid
     org_id = _require_org(user)
     client = await _onboarding_client(user, org_id)
@@ -1327,9 +1328,9 @@ async def _start_onboarding(user: dict, apply: bool, preview_run_id: Optional[st
     await db.sicon_sync_runs.insert_one({
         "id": run_id, "organization_id": org_id, "entity": "onboarding",
         "mode": "apply" if apply else "preview", "status": "queued", "counts": {},
-        "preview_run_id": preview_run_id, "started_at": now, "user_id": user["id"],
+        "preview_run_id": preview_run_id, "started_at": now, "user_id": user["id"], "sample_org_ids": sample_org_ids or [],
         "user_name": user.get("full_name") or user.get("email")})
-    config = await get_sicon_config(org_id) or {}
+    config = {**(await get_sicon_config(org_id) or {}), "sample_org_ids": sample_org_ids or []}
     task = _asyncio.create_task(_onb.run_onboarding(org_id, client, config, run_id, apply, user["id"]))
     _onboarding_tasks.add(task)
     task.add_done_callback(_onboarding_tasks.discard)
@@ -1344,11 +1345,19 @@ async def onboarding_preview(user: dict = Depends(get_current_user)):
     return await _start_onboarding(user, apply=False)
 
 
+class OnboardingApplyIn(BaseModel):
+    sample_org_ids: List[str] = []
+
+
 @router.post("/sicon/read/onboarding/{run_id}/apply")
-async def onboarding_apply(run_id: str, user: dict = Depends(get_current_user)):
-    """Confirm a completed preview and import (new + gap-fill; differences queued)."""
+async def onboarding_apply(run_id: str, user: dict = Depends(get_current_user), body: Optional[OnboardingApplyIn] = None):
+    """Confirm a completed preview and import (new + gap-fill; differences queued).
+    `sample_org_ids` restricts the import to approved sample customers (supervised live acceptance)."""
     _require_owner_or_manager(user)
     org_id = _require_org(user)
+    sample = [str(x) for x in ((body.sample_org_ids if body else []) or []) if x]
+    if sample and await db.organizations.count_documents({"id": {"$in": sample}}) != len(set(sample)):
+        raise HTTPException(status_code=400, detail="One or more sample customers don't exist")
     prev = await db.sicon_sync_runs.find_one(
         {"id": run_id, "organization_id": org_id, "entity": "onboarding", "mode": "preview"}, {"_id": 0})
     if not prev:
@@ -1360,7 +1369,8 @@ async def onboarding_apply(run_id: str, user: dict = Depends(get_current_user)):
                                                             "applied_by": user.get("email")}})
     if not claimed.modified_count:
         raise HTTPException(status_code=409, detail="This preview has already been imported — run a new preview.")
-    return await _start_onboarding(user, apply=True, preview_run_id=run_id)
+    extra = {"sample_org_ids": sample} if sample else {}
+    return await _start_onboarding(user, apply=True, preview_run_id=run_id, **extra)
 
 
 @router.get("/sicon/read/onboarding/latest")

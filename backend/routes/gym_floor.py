@@ -301,6 +301,9 @@ async def gym_floor_login(body: GymFloorLogin):
         raise HTTPException(401, "Invalid credentials")
     if not _verify(body.password, cred.get("password_hash", "")):
         raise HTTPException(401, "Invalid credentials")
+    cred = {**cred, "site_id": await _legacy_site(cred)}
+    if cred["site_id"] is False:
+        raise HTTPException(403, "This older device login covers every site. Ask your manager to create a login for this site.")
     # Session token — short-lived, stores org_id and a marker.
     token = f"gfloor-{secrets.token_urlsafe(24)}"
     now = datetime.now(timezone.utc)
@@ -337,11 +340,24 @@ async def _resolve_gym_floor_session(x_gym_floor_token: Optional[str]) -> Option
         await db.gym_floor_sessions.delete_one({"token": x_gym_floor_token})
         return None
     cred = await db.gym_floor_credentials.find_one({"id": s.get("credential_id") or s["organization_id"]},
-                                                   {"_id": 0, "enabled": 1, "site_id": 1})
+                                                   {"_id": 0, "enabled": 1, "site_id": 1, "organization_id": 1})
     if not cred or not cred.get("enabled", True):
         return None
-    s["site_id"] = cred.get("site_id")
+    site = await _legacy_site(cred)
+    if site is False:
+        return None  # legacy all-sites login can no longer bypass site restrictions
+    s["site_id"] = site
     return s
+
+
+async def _legacy_site(cred: dict):
+    """Site for a credential. Older org-wide logins bind to the only site; with several sites they are refused (False)."""
+    if cred.get("site_id"):
+        return cred["site_id"]
+    sites = await db.sites.find({"organization_id": cred["organization_id"]}, {"_id": 0, "id": 1}).to_list(2)
+    if len(sites) > 1:
+        return False
+    return sites[0]["id"] if sites else None
 
 
 # Combined auth dep — manager (via Bearer) OR gym-floor-token header.

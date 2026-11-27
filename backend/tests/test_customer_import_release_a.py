@@ -274,10 +274,11 @@ def test_company_code_signup_block_and_regression(H):
         email2 = f"test_sgn_{uuid.uuid4().hex[:6]}@example.com"
         r = requests.post(f"{BASE}/api/auth/register", headers=hdr, timeout=30,
                           json={"email": email2, "password": pw, "full_name": "TEST Signup Two", "company_code": code})
-        assert r.status_code in (200, 201), r.text
-        u = db.users.find_one({"email": email2})
+        # Release 1 (founder-approved, 27 Nov 2026): a company code never authorises joining, even an ACTIVE
+        # organisation — people join only through a secure single-use invitation.
+        assert r.status_code == 403, r.text
         created_users.append(email2)
-        assert u and u["organization_id"] == act and u["role"] == "staff"
+        assert db.users.count_documents({"email": email2}) == 0
     finally:
         for e in created_users:
             db.users.delete_many({"email": e})

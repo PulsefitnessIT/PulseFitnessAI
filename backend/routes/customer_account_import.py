@@ -1534,7 +1534,7 @@ async def activation_queue(search: str = "", skip: int = 0, limit: int = Query(5
         q["$or"] = [{"name": rx}, {"customer_account_number": rx}]
     total = await db.organizations.count_documents(q)
     out = []
-    async for o in db.organizations.find(q, {"_id": 0, "id": 1, "name": 1, "customer_account_number": 1, "city": 1, "postcode": 1,
+    async for o in db.organizations.find(q, {"_id": 0, "id": 1, "name": 1, "activation_review_required": 1, "customer_account_number": 1, "city": 1, "postcode": 1,
                                              "created_via": 1, "created_at": 1}).sort("name", 1).skip(skip).limit(limit):
         st = await db.customer_account_internal.find_one({"org_id": o["id"]}, {"_id": 0, "sage_status": 1}) or {}
         o["contacts"] = await db.crm2_contacts.count_documents({"linked_organization_id": o["id"]})

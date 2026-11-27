@@ -72,7 +72,7 @@ export function CustomerActivation() {
                 <td className="p-2 font-medium">{c.name}</td><td className="p-2 font-mono">{c.customer_account_number || '—'}</td><td className="p-2">{c.city}</td>
                 <td className="p-2 text-right">{c.contacts}</td><td className="p-2 text-right">{c.contacts_with_email}</td><td className="p-2 text-right">{c.sites}</td>
                 <td className="p-2">{c.hidden ? 'Hidden' : c.on_hold ? 'On hold' : 'Active'}</td>
-                <td className="p-2">{c.hidden || c.on_hold ? 'Check with Accounts first' : c.contacts_with_email ? 'Owner to verify' : 'Needs a contact email'}</td>
+                <td className="p-2">{c.activation_review_required ? 'Activation review: owner already has a login elsewhere' : c.hidden || c.on_hold ? 'Check with Accounts first' : c.contacts_with_email ? 'Owner to verify' : 'Needs a contact email'}</td>
                 <td className="p-2" data-testid={`ca-inv-status-${c.id}`}>{c.invitation ? `${c.invitation.status} · ${c.invitation.email}` : '—'}</td>
                 <td className="p-2"><Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setOpen(c)} data-testid={`ca-invite-${c.id}`}>{c.invitation?.status === 'pending' ? 'Manage' : 'Verify & invite owner'}</Button></td>
               </tr>

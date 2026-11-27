@@ -63,6 +63,8 @@
     "/api/incidents/witness-statement/{token}",
     "/api/integrations/postcode/autocomplete",
     "/api/integrations/postcode/lookup",
+    "/api/invitations/accept",
+    "/api/invitations/inspect",
     "/api/m/{slug}/ads",
     "/api/m/{slug}/ads/{ad_id}/click",
     "/api/m/{slug}/brag",

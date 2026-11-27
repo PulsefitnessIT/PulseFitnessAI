@@ -217,8 +217,9 @@ def test_proposed_sites_http_sage_and_sicon(H):
     db.organizations.insert_one({"id": org, "name": f"TST PS {tag}", "account_type": "lite"})
     db.sites.insert_many([{"id": f"TSTs1-{tag}", "organization_id": org, "name": "Main", "postcode": "AB1 2CD"},
                           {"id": f"TSTs2-{tag}", "organization_id": org, "name": "Annex", "sicon_sub_location_id": f"OTHER{tag}"}])
-    mk = lambda i, **kw: {"id": f"TSTp{i}-{tag}", "org_id": org, "status": "proposed", "name": f"P{i}", "address_line1": "",
-                          "city": "", "postcode": kw.pop("postcode", ""), "account_ref": kw.pop("account_ref", ""), **kw}
+    def mk(i, **kw):
+        return {"id": f"TSTp{i}-{tag}", "org_id": org, "status": "proposed", "name": f"P{i}", "address_line1": "",
+                "city": "", "postcode": kw.pop("postcode", ""), "account_ref": kw.pop("account_ref", ""), **kw}
     db.customer_proposed_sites.insert_many([
         mk(1, account_ref=f"SA{tag}1", postcode="AB12CD"),   # Sage twin postcode -> 409, then force
         mk(2, account_ref=f"SA{tag}2"),                      # Sage link

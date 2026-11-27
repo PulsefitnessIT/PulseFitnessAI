@@ -20,6 +20,7 @@ from utils.security import (
     sanitise_string, rate_limit, _client_ip,
 )
 from models.schemas import UserRegister, UserLogin, InviteStaff
+from pydantic import BaseModel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,25 +28,13 @@ logger = logging.getLogger(__name__)
 
 async def _resolve_org_and_role(user: UserRegister, user_id: str) -> tuple:
     """Resolve organization and role for a registering user. Returns (org_id, role)."""
-    if user.company_code:
-        org = await db.organizations.find_one({"company_code": user.company_code}, {"_id": 0})
-        if not org:
-            raise HTTPException(status_code=400, detail="Invalid company code")
-        org_id = org["id"]
-        invite = await db.invites.find_one({"email": user.email, "organization_id": org_id, "status": "pending"}, {"_id": 0})
-        if not invite and (org.get("onboarding_status") == "pending_activation" or org.get("portal_access") == "not_activated"
-                           or org.get("provisioning_state") == "importing"):
-            # Imported customers are activated only through a verified invitation — a company code is not enough.
-            raise HTTPException(status_code=403, detail="This organisation is not open for sign-up yet. Ask Pulse Fitness for an invitation.")
-        if invite:
-            role = invite["role"]
-            await db.invites.update_one(
-                {"email": user.email, "organization_id": org_id},
-                {"$set": {"status": "accepted", "accepted_at": datetime.now(timezone.utc).isoformat()}},
-            )
-        else:
-            role = "staff"
-        return org_id, role
+    if (user.company_code or "").strip():
+        # Release 1 (approved): a company code identifies an organisation but never authorises joining it —
+        # for active and inactive customers alike, and legacy invites cannot be redeemed this way either.
+        # People join an existing organisation only through a secure single-use invitation link.
+        raise HTTPException(status_code=403, detail=(
+            "Joining an existing organisation needs an invitation link. Ask the account owner or your manager "
+            "to send you one from Settings → Team. To create a new organisation, leave the company code empty."))
 
     # New org
     org_id = str(uuid.uuid4())
@@ -1766,73 +1755,122 @@ async def resend_invite(invite_id: str, user: dict = Depends(get_current_user)) 
     return await SI.reissue(invite_id, user, org_id=user['organization_id'], kind="staff")
 
 
+async def _validate_org_sites(org_id: str, ids: list) -> list:
+    ids = [str(x) for x in (ids or []) if x]
+    if ids and await db.sites.count_documents({"id": {"$in": ids}, "organization_id": org_id}) != len(set(ids)):
+        raise HTTPException(status_code=400, detail="One or more sites don't belong to your organisation")
+    return ids
+
+
 @router.patch("/organization/staff/{staff_id}/role")
 async def update_staff_role(staff_id: str, role: str, user: dict = Depends(get_current_user)) -> dict:
+    """Owner changes a member between manager and staff. Ownership moves only via /organization/ownership/transfer."""
+    from utils.auth_guards import revoke_user_sessions
     if user.get('role') != 'owner':
         raise HTTPException(status_code=403, detail="Only owners can change roles")
-    if role not in ['owner', 'manager', 'staff']:
-        raise HTTPException(status_code=400, detail="Invalid role")
-    result = await db.users.update_one(
-        {"id": staff_id, "organization_id": user['organization_id']},
-        {"$set": {"role": role}}
-    )
-    if result.modified_count == 0:
+    if role not in ['manager', 'staff']:
+        raise HTTPException(status_code=400, detail="Role must be 'manager' or 'staff'. To hand over ownership use the ownership transfer.")
+    if staff_id == user['id']:
+        raise HTTPException(status_code=400, detail="You can't change your own role")
+    target = await db.users.find_one({"id": staff_id, "organization_id": user['organization_id']}, {"_id": 0, "role": 1})
+    if not target:
         raise HTTPException(status_code=404, detail="Staff member not found")
+    if target.get("role") == "owner":
+        raise HTTPException(status_code=400, detail="An owner's role can only change through an ownership transfer")
+    s = {"role": role, "role_updated_at": datetime.now(timezone.utc).isoformat()}
+    if role == "manager":
+        s["mfa_required"] = True
+        s["mfa_enrolment_required"] = True  # privileged role: two-step verification at next sign-in
+    await db.users.update_one({"id": staff_id, "organization_id": user['organization_id']}, {"$set": s})
+    if target.get("role") != role:
+        await revoke_user_sessions(staff_id, reason="role_change")
     from utils.security_plus import audit_required
     await audit_required("security_audit_log", {
         "event": "staff.role.changed", "actor_id": user["id"], "actor_email": user.get("email"),
-        "org_id": user["organization_id"], "target_id": staff_id, "new_role": role,
+        "org_id": user["organization_id"], "target_id": staff_id, "new_role": role, "old_role": target.get("role"),
     })
+    return {"success": True}
+
+
+class OwnershipTransfer(BaseModel):
+    target_user_id: str
+    password: str
+
+
+@router.post("/organization/ownership/transfer")
+async def transfer_ownership(body: OwnershipTransfer, user: dict = Depends(get_current_user)) -> dict:
+    """Explicit, re-authenticated owner hand-over. The new owner must already use two-step verification."""
+    from utils.auth import verify_password
+    from utils.auth_guards import revoke_user_sessions
+    if user.get('role') != 'owner':
+        raise HTTPException(status_code=403, detail="Only the owner can transfer ownership")
+    me = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password": 1})
+    if not me or not verify_password(body.password, me.get("password") or ""):
+        raise HTTPException(status_code=401, detail="Password incorrect")
+    target = await db.users.find_one({"id": body.target_user_id, "organization_id": user['organization_id']}, {"_id": 0})
+    if not target or target["id"] == user["id"]:
+        raise HTTPException(status_code=404, detail="Choose another member of your organisation")
+    mfa = await db.user_mfa.find_one({"user_id": target["id"]}, {"_id": 0, "enabled": 1})
+    if not (mfa or {}).get("enabled"):
+        raise HTTPException(status_code=409, detail="The new owner must set up two-step verification first")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"id": target["id"]}, {"$set": {"role": "owner", "allowed_site_ids": [], "role_updated_at": now,
+                                                             "mfa_required": True, "mfa_enrolment_required": True}})
+    await db.users.update_one({"id": user["id"]}, {"$set": {"role": "manager", "role_updated_at": now}})
+    await db.organizations.update_one({"id": user["organization_id"]}, {"$set": {"owner_id": target["id"], "owner_changed_at": now}})
+    await revoke_user_sessions(target["id"], reason="ownership_transfer")
+    await revoke_user_sessions(user["id"], reason="ownership_transfer")
+    from utils.security_plus import audit_required
+    await audit_required("security_audit_log", {
+        "event": "org.ownership.transferred", "actor_id": user["id"], "actor_email": user.get("email"),
+        "org_id": user["organization_id"], "target_id": target["id"]})
     return {"success": True}
 
 
 @router.patch("/organization/staff/{staff_id}/permissions")
 async def update_staff_permissions(staff_id: str, body: dict, user: dict = Depends(get_current_user)) -> dict:
-    """Owner/Manager grants per-staff feature access.
-
-    Body shape (all optional):
-      {
-        "module_overrides": {"memberships": bool, "marketing": bool, "crm": bool},
-        "timetable_view_only": bool,
-        "allowed_site_ids": ["site-uuid-1", "site-uuid-2"]   // empty/absent = unrestricted
-      }
-
-    `module_overrides` only restrict — they cannot grant access the org
-    itself doesn't have. Owners and master admins ignore overrides.
-    `allowed_site_ids` (Iter 216bk) locks the staff member to a subset
-    of the org's sites — they will only see those in the site switcher
-    and the legacy fallback (empty list) preserves existing behaviour.
-    """
+    """Owner/Manager sets per-staff feature restrictions and site scope.
+    Body (all optional): module_overrides {memberships, marketing, crm: bool}, timetable_view_only: bool,
+    allowed_site_ids: [...] (empty = every site; owners only). Managers may only change staff inside their own sites
+    and can never widen access beyond their own sites."""
+    from utils.auth_guards import revoke_user_sessions
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Only owners and managers can manage staff permissions")
-
+    if staff_id == user['id']:
+        raise HTTPException(status_code=403, detail="You can't change your own permissions")
     target = await db.users.find_one(
         {"id": staff_id, "organization_id": user['organization_id']},
-        {"_id": 0, "id": 1, "role": 1, "email": 1},
+        {"_id": 0, "id": 1, "role": 1, "email": 1, "allowed_site_ids": 1},
     )
     if not target:
         raise HTTPException(status_code=404, detail="Staff member not found")
     if target.get("role") == "owner":
         raise HTTPException(status_code=400, detail="Cannot restrict an owner")
+    mine = set(user.get('allowed_site_ids') or [])
+    if user.get('role') == 'manager':
+        if target.get("role") != "staff":
+            raise HTTPException(status_code=403, detail="Managers can only change staff permissions")
+        theirs = set(target.get("allowed_site_ids") or [])
+        if mine and (not theirs or not theirs <= mine):
+            raise HTTPException(status_code=403, detail="This person works at sites you don't manage")
 
     update: dict = {}
-
     if "module_overrides" in body and isinstance(body["module_overrides"], dict):
         cleaned: dict = {}
         for key in ("memberships", "marketing", "crm"):
             if key in body["module_overrides"]:
                 cleaned[key] = bool(body["module_overrides"][key])
         update["module_overrides"] = cleaned
-
     if "timetable_view_only" in body:
         update["timetable_view_only"] = bool(body["timetable_view_only"])
-
     if "allowed_site_ids" in body:
         raw = body["allowed_site_ids"] or []
         if not isinstance(raw, list):
             raise HTTPException(400, "allowed_site_ids must be an array")
-        update["allowed_site_ids"] = [str(x) for x in raw if x]
-
+        ids = await _validate_org_sites(user['organization_id'], raw)
+        if user.get('role') == 'manager' and mine and (not ids or not set(ids) <= mine):
+            raise HTTPException(status_code=403, detail="You can only give access to the sites you manage")
+        update["allowed_site_ids"] = ids
     if not update:
         raise HTTPException(status_code=400, detail="Nothing to update")
 
@@ -1840,7 +1878,8 @@ async def update_staff_permissions(staff_id: str, body: dict, user: dict = Depen
         {"id": staff_id, "organization_id": user['organization_id']},
         {"$set": {**update, "permissions_updated_at": datetime.now(timezone.utc).isoformat()}},
     )
-
+    if "allowed_site_ids" in update and set(update["allowed_site_ids"]) != set(target.get("allowed_site_ids") or []):
+        await revoke_user_sessions(staff_id, reason="site_scope_change")
     from utils.security_plus import audit_required
     await audit_required("security_audit_log", {
         "event": "staff.permissions.changed", "actor_id": user["id"], "actor_email": user.get("email"),
