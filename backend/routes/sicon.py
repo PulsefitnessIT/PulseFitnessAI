@@ -1258,11 +1258,15 @@ async def _run_all_org_sicon_sync():
     equipment + case sync. Idempotent + per-org isolated, so it is safe to run
     unattended every night."""
     import logging as _logging
+    import os as _os_env
     log = _logging.getLogger(__name__)
     try:
         cfgs = await db.sicon_config.find({"enabled": True}, {"_id": 0, "organization_id": 1}).to_list(1000)
     except Exception as e:
         log.warning("sicon nightly: cannot list configs: %s", e)
+        return
+    if (_os_env.environ.get("SICON_NIGHTLY_SYNC_ENABLED") or "").strip().lower() != "true":
+        log.info("sicon nightly: unattended sync disabled (SICON_NIGHTLY_SYNC_ENABLED != true)")
         return
     for cfg in cfgs:
         org_id = cfg.get("organization_id")

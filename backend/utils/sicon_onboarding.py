@@ -244,7 +244,9 @@ class _Run:
         become a proposed site for review — never an automatically confirmed gym."""
         if sub_id in (None, ""):
             return None
-        site = await db.sites.find_one({"organization_id": dest, "sicon_sub_location_id": str(sub_id)}, {"_id": 0, "id": 1})
+        src = links.SOURCE_CTX.get() or "unscoped"
+        site = await db.sites.find_one({"organization_id": dest, "sicon_sub_location_id": str(sub_id),
+                                        "sicon_source": {"$in": [src, None]}}, {"_id": 0, "id": 1})
         if site:
             return site["id"]
         if label:
@@ -253,15 +255,15 @@ class _Run:
                                         "sicon_sub_location_id": {"$in": [None, ""]}}, {"_id": 0, "id": 1}).to_list(2)
             if len(rows) == 1:
                 if self.apply:
-                    await db.sites.update_one({"id": rows[0]["id"]}, {"$set": {"sicon_sub_location_id": str(sub_id),
+                    await db.sites.update_one({"id": rows[0]["id"]}, {"$set": {"sicon_sub_location_id": str(sub_id), "sicon_source": src,
                                                                               "sicon_linked_at": _now()}})
                 return rows[0]["id"]
         if self.apply:
             await db.customer_proposed_sites.update_one(
-                {"org_id": dest, "account_ref": f"SICON:{sub_id}"},
+                {"org_id": dest, "sicon_source": links.SOURCE_CTX.get() or "unscoped", "sicon_sub_location_id": str(sub_id)},
                 {"$setOnInsert": {"id": str(uuid.uuid4()), "status": "proposed", "created_at": _now(), "name": label or f"Sicon site {sub_id}",
                                   "address_line1": "", "address_line2": "", "address_line3": "", "address_line4": "",
-                                  "city": "", "county": "", "postcode": "", "sicon_sub_location_id": str(sub_id),
+                                  "city": "", "county": "", "postcode": "", "account_ref": "",
                                   "source_run_id": self.run_id, "note": "Sicon sub-location — confirm or link to an existing site"}},
                 upsert=True)
         return None
@@ -332,8 +334,6 @@ async def _equipment_phase(run: _Run, client) -> None:
         for rec in records:
             try:
                 norm = imp.normalise_equipment(rec)
-                if not await run.unchanged_since_preview("equipment", norm.get("sicon_equipment_id"), rec):
-                    continue
                 await run.customer_and_site(norm.get("sicon_customer_id"), norm.get("sicon_customer_code"),
                                             norm.get("customer_name"), norm.get("sicon_sub_location_id"),
                                             norm.get("location_full"))
@@ -351,9 +351,21 @@ async def _equipment_phase(run: _Run, client) -> None:
                     if dest != run.org_id else None
                 cls = await imp.classify_equipment(norm, dest)
                 diff = False
+                existing = {}
                 if cls["bucket"] in ("linked", "match"):
                     existing = await db.equipment.find_one({"id": cls["pulse_asset_id"]}, {"_id": 0}) or {}
                     diff = _has_diff(existing, {f: norm.get(f) for f in (*imp.SICON_SYNCED_FIELDS, "model")})
+                # Approval covers the source record AND what it resolved to: connection, customer, site, asset + version.
+                ext = norm.get("sicon_equipment_id")
+                if ext in (None, ""):
+                    ext = "noid:" + _fingerprint({k: rec.get(k) for k in ("serialNumber", "customerCode", "description", "model",
+                                                                          "siconSubLocationDbKey")})
+                resolved = {"source": links.SOURCE_CTX.get(), "dest": dest, "site": site_id, "bucket": cls["bucket"],
+                            "asset": cls.get("pulse_asset_id"),
+                            "asset_v": {f: existing.get(f) for f in ("updated_at", "serial_number", "model", "site_id",
+                                                                     "sicon_equipment_id")}}
+                if not await run.unchanged_since_preview("equipment", ext, {"rec": rec, "resolved": resolved}):
+                    continue
                 if run.apply:
                     res = await imp.apply_equipment_record(dest, norm, cls, run.run_id, fill_gaps=True)
                     if site_id and (res or {}).get("pulse_asset_id"):
@@ -507,6 +519,7 @@ async def run_onboarding(org_id: str, client, config: Dict[str, Any], run_id: st
             "error": "Another Sicon sync is already running"}})
         return {"status": "skipped_locked"}
     run = _Run(org_id, run_id, apply, config)
+    links.SOURCE_CTX.set(await links.connection_company(org_id))  # the connection actually used for this run
     me = await db.sicon_sync_runs.find_one({"id": run_id}, {"_id": 0, "preview_run_id": 1}) or {}
     run.preview_run_id = me.get("preview_run_id")
     if not await links.sage_company_for(org_id):

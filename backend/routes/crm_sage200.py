@@ -52,10 +52,29 @@ def get_base_url(config: dict) -> str:
     return SAGE_PROFESSIONAL_BASE if edition == "professional" else SAGE_STANDARD_BASE
 
 
+def _require_pulse_admin(user: dict) -> None:
+    """The Sage 200 connection is Pulse Fitness's own accounting system: only Pulse admins may see, change or use it.
+    Customer tenant admins (any CRM 'admin') must never reach it."""
+    if not (user.get("is_master_admin") or user.get("is_pulse_admin")):
+        raise HTTPException(status_code=403, detail="Pulse Fitness administrator access required")
+
+
+def sage_writes_allowed() -> bool:
+    """Central Sage write guard (same principle as SICON_ALLOW_WRITES). Default: read-only."""
+    import os
+    return (os.environ.get("SAGE_ALLOW_WRITES") or "").strip().lower() == "true"
+
+
+def verified_sage_company(config: dict) -> str:
+    """The Sage company comes from the connected integration itself, never from a typed label."""
+    return str((config or {}).get("company_name") or (config or {}).get("company_id") or "").strip()
+
+
 # ==================== CONFIGURATION ====================
 @router.get("/config")
 async def sage_config(user=Depends(get_crm_user)):
     """Get current Sage 200 integration configuration."""
+    _require_pulse_admin(user)
     config = await get_sage_config()
     if not config:
         return {"configured": False}
@@ -73,8 +92,7 @@ async def sage_config(user=Depends(get_crm_user)):
 @router.post("/config")
 async def update_sage_config(data: dict, user=Depends(get_crm_user)):
     """Store Sage 200 configuration (credentials provided by user)."""
-    if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin only")
+    _require_pulse_admin(user)
 
     config = {
         "type": "sage200",
@@ -103,6 +121,7 @@ async def update_sage_config(data: dict, user=Depends(get_crm_user)):
 @router.get("/customers")
 async def list_sage_customers(skip: int = 0, limit: int = 100, user=Depends(get_crm_user)):
     """Fetch customers from Sage 200."""
+    _require_pulse_admin(user)
     config = await get_sage_config()
     headers = await get_sage_headers(config)
     if not headers:
@@ -177,11 +196,14 @@ async def fetch_all_sage_customers(base: str, headers: dict) -> list:
 async def sync_customers_to_crm(source_company: str = "", user=Depends(get_crm_user)):
     """Pull every Sage 200 customer into an Import Centre job for review. Nothing is written to customers until a
     Pulse admin approves it (same matching, LITE-only provisioning, approval and Undo as spreadsheet imports)."""
-    if not (user.get("is_master_admin") or user.get("is_pulse_admin")):
-        raise HTTPException(status_code=403, detail="Only Pulse admins can import Sage customers")
-    if not source_company.strip():
-        raise HTTPException(status_code=400, detail="Choose the Sage company these customers belong to")
+    _require_pulse_admin(user)
     config = await get_sage_config()
+    company = verified_sage_company(config)
+    if not company:
+        raise HTTPException(status_code=400, detail="The Sage connection has no company configured — set it in Sage settings")
+    if source_company.strip() and source_company.strip().upper() != company.upper():
+        raise HTTPException(status_code=409, detail=f"The connected Sage company is '{company}', not '{source_company}'")
+    source_company = company
     headers = await get_sage_headers(config)
     if not headers:
         raise HTTPException(status_code=503, detail="Sage 200 not configured")
@@ -207,6 +229,10 @@ async def sync_customers_to_crm(source_company: str = "", user=Depends(get_crm_u
 @router.post("/sync/customers-to-sage")
 async def push_contacts_to_sage(user=Depends(get_crm_user)):
     """Push CRM contacts (without sage_ref) to Sage 200 as new customers."""
+    _require_pulse_admin(user)
+    if not sage_writes_allowed():
+        raise HTTPException(status_code=403, detail="Sage writeback is disabled (read-only). Set SAGE_ALLOW_WRITES=true only "
+                                                    "after a separately approved and tested release.")
     config = await get_sage_config()
     headers = await get_sage_headers(config)
     if not headers:

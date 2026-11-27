@@ -95,3 +95,43 @@ def test_delegated_staff_permissions(H):
         assert requests.post(f"{API}/delegates", headers=D, timeout=30, json={"email": email, "permissions": ["imports.commit"]}).status_code == 403
     finally:
         db.users.delete_many({"id": {"$in": [uid, other]}})
+
+
+def test_transferred_pulse_user_loses_all_pulse_access(H):
+    db = _db()
+    from utils.auth import create_token
+    op = db.organizations.find_one({"is_operator_company": True}, {"_id": 0, "id": 1})
+    uid, email = str(uuid.uuid4()), f"tst.mover.{uuid.uuid4().hex[:6]}@pulsefitness.com"
+    db.users.insert_one({"id": uid, "email": email, "organization_id": op["id"], "role": "manager", "is_active": True,
+                         "is_service_desk": True})
+    try:
+        r = requests.post(f"{API}/delegates", headers=H, timeout=30,
+                          json={"email": email, "permissions": ["imports.review", "imports.approve", "sage.confidential"]})
+        assert r.status_code == 200
+        D = {"Authorization": f"Bearer {create_token(uid)}"}
+        assert requests.get(f"{API}/jobs", headers=D, timeout=30).status_code == 200
+        assert requests.get(f"{API}/orgs/x/sage-internal", headers=D, timeout=30).status_code == 200
+        assert requests.get(f"{BASE}/api/onboarding/projects", headers=D, timeout=30).status_code == 200
+        # transferred to a customer organisation: stale flags must not keep any Pulse-only access
+        db.users.update_one({"id": uid}, {"$set": {"organization_id": "iso-demo-org"}})
+        for url in (f"{API}/jobs", f"{API}/review", f"{API}/orgs/x/sage-internal", f"{BASE}/api/onboarding/projects"):
+            assert requests.get(url, headers=D, timeout=30).status_code == 403, url
+        hist = requests.get(f"{API}/delegates", headers=H, timeout=30).json()
+        assert any(d["email"] == email for d in hist["delegates"])
+        assert db.onboarding_permission_history.find_one({"email": email})
+    finally:
+        db.users.delete_one({"id": uid})
+        db.onboarding_permission_history.delete_many({"email": email})
+
+
+def test_sage_connection_is_pulse_only_and_read_only(H):
+    def crm_token(email, pw):
+        return requests.post(f"{BASE}/api/crm/auth/login", json={"email": email, "password": pw}, timeout=30).json()["token"]
+    tenant = {"Authorization": f"Bearer {crm_token('owner@isodemo.com', 'IsoDemo123!')}"}
+    for m, path in (("get", "/config"), ("post", "/config"), ("get", "/customers"), ("post", "/sync/customers"),
+                    ("post", "/sync/customers-to-sage")):
+        r = getattr(requests, m)(f"{BASE}/api/crm/sage200{path}", headers=tenant, json={}, timeout=30)
+        assert r.status_code == 403, (path, r.status_code)
+    admin = {"Authorization": f"Bearer {crm_token('admin@pulsefitness.com', 'C2s9yJ3YAhydB4d34-Bykg')}"}
+    r = requests.post(f"{BASE}/api/crm/sage200/sync/customers-to-sage", headers=admin, timeout=30)
+    assert r.status_code == 403 and "read-only" in r.text

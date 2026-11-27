@@ -57,13 +57,18 @@ def _clean(v):
     return v.strip() if isinstance(v, str) else v
 
 
+def _lock_entity(entity: str) -> str:
+    """Onboarding, equipment and case syncs all write the same estate records, so they share one lock."""
+    return "estate" if entity in ("equipment", "case", "cases", "onboarding") else entity
+
+
 async def acquire_sync_lock(org_id: str, entity: str, run_id: str) -> bool:
     """Try to acquire the per-org sync lock for `entity` ('equipment'|'case').
 
     Returns True if acquired. Only acquires when no live lock is held (either
     unlocked, or the previous holder's heartbeat is older than
     LOCK_STALE_MINUTES → the holder crashed and we take over)."""
-    key = {"organization_id": org_id, "entity": entity}
+    key = {"organization_id": org_id, "entity": _lock_entity(entity)}
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
     stale_iso = (now - timedelta(minutes=LOCK_STALE_MINUTES)).isoformat()
@@ -85,14 +90,14 @@ async def acquire_sync_lock(org_id: str, entity: str, run_id: str) -> bool:
 async def touch_sync_lock(org_id: str, entity: str, run_id: str) -> None:
     """Bump the heartbeat so a healthy long-running sync is never seen as stale."""
     await db.sicon_sync_locks.update_one(
-        {"organization_id": org_id, "entity": entity, "run_id": run_id},
+        {"organization_id": org_id, "entity": _lock_entity(entity), "run_id": run_id},
         {"$set": {"heartbeat_at": _now()}})
 
 
 async def release_sync_lock(org_id: str, entity: str, run_id: str) -> None:
     """Release the lock (only if we still hold it, matched by run_id)."""
     await db.sicon_sync_locks.update_one(
-        {"organization_id": org_id, "entity": entity, "run_id": run_id},
+        {"organization_id": org_id, "entity": _lock_entity(entity), "run_id": run_id},
         {"$set": {"locked": False, "released_at": _now()}})
 
 
@@ -264,10 +269,19 @@ async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
                                     organization_id=org_id, sync_status="linked")
         return {"action": "updated" if bucket == "linked" else "linked", "pulse_asset_id": asset_id}
 
-    # new
+    # new — reserve the Sicon id atomically BEFORE creating the asset, so two workers can never both create it
     doc = _new_asset_doc(org_id, norm)
+    if seid is not None:
+        owner = await links.reserve_link(links.ENTITY_EQUIPMENT, seid, "equipment", doc["id"], organization_id=org_id)
+        if owner != doc["id"]:
+            return {"action": "linked", "pulse_asset_id": owner}
     doc.update(await _resolve_equipment_links(org_id, norm, {}))
-    await db.equipment.insert_one(doc)
+    try:
+        await db.equipment.insert_one(doc)
+    except Exception:
+        if seid is not None:
+            await links.release_reservation(links.ENTITY_EQUIPMENT, seid, doc["id"], organization_id=org_id)
+        raise
     if seid is not None:
         await links.upsert_link(links.ENTITY_EQUIPMENT, seid, "equipment", doc["id"],
                                 organization_id=org_id, sync_status="linked")
@@ -332,6 +346,13 @@ async def run_equipment_sync(org_id: str, client, max_records: int = 0,
     estate. Records a sync-run doc with counts + last checkpoint (spec §22/§23)."""
     run_id = run_id or str(uuid.uuid4())
     counts = {"created": 0, "linked": 0, "updated": 0, "conflict": 0, "failed": 0}
+    if await links.is_pulse_workspace(org_id):
+        # The Pulse workspace syncs many customers' estates: only the customer-aware onboarding engine may write them.
+        await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
+            "id": run_id, "organization_id": org_id, "entity": "equipment", "status": "blocked", "counts": counts,
+            "finished_at": _now(), "skip_reason": "Use Sicon onboarding (preview → approve → apply): it resolves each "
+                                                  "record to its customer, site and existing asset"}}, upsert=True)
+        return {"run_id": run_id, "status": "blocked", "processed": 0, "counts": counts}
     if not await acquire_sync_lock(org_id, "equipment", run_id):
         await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
             "id": run_id, "organization_id": org_id, "entity": "equipment",
@@ -806,6 +827,7 @@ async def run_case_sync(org_id: str, client, config: Dict[str, Any], max_records
                         run_id: Optional[str] = None, user_id: str = "system",
                         pull_relationships: bool = True) -> Dict[str, Any]:
     run_id = run_id or str(uuid.uuid4())
+    links.SOURCE_CTX.set(await links.connection_company(org_id))  # the connection that retrieves these cases
     counts = {"created": 0, "updated": 0, "failed": 0,
               "equipment_linked": 0, "equipment_unmapped": 0, "notes_added": 0}
     if not await acquire_sync_lock(org_id, "case", run_id):

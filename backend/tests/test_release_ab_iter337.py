@@ -100,7 +100,9 @@ def test_connection_company_ignores_disabled_platform_integration():
     co = run_async(L.connection_company(org))
     if integ.get("enabled"):
         pytest.skip("platform sicon integration is enabled in this env")
-    assert co == ((os.environ.get("SICON_COMPANY_ID") or "").strip() or None), co
+    env_co = (os.environ.get("SICON_COMPANY_ID") or "").strip()
+    # identity is now "<sicon host>#<companyId>" so equal companyIds on different installations never collide
+    assert (co is None and not env_co) or (co and co.endswith("#" + env_co)), co
 
 
 # --- Sage company identity: Import Centre default == Sicon onboarding company

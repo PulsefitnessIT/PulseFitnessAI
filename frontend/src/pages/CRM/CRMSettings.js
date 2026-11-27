@@ -470,12 +470,7 @@ export default function CRMSettings() {
   const runSageSync = async (direction) => {
     setSageSyncing(direction); setSageSyncResult(null);
     try {
-      let endpoint = direction === 'pull' ? '/crm/sage200/sync/customers' : '/crm/sage200/sync/customers-to-sage';
-      if (direction === 'pull') {
-        const company = window.prompt('Which Sage company are these customers from? (as used in the Import Centre)', 'Pulse Fitness');
-        if (!company) { setSageSyncing(null); return; }
-        endpoint += `?source_company=${encodeURIComponent(company)}`;
-      }
+      const endpoint = direction === 'pull' ? '/crm/sage200/sync/customers' : '/crm/sage200/sync/customers-to-sage';
       const res = await axios.post(`${API}${endpoint}`, {}, { headers: headers() });
       setSageSyncResult({ direction, ...res.data }); await fetchSageConfig();
     } catch (err) { setSageSyncResult({ direction, error: err.response?.data?.detail || 'Sync failed' }); }

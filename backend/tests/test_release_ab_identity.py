@@ -175,3 +175,82 @@ async def _run():
         await db.customer_proposed_sites.delete_many({"org_id": {"$in": orgs}})
         await db.crm2_companies.delete_many({"organization_id": OP, "sage_customer_id": {"$regex": f"{tag}"}})
         await db.organizations.delete_many({"id": {"$in": orgs}})
+
+
+def test_site_reconciliation_reservation_and_preview_destination():
+    from tests.shared_loop import run_async
+    run_async(_run2())
+
+
+async def _run2():
+    from utils import sicon_links as L, customer_identity as CI, sicon_onboarding as SO, sicon_import as IM
+    from routes import customer_account_import as CAI
+    tag = uuid.uuid4().hex[:6].upper()
+    sage_co = await L.sage_company_for(OP)
+    cref = f"G{tag}"
+    cust, _ = await CI.provision_customer_org({"name": f"Sites {tag}"}, source="test", actor="t", ref=cref, company=sage_co)
+    admin = {"email": "admin@pulsefitness.com", "is_master_admin": True}
+    runs, n = [], [0]
+    recs = [{"siconEquipmentId": f"6{tag}1", "serialNumber": f"A{tag}1", "customerCode": cref, "siconSubLocationDbKey": f"S{tag}1",
+             "locationFull": "Brand New Gym", "description": "Bike"},
+            {"siconEquipmentId": f"6{tag}2", "serialNumber": f"A{tag}2", "customerCode": cref, "siconSubLocationDbKey": f"S{tag}2",
+             "locationFull": "Upstairs Studio", "description": "Rower"}]
+
+    async def sync(prev=None):
+        n[0] += 1
+        rid = f"r{n[0]}-{tag}"
+        runs.append(rid)
+        await db.sicon_sync_runs.insert_one({"id": rid, "organization_id": OP, "entity": "onboarding", "preview_run_id": prev})
+        await SO.run_onboarding(OP, FakeSicon([recs]), {}, rid, prev is not None)
+        return rid
+    try:
+        await db.sites.insert_one({"id": f"old-{tag}", "organization_id": cust, "name": "Old Annex"})
+        pv = await sync()
+        await sync(pv)  # apply: unknown sub-locations become proposals (no sites created)
+        props = [p async for p in db.customer_proposed_sites.find({"org_id": cust}, {"_id": 0})]
+        assert len(props) == 2 and all(p["account_ref"] == "" and p["sicon_sub_location_id"] and p["sicon_source"] for p in props)
+        assert await db.sites.count_documents({"organization_id": cust}) == 1
+        p1 = next(p for p in props if p["sicon_sub_location_id"] == f"S{tag}1")
+        p2 = next(p for p in props if p["sicon_sub_location_id"] == f"S{tag}2")
+        r = await CAI.decide_site(p1["id"], "confirm", user=admin)
+        r2 = await CAI.decide_site(p2["id"], "link", link_site_id=f"old-{tag}", user=admin)
+        s1 = await db.sites.find_one({"id": r["site_id"]}, {"_id": 0})
+        assert s1["sicon_sub_location_id"] == f"S{tag}1" and not s1.get("invoice_customer_ref", "").startswith("SICON")
+        assert (await db.sites.find_one({"id": f"old-{tag}"}))["sicon_sub_location_id"] == f"S{tag}2"
+        # equipment already synced joined its site
+        assert (await db.equipment.find_one({"sicon_equipment_id": f"6{tag}1"}))["site_id"] == r["site_id"]
+        assert (await db.equipment.find_one({"sicon_equipment_id": f"6{tag}2"}))["site_id"] == r2["site_id"]
+        # sync again: same sites recognised, no duplicates, no new proposals
+        pv2 = await sync()
+        await sync(pv2)
+        assert await db.sites.count_documents({"organization_id": cust}) == 2
+        assert await db.customer_proposed_sites.count_documents({"org_id": cust}) == 2
+        assert await db.equipment.count_documents({"organization_id": cust}) == 2
+        # destination changed after approval -> back to review
+        pv3 = await sync()
+        await db.equipment.update_one({"sicon_equipment_id": f"6{tag}1"}, {"$set": {"model": "edited", "updated_at": "x"}})
+        ap3 = await sync(pv3)
+        assert await db.sicon_import_conflicts.find_one({"external_id": f"6{tag}1", "run_id": ap3})
+        # link carries the actual source connection
+        lk = await db.sicon_external_links.find_one({"external_id": f"6{tag}2"}, {"_id": 0})
+        assert lk["source_company"] == (await L.connection_company(OP) or "unscoped")
+        # concurrent creation of the same Sicon id -> exactly one asset
+        norm = IM.normalise_equipment({"siconEquipmentId": f"6{tag}9", "serialNumber": f"Z{tag}", "description": "Dup"})
+        L.SOURCE_CTX.set(await L.connection_company(OP))
+        res = await asyncio.gather(*[IM.apply_equipment_record(cust, norm, {"bucket": "new", "reasons": []}) for _ in range(4)])
+        assert len({x["pulse_asset_id"] for x in res}) == 1
+        assert await db.equipment.count_documents({"sicon_equipment_id": f"6{tag}9"}) == 1
+        # the old per-entity sync cannot bypass the customer-aware engine in the Pulse workspace
+        blocked = await IM.run_equipment_sync(OP, FakeSicon([recs]))
+        assert blocked["status"] == "blocked"
+    finally:
+        await db.sicon_external_links.delete_many({"external_id": {"$regex": tag}})
+        await db.sicon_import_conflicts.delete_many({"external_id": {"$regex": tag}})
+        await db.sicon_preview_fingerprints.delete_many({"run_id": {"$in": runs}})
+        await db.sicon_sync_runs.delete_many({"$or": [{"id": {"$in": runs}}, {"status": "blocked", "organization_id": OP}]})
+        await db.equipment.delete_many({"$or": [{"organization_id": cust}, {"sicon_equipment_id": {"$regex": tag}}]})
+        await db.sites.delete_many({"organization_id": cust})
+        await db.customer_proposed_sites.delete_many({"org_id": cust})
+        await db.customer_account_refs.delete_many({"ref": cref})
+        await db.onboarding_projects.delete_many({"organization_id": cust})
+        await db.organizations.delete_one({"id": cust})

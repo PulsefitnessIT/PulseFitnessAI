@@ -33,7 +33,26 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+import contextvars
+
 _COMPANY_CACHE: Dict[str, tuple] = {}
+_WS_CACHE: Dict[str, tuple] = {}
+# The connection that actually retrieved the records being processed (set by each sync run). Links are scoped by
+# it — never inferred from the destination customer organisation.
+SOURCE_CTX: contextvars.ContextVar = contextvars.ContextVar("sicon_source_connection", default=None)
+
+
+async def is_pulse_workspace(org_id: Optional[str]) -> bool:
+    """Pulse operator company / platform admin org: syncs the estates of many customers."""
+    if not org_id:
+        return False
+    hit = _WS_CACHE.get(org_id)
+    if hit and (datetime.now(timezone.utc).timestamp() - hit[1]) < 300:
+        return hit[0]
+    val = bool(await db.organizations.find_one({"id": org_id, "is_operator_company": True}, {"_id": 1})
+               or await db.users.find_one({"organization_id": org_id, "is_master_admin": True}, {"_id": 1}))
+    _WS_CACHE[org_id] = (val, datetime.now(timezone.utc).timestamp())
+    return val
 
 
 async def connection_company(organization_id: Optional[str]) -> Optional[str]:
@@ -45,14 +64,20 @@ async def connection_company(organization_id: Optional[str]) -> Optional[str]:
     if hit and (datetime.now(timezone.utc).timestamp() - hit[1]) < 60:
         return hit[0]
     import os
-    cfg = await db.sicon_config.find_one({"organization_id": organization_id}, {"_id": 0, "company_id": 1, "enabled": 1}) or {}
+    cfg = await db.sicon_config.find_one({"organization_id": organization_id},
+                                         {"_id": 0, "company_id": 1, "enabled": 1, "base_url": 1}) or {}
     cid = cfg.get("company_id") if cfg.get("enabled") else None
+    base = cfg.get("base_url") if cid else None
     if not cid:
         from routes.integrations import get_integration_config
         integ = await get_integration_config("sicon") or {}
         creds = integ.get("credentials") if isinstance(integ.get("credentials"), dict) and integ.get("enabled") else {}
         cid = creds.get("company_id") or os.environ.get("SICON_COMPANY_ID")
-    val = str(cid).strip() if cid not in (None, "", 0, "0") else None
+        base = (integ.get("base_url") or creds.get("base_url")) if creds.get("company_id") else os.environ.get("SICON_BASE_URL")
+    from urllib.parse import urlparse
+    host = (urlparse(str(base or "")).netloc or "").lower()
+    # installation + company: identical companyIds on different Sicon servers never collide
+    val = f"{host}#{str(cid).strip()}" if cid not in (None, "", 0, "0") else None
     _COMPANY_CACHE[organization_id] = (val, datetime.now(timezone.utc).timestamp())
     return val
 
@@ -72,7 +97,7 @@ def _base(external_entity_type: str, external_id: str) -> Dict[str, Any]:
 async def _find(external_entity_type: str, external_id: str, organization_id: Optional[str],
                 source_company: Optional[str]) -> Optional[Dict[str, Any]]:
     base = _base(external_entity_type, external_id)
-    company = source_company or await connection_company(organization_id) or "unscoped"
+    company = source_company or SOURCE_CTX.get() or await connection_company(organization_id) or "unscoped"
     d = await db.sicon_external_links.find_one({**base, "source_company": company}, {"_id": 0})
     if d:
         return d
@@ -89,8 +114,9 @@ async def get_link(external_entity_type: str, external_id: str,
                    organization_id: Optional[str] = None, source_company: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Return the stored link for a Sicon external id (scoped by connection company), or None."""
     d = await _find(external_entity_type, external_id, organization_id, source_company)
-    if d and organization_id and d.get("organization_id") not in (None, organization_id):
-        return None
+    if d and organization_id and d.get("organization_id") not in (None, organization_id) \
+            and not await is_pulse_workspace(organization_id):
+        return None  # a customer never resolves another org's record; the Pulse workspace may (it services them)
     return d
 
 
@@ -103,7 +129,7 @@ async def get_pulse_id(external_entity_type: str, external_id: str,
 async def _key_for_write(external_entity_type: str, external_id: str, organization_id: Optional[str],
                          source_company: Optional[str]) -> Dict[str, Any]:
     base = _base(external_entity_type, external_id)
-    company = source_company or await connection_company(organization_id) or "unscoped"
+    company = source_company or SOURCE_CTX.get() or await connection_company(organization_id) or "unscoped"
     if await db.sicon_external_links.find_one({**base, "source_company": company}, {"_id": 1}):
         return {**base, "source_company": company}
     legacy = {**base, "source_company": {"$exists": False}}
@@ -147,8 +173,44 @@ async def upsert_link(external_entity_type: str, external_id: str,
         doc["source_updated_at"] = source_updated_at
     if extra:
         doc.update(extra)
-    await db.sicon_external_links.update_one(key, {"$set": doc, "$setOnInsert": {"created_at": now}}, upsert=True)
+    from pymongo.errors import DuplicateKeyError
+    try:
+        await db.sicon_external_links.update_one(key, {"$set": doc, "$setOnInsert": {"created_at": now}}, upsert=True)
+    except DuplicateKeyError:  # a concurrent writer inserted the same key first: re-run the conflict check against it
+        return await upsert_link(external_entity_type, external_id, pulse_entity_type, pulse_entity_id, organization_id,
+                                 source_updated_at, sync_status, extra, source_company, reassign)
     return doc
+
+
+async def reserve_link(external_entity_type: str, external_id: str, pulse_entity_type: str, pulse_entity_id: str,
+                       organization_id: Optional[str] = None) -> str:
+    """Atomically claim an external id for a record about to be created. Returns the owning Pulse id: ours if we won,
+    otherwise the record that already holds it (the caller must then link, not create)."""
+    from pymongo.errors import DuplicateKeyError
+    key = await _key_for_write(external_entity_type, external_id, organization_id, None)
+    existing = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1})
+    if existing and existing.get("pulse_entity_id"):
+        return existing["pulse_entity_id"]
+    try:
+        res = await db.sicon_external_links.update_one(
+            {**key, "pulse_entity_id": {"$in": [None, ""]}},
+            {"$set": {**{k: v for k, v in key.items() if isinstance(v, str)}, "organization_id": organization_id,
+                      "pulse_entity_type": pulse_entity_type, "pulse_entity_id": str(pulse_entity_id),
+                      "sync_status": "reserving", "last_synced_at": _now()}, "$setOnInsert": {"created_at": _now()}},
+            upsert=True)
+    except DuplicateKeyError:
+        res = None
+    if res is not None and (res.upserted_id is not None or res.modified_count):
+        return str(pulse_entity_id)
+    cur = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1}) or {}
+    return cur.get("pulse_entity_id") or str(pulse_entity_id)
+
+
+async def release_reservation(external_entity_type: str, external_id: str, pulse_entity_id: str,
+                              organization_id: Optional[str] = None) -> None:
+    key = await _key_for_write(external_entity_type, external_id, organization_id, None)
+    await db.sicon_external_links.update_one({**key, "pulse_entity_id": str(pulse_entity_id), "sync_status": "reserving"},
+                                             {"$set": {"pulse_entity_id": "", "sync_status": "unlinked"}})
 
 
 async def set_status(external_entity_type: str, external_id: str, sync_status: str,

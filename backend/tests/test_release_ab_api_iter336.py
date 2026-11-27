@@ -43,9 +43,9 @@ def test_sage_pull_requires_pulse_admin():
 def test_sage_pull_requires_company(crm_admin):
     r = requests.post(f"{BASE}/api/crm/sage200/sync/customers", headers=crm_admin, timeout=30)
     assert r.status_code == 400 and "company" in r.text.lower(), r.text
-    # with a company but no Sage configured in preview -> 503 (never a 500)
+    # the company now comes from the Sage connection itself; a typed label can never override it
     r = requests.post(f"{BASE}/api/crm/sage200/sync/customers?source_company=TSTX", headers=crm_admin, timeout=60)
-    assert r.status_code in (503, 413), r.text
+    assert r.status_code in (400, 409, 503), r.text
 
 
 # --- Sicon link migration
