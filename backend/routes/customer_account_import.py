@@ -1186,14 +1186,24 @@ async def decide_site(site_id: str, decision: Literal["confirm", "reject", "link
     p = await db.customer_proposed_sites.find_one_and_update({"id": site_id, "status": "proposed"}, {"$set": {"status": "deciding"}})
     if not p:
         raise HTTPException(409, "This proposed site has already been decided")
+    try:
+        return await _apply_site_decision(p, site_id, decision, link_site_id, force, user)
+    except BaseException:
+        # never leave a proposal stuck in 'deciding'
+        await db.customer_proposed_sites.update_one({"id": site_id, "status": "deciding"}, {"$set": {"status": "proposed"}})
+        raise
+
+
+async def _apply_site_decision(p: dict, site_id: str, decision: str, link_site_id: str, force: bool, user: dict) -> dict:
     if decision == "link":
         if not link_site_id or not await db.sites.find_one({"id": link_site_id, "organization_id": p["org_id"]}, {"_id": 1}):
             await db.customer_proposed_sites.update_one({"id": site_id}, {"$set": {"status": "proposed"}})
             raise HTTPException(422, "Choose one of this customer's existing sites")
         sub = p.get("sicon_sub_location_id")
         if sub:
-            tgt = await db.sites.find_one({"id": link_site_id}, {"_id": 0, "sicon_sub_location_id": 1})
-            if tgt.get("sicon_sub_location_id") not in (None, "", str(sub)):
+            tgt = await db.sites.find_one({"id": link_site_id}, {"_id": 0, "sicon_sub_location_id": 1, "sicon_source": 1})
+            if tgt.get("sicon_sub_location_id") not in (None, "", str(sub)) or \
+                    (tgt.get("sicon_sub_location_id") and tgt.get("sicon_source") not in (None, p.get("sicon_source"))):
                 await db.customer_proposed_sites.update_one({"id": site_id}, {"$set": {"status": "proposed"}})
                 raise HTTPException(409, "That site is already linked to a different Sicon location")
             await db.sites.update_one({"id": link_site_id}, {"$set": {"sicon_sub_location_id": str(sub), "sicon_source": p.get("sicon_source"),
@@ -1217,7 +1227,8 @@ async def decide_site(site_id: str, decision: Literal["confirm", "reject", "link
         await db.customer_proposed_sites.update_one({"id": site_id}, {"$set": {"status": "rejected", "decided_by": user.get("email")}})
         return {"status": "rejected"}
     sub = p.get("sicon_sub_location_id")
-    if sub and (ex := await db.sites.find_one({"organization_id": p["org_id"], "sicon_sub_location_id": str(sub)}, {"_id": 0, "id": 1})):
+    if sub and (ex := await db.sites.find_one({"organization_id": p["org_id"], "sicon_sub_location_id": str(sub),
+                                               "sicon_source": {"$in": [p.get("sicon_source"), None]}}, {"_id": 0, "id": 1})):
         sid = ex["id"]  # already an operational site for this Sicon location — never a duplicate
     else:
         sid = str(uuid.uuid4())
@@ -1374,9 +1385,12 @@ async def review_centre(type: Optional[str] = None, search: str = "", skip: int 
                       "detail": s.get("note") or "Waiting for this Sage account to be imported", "owner": "",
                       "source": "Sicon contacts", "resolve": "Import the matching Sage account — the contact links automatically"})
     async for p in db.customer_proposed_sites.find({"status": "proposed"}, {"_id": 0}):
-        items.append({"type": "Proposed operational site", "priority": "low", "ref": p["account_ref"], "name": p["name"],
-                      "detail": ", ".join(x for x in (p.get("address_line1"), p.get("city"), p.get("postcode")) if x), "owner": "",
-                      "source": "Sage address", "site_id": p["id"], "resolve": "Confirm it is a real gym location or mark it not a site"})
+        sicon = bool(p.get("sicon_sub_location_id"))
+        items.append({"type": "Proposed operational site", "priority": "low",
+                      "ref": p["account_ref"] or (f"Sicon location {p['sicon_sub_location_id']}" if sicon else ""), "name": p["name"],
+                      "detail": ", ".join(x for x in (p.get("address_line1"), p.get("city"), p.get("postcode")) if x) or
+                      (p.get("note") or ""), "owner": "",
+                      "source": "Sicon sub-location" if sicon else "Sage address", "site_id": p["id"], "resolve": "Confirm it is a real gym location or mark it not a site"})
     async for i in db.customer_account_internal.find({"$or": [{"sage_status.hidden": True}, {"sage_status.on_hold": True}]},
                                                      {"_id": 0, "org_id": 1, "account_ref": 1, "sage_status": 1}):
         o = await db.organizations.find_one({"id": i["org_id"]}, {"_id": 0, "name": 1}) or {}

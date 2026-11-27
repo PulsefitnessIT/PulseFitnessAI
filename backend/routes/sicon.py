@@ -1355,6 +1355,11 @@ async def onboarding_apply(run_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Preview not found")
     if prev.get("status") not in ("completed", "partial"):
         raise HTTPException(status_code=400, detail="Run a complete preview before importing.")
+    claimed = await db.sicon_sync_runs.update_one({"id": run_id, "applied_at": {"$exists": False}},
+                                                  {"$set": {"applied_at": datetime.now(timezone.utc).isoformat(),
+                                                            "applied_by": user.get("email")}})
+    if not claimed.modified_count:
+        raise HTTPException(status_code=409, detail="This preview has already been imported — run a new preview.")
     return await _start_onboarding(user, apply=True, preview_run_id=run_id)
 
 

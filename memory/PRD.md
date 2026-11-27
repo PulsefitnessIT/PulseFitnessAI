@@ -39631,3 +39631,14 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Onboarding projects are closed to tenant service-desk users.
 - Details: memory/PLATFORM_DATA_ARCHITECTURE.md (Release A/B section).
 - Env: SICON_SAGE_COMPANY="Pulse Fitness".
+
+## 27 Nov 2026: final Release A/B P0 corrections
+- Sicon sync paths consolidated, with nightly sync gated off.
+- Source-connection link scoping plus atomic reservation, so no cross-tenant links.
+- Preview approval covers the resolved destination; single-use previews; records without a Sicon id are held.
+- Sicon proposed sites keep their sub-location, and confirm/link recognise them on re-sync.
+- Sage is Pulse-only and read-only (`SAGE_ALLOW_WRITES`); the pull company comes from the connection.
+- Delegated access is re-checked against the user's current Pulse organisation, with an audit trail.
+- Cases reference the customer-owned asset.
+- Live acceptance procedure: memory/LIVE_ACCEPTANCE_SAGE_SICON.md.
+- Tests: 149 import/onboarding tests plus 105 of 106 Sicon tests passing; the one Sicon failure passes when run alone.

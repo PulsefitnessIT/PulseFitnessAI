@@ -366,10 +366,19 @@ async def _equipment_phase(run: _Run, client) -> None:
                                                                      "sicon_equipment_id")}}
                 if not await run.unchanged_since_preview("equipment", ext, {"rec": rec, "resolved": resolved}):
                     continue
+                if str(ext).startswith("noid:") and cls["bucket"] == "new":
+                    # no stable Sicon id: creating would duplicate on every sync — hold for review instead
+                    if run.apply:
+                        await _queue_conflict(run.org_id, links.ENTITY_EQUIPMENT, ext, norm,
+                                              ["Sicon record has no equipment id — match it to an existing asset or create it by hand"],
+                                              [], run.run_id)
+                    run.counts["equipment"]["conflicts"] += 1
+                    continue
                 if run.apply:
                     res = await imp.apply_equipment_record(dest, norm, cls, run.run_id, fill_gaps=True)
                     if site_id and (res or {}).get("pulse_asset_id"):
-                        await db.equipment.update_one({"id": res["pulse_asset_id"], "site_id": {"$in": [None, ""]}},
+                        await db.equipment.update_one({"id": res["pulse_asset_id"], "organization_id": dest,
+                                                       "site_id": {"$in": [None, ""]}},
                                                       {"$set": {"site_id": site_id}})
                 run.tally("equipment", {"bucket": cls["bucket"], "diff": diff})
             except Exception as e:
@@ -522,6 +531,14 @@ async def run_onboarding(org_id: str, client, config: Dict[str, Any], run_id: st
     links.SOURCE_CTX.set(await links.connection_company(org_id))  # the connection actually used for this run
     me = await db.sicon_sync_runs.find_one({"id": run_id}, {"_id": 0, "preview_run_id": 1}) or {}
     run.preview_run_id = me.get("preview_run_id")
+    if apply and run.preview_run_id:
+        # an approved preview is single-use: a second apply of the same approval is refused
+        took = await db.sicon_sync_runs.update_one({"id": run.preview_run_id, "consumed_by": {"$in": [None, run_id]}},
+                                                   {"$set": {"consumed_by": run_id}})
+        if not took.matched_count:
+            await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {"status": "failed", "phase": "done", "finished_at": _now(),
+                                                                         "error": "This preview has already been imported"}})
+            return {"status": "failed", "counts": run.counts, "missing_resources": []}
     if not await links.sage_company_for(org_id):
         run.missing.append({"resource": "customer_matching", "reason": "No Sage company configured for this Sicon "
                             "connection — Sicon customers were not linked to Pulse customer organisations"})

@@ -273,6 +273,10 @@ async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
     doc = _new_asset_doc(org_id, norm)
     if seid is not None:
         owner = await links.reserve_link(links.ENTITY_EQUIPMENT, seid, "equipment", doc["id"], organization_id=org_id)
+        if owner == links.OTHER_ORG:
+            await _record_conflict(org_id, norm, {"bucket": "conflict", "candidates": [], "reasons": [
+                "This Sicon equipment id already belongs to another customer's asset (moved between customers?) — review"]}, run_id)
+            return {"action": "conflict", "pulse_asset_id": None}
         if owner != doc["id"]:
             return {"action": "linked", "pulse_asset_id": owner}
     doc.update(await _resolve_equipment_links(org_id, norm, {}))
@@ -346,6 +350,7 @@ async def run_equipment_sync(org_id: str, client, max_records: int = 0,
     estate. Records a sync-run doc with counts + last checkpoint (spec §22/§23)."""
     run_id = run_id or str(uuid.uuid4())
     counts = {"created": 0, "linked": 0, "updated": 0, "conflict": 0, "failed": 0}
+    links.SOURCE_CTX.set(await links.connection_company(org_id))  # this run's own connection (never a previous org's)
     if await links.is_pulse_workspace(org_id):
         # The Pulse workspace syncs many customers' estates: only the customer-aware onboarding engine may write them.
         await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
@@ -724,7 +729,7 @@ async def _attach_case_equipment(org_id: str, client, scid, issue_id: str,
     # §22 — only set when we resolved at least one asset; never erase existing.
     if asset_ids:
         assets = await db.equipment.find(
-            {"id": {"$in": asset_ids}}, {"_id": 0, "id": 1, "name": 1, "serial_number": 1}
+            {"id": {"$in": asset_ids}}, {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "organization_id": 1, "site_id": 1}
         ).to_list(len(asset_ids))
         by_id = {a["id"]: a for a in assets}
         first = by_id.get(asset_ids[0], {})
@@ -736,6 +741,9 @@ async def _attach_case_equipment(org_id: str, client, scid, issue_id: str,
             "equipment_ids": asset_ids,
             "equipment_serials": serials,
             "updated_at": _now(),
+            # A case in the Pulse workspace references the customer-owned asset (no second asset, no second case).
+            **({"customer_org_id": first["organization_id"], "customer_site_id": first.get("site_id")}
+               if first.get("organization_id") and first["organization_id"] != org_id else {}),
         }})
     return out
 

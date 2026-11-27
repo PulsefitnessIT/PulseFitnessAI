@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="12" time="5.103" timestamp="2026-11-27T07:46:53.782874+00:00" hostname="agent-env-5f3a6e50-70cd-47b2-8f5d-2dbbd87be14c"><testcase classname="tests.test_release_ab_iter338" name="test_nightly_does_nothing_unless_enabled" time="0.182" /><testcase classname="tests.test_release_ab_iter338" name="test_nightly_source_ctx_not_leaked_between_orgs" time="0.026"><failure message="AssertionError: leaked connection: sicon-a.test#11 (ctx at entry sicon-a.test#11)&#10;assert 'sicon-a.test#11' == 'sicon-b.test#22'&#10;  &#10;  - sicon-b.test#22&#10;  ?       ^      ^^&#10;  + sicon-a.test#11&#10;  ?       ^      ^^">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0xfd2f90c2dd10&gt;
+
+    def test_nightly_source_ctx_not_leaked_between_orgs(monkeypatch):
+        from routes import sicon as S
+        from utils import sicon_links as L
+        from utils.database import db as adb
+        tag = uuid.uuid4().hex[:6].upper()
+        oa, ob = f"TST-nA-{tag}", f"TST-nB-{tag}"
+        seen = {}
+        real_eq = S._imp.run_equipment_sync
+    
+        async def eq_wrap(org_id, client, **kw):
+            seen[org_id] = L.SOURCE_CTX.get()
+            return await real_eq(org_id, client, **kw)
+    
+        async def client_for(org_id):
+            if org_id == ob:
+                return FakeSicon([[{"siconEquipmentId": f"TSTNB{tag}", "serialNumber": f"NB{tag}", "description": "TST Bike"}]])
+            if org_id == oa:
+                return FakeSicon([[]])
+            return None
+    
+        async def cfg(_o):
+            return {}
+    
+        async def noop(*a, **k):
+            return None
+        monkeypatch.setenv("SICON_NIGHTLY_SYNC_ENABLED", "true")
+        monkeypatch.setattr(S._imp, "run_equipment_sync", eq_wrap)
+        monkeypatch.setattr(S, "get_sicon_client", client_for)
+        monkeypatch.setattr(S, "get_sicon_config", cfg)
+        monkeypatch.setattr(S, "log_sicon_event", noop)
+    
+        async def go():
+            await adb.sicon_config.insert_many([
+                {"organization_id": oa, "enabled": True, "company_id": "11", "base_url": "https://sicon-a.test", "tst": tag},
+                {"organization_id": ob, "enabled": True, "company_id": "22", "base_url": "https://sicon-b.test", "tst": tag}])
+            try:
+                L._COMPANY_CACHE.pop(oa, None)
+                L._COMPANY_CACHE.pop(ob, None)
+                await S._run_all_org_sicon_sync()
+                return await adb.sicon_external_links.find_one({"external_id": f"TSTNB{tag}"}, {"_id": 0})
+            finally:
+                await adb.sicon_config.delete_many({"tst": tag})
+                await adb.sicon_external_links.delete_many({"external_id": f"TSTNB{tag}"})
+                await adb.equipment.delete_many({"organization_id": {"$in": [oa, ob]}})
+                await adb.sicon_sync_runs.delete_many({"organization_id": {"$in": [oa, ob]}})
+                await adb.sicon_sync_locks.delete_many({"organization_id": {"$in": [oa, ob]}})
+        lk = run_async(go())
+        assert lk, "org B equipment was not synced"
+&gt;       assert lk["source_company"] == "sicon-b.test#22", f"leaked connection: {lk['source_company']} (ctx at entry {seen.get(ob)})"
+E       AssertionError: leaked connection: sicon-a.test#11 (ctx at entry sicon-a.test#11)
+E       assert 'sicon-a.test#11' == 'sicon-b.test#22'
+E         
+E         - sicon-b.test#22
+E         ?       ^      ^^
+E         + sicon-a.test#11
+E         ?       ^      ^^
+
+tests/test_release_ab_iter338.py:86: AssertionError</failure></testcase><testcase classname="tests.test_release_ab_iter338" name="test_estate_lock_shared_by_onboarding_equipment_case" time="0.009" /><testcase classname="tests.test_release_ab_iter338" name="test_workspace_equipment_sync_blocked_writes_nothing" time="0.007" /><testcase classname="tests.test_release_ab_iter338" name="test_customer_org_cannot_claim_other_customers_link" time="0.012"><failure message="AssertionError: c2 got c1's asset: {'action': 'linked', 'pulse_asset_id': '921ebec1-bcc6-4967-a197-7da7e9e76a30'}&#10;assert '921ebec1-bcc6-4967-a197-7da7e9e76a30' != '921ebec1-bcc6-4967-a197-7da7e9e76a30'">def test_customer_org_cannot_claim_other_customers_link():
+        from utils import sicon_import as IM, sicon_links as L
+        from utils.database import db as adb
+        tag = uuid.uuid4().hex[:6].upper()
+        c1, c2 = f"TST-c1-{tag}", f"TST-c2-{tag}"
+        seid = f"TSTX{tag}"
+    
+        async def go():
+            L.SOURCE_CTX.set("shared.test#9")
+            try:
+                norm = IM.normalise_equipment({"siconEquipmentId": seid, "serialNumber": f"SX{tag}", "description": "TST Rower"})
+                r1 = await IM.apply_equipment_record(c1, norm, {"bucket": "new", "reasons": []})
+                vis = await L.get_link("equipment", seid, c2)
+                cls2 = await IM.classify_equipment(norm, c2)
+                r2 = await IM.apply_equipment_record(c2, norm, cls2)
+                a1 = await adb.equipment.find_one({"id": r1["pulse_asset_id"]}, {"_id": 0, "organization_id": 1})
+                lk = await adb.sicon_external_links.find_one({"external_id": seid}, {"_id": 0})
+                return r1, vis, cls2, r2, a1, lk
+            finally:
+                await adb.sicon_external_links.delete_many({"external_id": seid})
+                await adb.equipment.delete_many({"organization_id": {"$in": [c1, c2]}})
+        r1, vis, cls2, r2, a1, lk = run_async(go())
+        assert vis is None and cls2["bucket"] == "new"
+        assert a1["organization_id"] == c1 and lk["organization_id"] == c1 and lk["pulse_entity_id"] == r1["pulse_asset_id"]
+        # c2 must not be handed c1's asset id as its own 'linked' asset
+&gt;       assert r2["pulse_asset_id"] != r1["pulse_asset_id"], f"c2 got c1's asset: {r2}"
+E       AssertionError: c2 got c1's asset: {'action': 'linked', 'pulse_asset_id': '921ebec1-bcc6-4967-a197-7da7e9e76a30'}
+E       assert '921ebec1-bcc6-4967-a197-7da7e9e76a30' != '921ebec1-bcc6-4967-a197-7da7e9e76a30'
+
+tests/test_release_ab_iter338.py:156: AssertionError</failure></testcase><testcase classname="tests.test_release_ab_iter338" name="test_sage_pull_company_from_config_and_write_guard" time="0.015" /><testcase classname="tests.test_release_ab_iter338" name="test_sage_http_tenant_forbidden_admin_readonly" time="1.571" /><testcase classname="tests.test_release_ab_iter338" name="test_proposed_sites_http_sage_and_sicon" time="1.734" /><testcase classname="tests.test_release_ab_iter338" name="test_delegate_history_records_every_change" time="0.463" /><testcase classname="tests.test_release_ab_iter338" name="test_review_groups_held_equipment" time="0.103" /><testcase classname="tests.test_release_ab_iter338" name="test_onboarding_moved_equipment_no_cross_tenant_write" time="0.132"><failure message="AssertionError: customer B's site written onto customer A's asset&#10;assert 'TSTsb-4E6BDA' != 'TSTsb-4E6BDA'&#10; +  where 'TSTsb-4E6BDA' = &lt;built-in method get of dict object at 0xfd2f902b2d00&gt;('site_id')&#10; +    where &lt;built-in method get of dict object at 0xfd2f902b2d00&gt; = {'created_at': '2026-11-27T07:46:58.655010+00:00', 'description': 'TST Bike', 'id': 'acd95fbb-f89f-48ad-be29-075fae3a1b9a', 'imported_via': 'sicon', ...}.get">def test_onboarding_moved_equipment_no_cross_tenant_write():
+&gt;       run_async(_moved())
+
+tests/test_release_ab_iter338.py:307: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/shared_loop.py:35: in run_async
+    return _SHARED_LOOP.run_until_complete(coro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def _moved():
+        from utils import sicon_links as L, customer_identity as CI, sicon_onboarding as SO
+        from utils.database import db as adb
+        tag = uuid.uuid4().hex[:6].upper()
+        co = await L.sage_company_for(OP)
+        ca, cb = f"MA{tag}", f"MB{tag}"
+        oa, _ = await CI.provision_customer_org({"name": f"TST MoveA {tag}"}, source="test", actor="t", ref=ca, company=co)
+        ob, _ = await CI.provision_customer_org({"name": f"TST MoveB {tag}"}, source="test", actor="t", ref=cb, company=co)
+        await adb.sites.insert_one({"id": f"TSTsb-{tag}", "organization_id": ob, "name": "B Gym", "sicon_sub_location_id": f"SB{tag}",
+                                    "sicon_source": await L.connection_company(OP)})
+        seid = f"5{tag}"
+        runs = []
+    
+        async def sync(recs, prev=None):
+            rid = f"TSTmv{len(runs)}-{tag}"
+            runs.append(rid)
+            await adb.sicon_sync_runs.insert_one({"id": rid, "organization_id": OP, "entity": "onboarding", "preview_run_id": prev})
+            await SO.run_onboarding(OP, FakeSicon([recs]), {}, rid, prev is not None)
+            return rid
+        try:
+            r1 = [{"siconEquipmentId": seid, "serialNumber": f"MV{tag}", "customerCode": ca, "description": "TST Bike"}]
+            await sync(r1, await sync(r1))
+            a = await adb.equipment.find_one({"organization_id": oa, "sicon_equipment_id": seid}, {"_id": 0})
+            assert a and not a.get("site_id")
+            r2 = [{**r1[0], "customerCode": cb, "siconSubLocationDbKey": f"SB{tag}", "locationFull": "B Gym"}]
+            await sync(r2, await sync(r2))
+            a2 = await adb.equipment.find_one({"id": a["id"]}, {"_id": 0})
+&gt;           assert a2.get("site_id") != f"TSTsb-{tag}", "customer B's site written onto customer A's asset"
+E           AssertionError: customer B's site written onto customer A's asset
+E           assert 'TSTsb-4E6BDA' != 'TSTsb-4E6BDA'
+E            +  where 'TSTsb-4E6BDA' = &lt;built-in method get of dict object at 0xfd2f902b2d00&gt;('site_id')
+E            +    where &lt;built-in method get of dict object at 0xfd2f902b2d00&gt; = {'created_at': '2026-11-27T07:46:58.655010+00:00', 'description': 'TST Bike', 'id': 'acd95fbb-f89f-48ad-be29-075fae3a1b9a', 'imported_via': 'sicon', ...}.get
+
+tests/test_release_ab_iter338.py:337: AssertionError</failure></testcase><testcase classname="tests.test_release_ab_iter338" name="test_noid_records_respect_preview" time="0.091"><failure message="AssertionError: no-id record duplicated on re-apply of the same preview: 2&#10;assert 2 == 1">def test_noid_records_respect_preview():
+&gt;       run_async(_noid())
+
+tests/test_release_ab_iter338.py:355: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/shared_loop.py:35: in run_async
+    return _SHARED_LOOP.run_until_complete(coro)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def _noid():
+        from utils import sicon_links as L, customer_identity as CI, sicon_onboarding as SO
+        from utils.database import db as adb
+        tag = uuid.uuid4().hex[:6].upper()
+        co = await L.sage_company_for(OP)
+        cref = f"NI{tag}"
+        org, _ = await CI.provision_customer_org({"name": f"TST NoId {tag}"}, source="test", actor="t", ref=cref, company=co)
+        runs = []
+    
+        async def sync(recs, prev=None):
+            rid = f"TSTni{len(runs)}-{tag}"
+            runs.append(rid)
+            await adb.sicon_sync_runs.insert_one({"id": rid, "organization_id": OP, "entity": "onboarding", "preview_run_id": prev})
+            await SO.run_onboarding(OP, FakeSicon([recs]), {}, rid, prev is not None)
+            return rid
+        try:
+            recs = [{"customerCode": cref, "description": f"TST NoId Mat {tag}"}]
+            pv = await sync(recs)
+            fps = await adb.sicon_preview_fingerprints.count_documents({"run_id": pv, "external_id": {"$regex": "^noid:"}})
+            changed = [{**recs[0], "description": f"TST NoId Mat {tag} v2"}]
+            await sync(changed, pv)  # not in the approved preview -&gt; review, nothing created
+            n_changed = await adb.equipment.count_documents({"organization_id": org})
+            await sync(recs, pv)
+            await sync(recs, pv)  # same approved preview applied twice
+            n_after = await adb.equipment.count_documents({"organization_id": org})
+            assert fps == 1 and n_changed == 0, (fps, n_changed)
+&gt;           assert n_after == 1, f"no-id record duplicated on re-apply of the same preview: {n_after}"
+E           AssertionError: no-id record duplicated on re-apply of the same preview: 2
+E           assert 2 == 1
+
+tests/test_release_ab_iter338.py:384: AssertionError</failure></testcase></testsuite></testsuites>

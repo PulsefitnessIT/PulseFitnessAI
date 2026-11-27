@@ -113,3 +113,28 @@ Release B items:
 - Delegated staff UI outside Master Admin.
 
 Releases C–E have not started: activation and invitations, MFA, site-specific gym floor, shared person identity, consent, events, upgrades and purchasing.
+
+## Final Release A/B corrections (27 Nov 2026), iteration 338 plus fixes
+- **One write path for multi-customer estates.** In the Pulse workspace (operator or platform org), `run_equipment_sync` returns `blocked`. Only the customer-aware onboarding engine (preview → approve → apply) writes there.
+  - Nightly sync runs only when `SICON_NIGHTLY_SYNC_ENABLED=true` (unset = off).
+  - Onboarding, equipment and case syncs share one `estate` lock per org.
+- **Source connection.** Each run sets `sicon_links.SOURCE_CTX` to `connection_company(sync org)` = `<sicon host>#<companyId>`. Links are scoped by it; it is never inferred from the destination customer.
+  - `reserve_link` claims a Sicon id before an asset is created. An id already held by another customer gives a conflict for review: no cross-tenant link, no twin asset, and the other customer's link is never changed.
+  - The Pulse workspace may read customer-held links (cases → customer assets). Customer orgs may not.
+- **Preview approval.**
+  - **Fingerprint:** covers the source record plus connection, destination org, site, bucket, matched asset id and asset version.
+  - **Records without a Sicon id:** held for review and never auto-created.
+  - **Single use:** a preview can be applied only once (`applied_at` in the route, `consumed_by` in the engine).
+- **Sites.** Sicon proposals use `sicon_source` + `sicon_sub_location_id`, under a unique partial index, with `account_ref` left empty. Sage refs and Sicon ids stay separate.
+  - Confirming or linking keeps both and attaches equipment already synced there.
+  - Re-syncs recognise the site, and a failed decision never leaves a proposal stuck in 'deciding'.
+- **Sage 200.** Every endpoint is Pulse-admin only. The pull's company comes from the connection (`company_name` / `company_id`): 409 if a typed label disagrees. Push is blocked unless `SAGE_ALLOW_WRITES=true` (central guard `sage_writes_allowed`).
+- **Delegated staff.** `_require_admin` is async and re-checks the user's current organisation (operator or platform) on every call, so stale flags never grant access. Grants and revocations are logged in `onboarding_permission_history`.
+- **Cases.** A case in the Pulse workspace stores `customer_org_id` and `customer_site_id` of the resolved customer-owned asset. No second asset or case is created.
+- **Live acceptance:** see `memory/LIVE_ACCEPTANCE_SAGE_SICON.md`.
+
+### Not done
+- **P1-8:** an equipment quantity-preserving review UI for serial-less spreadsheet assets. Serial-less Sicon records are held, but there is no dedicated quantity UI yet.
+- **P1-9:** contract identity across sources, plus safe legacy Undo for sites, equipment and contracts.
+- **Delegated staff UI outside Master Admin.**
+- **Releases C–E.** The existing `/auth/organization/invite` shares a company code and is not a secure invitation; Release C must replace it, using the clerk-auth skill.

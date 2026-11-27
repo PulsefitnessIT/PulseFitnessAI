@@ -190,7 +190,7 @@ async def _run2():
     cref = f"G{tag}"
     cust, _ = await CI.provision_customer_org({"name": f"Sites {tag}"}, source="test", actor="t", ref=cref, company=sage_co)
     admin = {"email": "admin@pulsefitness.com", "is_master_admin": True}
-    runs, n = [], [0]
+    runs, n, blocked_id = [], [0], [""]
     recs = [{"siconEquipmentId": f"6{tag}1", "serialNumber": f"A{tag}1", "customerCode": cref, "siconSubLocationDbKey": f"S{tag}1",
              "locationFull": "Brand New Gym", "description": "Bike"},
             {"siconEquipmentId": f"6{tag}2", "serialNumber": f"A{tag}2", "customerCode": cref, "siconSubLocationDbKey": f"S{tag}2",
@@ -242,12 +242,13 @@ async def _run2():
         assert await db.equipment.count_documents({"sicon_equipment_id": f"6{tag}9"}) == 1
         # the old per-entity sync cannot bypass the customer-aware engine in the Pulse workspace
         blocked = await IM.run_equipment_sync(OP, FakeSicon([recs]))
+        blocked_id[0] = blocked["run_id"]
         assert blocked["status"] == "blocked"
     finally:
         await db.sicon_external_links.delete_many({"external_id": {"$regex": tag}})
         await db.sicon_import_conflicts.delete_many({"external_id": {"$regex": tag}})
         await db.sicon_preview_fingerprints.delete_many({"run_id": {"$in": runs}})
-        await db.sicon_sync_runs.delete_many({"$or": [{"id": {"$in": runs}}, {"status": "blocked", "organization_id": OP}]})
+        await db.sicon_sync_runs.delete_many({"id": {"$in": runs + [blocked_id[0]]}})
         await db.equipment.delete_many({"$or": [{"organization_id": cust}, {"sicon_equipment_id": {"$regex": tag}}]})
         await db.sites.delete_many({"organization_id": cust})
         await db.customer_proposed_sites.delete_many({"org_id": cust})

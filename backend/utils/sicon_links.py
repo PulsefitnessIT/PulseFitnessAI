@@ -151,7 +151,11 @@ async def upsert_link(external_entity_type: str, external_id: str,
     only an explicit admin decision (reassign=True) or clearing (empty id) may."""
     now = _now()
     key = await _key_for_write(external_entity_type, external_id, organization_id, source_company)
-    existing = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1, "sync_status": 1})
+    existing = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1, "sync_status": 1, "organization_id": 1})
+    if not reassign and existing and organization_id and existing.get("organization_id") not in (None, organization_id):
+        # another customer's link: report, never mutate it
+        logger.warning("sicon link %s/%s belongs to another organisation; left untouched", external_entity_type, external_id)
+        return {**key, "pulse_entity_id": None, "sync_status": "conflict", "status_reason": "held by another organisation"}
     if not reassign and pulse_entity_id and existing and existing.get("pulse_entity_id") \
             and existing["pulse_entity_id"] != str(pulse_entity_id):
         await db.sicon_external_links.update_one(key, {"$set": {"sync_status": "conflict", "last_synced_at": now,
@@ -182,14 +186,19 @@ async def upsert_link(external_entity_type: str, external_id: str,
     return doc
 
 
+OTHER_ORG = "__held_by_another_organisation__"
+
+
 async def reserve_link(external_entity_type: str, external_id: str, pulse_entity_type: str, pulse_entity_id: str,
                        organization_id: Optional[str] = None) -> str:
     """Atomically claim an external id for a record about to be created. Returns the owning Pulse id: ours if we won,
     otherwise the record that already holds it (the caller must then link, not create)."""
     from pymongo.errors import DuplicateKeyError
     key = await _key_for_write(external_entity_type, external_id, organization_id, None)
-    existing = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1})
+    existing = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1, "organization_id": 1})
     if existing and existing.get("pulse_entity_id"):
+        if organization_id and existing.get("organization_id") not in (None, organization_id):
+            return OTHER_ORG  # held by another customer: never link across tenants, never create a twin
         return existing["pulse_entity_id"]
     try:
         res = await db.sicon_external_links.update_one(
@@ -202,7 +211,9 @@ async def reserve_link(external_entity_type: str, external_id: str, pulse_entity
         res = None
     if res is not None and (res.upserted_id is not None or res.modified_count):
         return str(pulse_entity_id)
-    cur = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1}) or {}
+    cur = await db.sicon_external_links.find_one(key, {"_id": 0, "pulse_entity_id": 1, "organization_id": 1}) or {}
+    if organization_id and cur.get("organization_id") not in (None, organization_id):
+        return OTHER_ORG
     return cur.get("pulse_entity_id") or str(pulse_entity_id)
 
 
