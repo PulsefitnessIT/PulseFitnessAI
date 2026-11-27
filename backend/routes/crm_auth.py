@@ -63,6 +63,11 @@ async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentia
     user = await db.crm_users.find_one({"id": payload['user_id']}, {"_id": 0, "password": 0})
     if not user:
         raise HTTPException(status_code=401, detail="CRM user not found")
+    from utils.team_guards import is_disabled
+    _plat = await db.users.find_one({"email": (user.get("email") or "").lower().strip()},
+                                    {"_id": 0, "active": 1, "is_active": 1, "status": 1})
+    if is_disabled(user) or (_plat and is_disabled(_plat)):
+        raise HTTPException(status_code=401, detail="Account disabled")
     # ── Multi-site isolation (CRITICAL) ───────────────────────────────
     # CRM is a SEPARATE auth path backed by `crm_users`, which does NOT
     # carry `allowed_site_ids` or the platform role. Mirror role +
@@ -265,7 +270,8 @@ async def crm_login(data: dict):
                 "id": platform_user.get("id"),
                 "email": email,
                 "full_name": platform_user.get("full_name") or platform_user.get("name") or email.split("@")[0],
-                "role": "admin" if platform_user.get("is_master_admin") else "manager",
+                "role": "admin" if platform_user.get("is_master_admin") else (
+                    "manager" if platform_user.get("role") in ("owner", "manager") else "sales_rep"),
                 "organization_id": platform_user.get("organization_id"),
                 "avatar_url": platform_user.get("avatar_url", ""),
                 "password": crm_hash_password(secrets.token_hex(32)),
@@ -279,6 +285,18 @@ async def crm_login(data: dict):
             {"id": user["id"]},
             {"$set": {"cross_login_provisioned": True, "last_platform_login": datetime.now(timezone.utc).isoformat()}},
         )
+
+    # Release 1 — same account-state rules as the main sign-in.
+    from utils.team_guards import is_disabled
+    _plat = await db.users.find_one({"email": email}, {"_id": 0, "active": 1, "is_active": 1, "status": 1,
+                                                       "organization_id": 1, "is_master_admin": 1})
+    if is_disabled(user) or (_plat and is_disabled(_plat)):
+        raise HTTPException(status_code=403, detail="Account disabled")
+    _oid = (_plat or {}).get("organization_id") or user.get("organization_id")
+    if _oid and not (_plat or {}).get("is_master_admin"):
+        _o = await db.organizations.find_one({"id": _oid}, {"_id": 0, "onboarding_status": 1})
+        if (_o or {}).get("onboarding_status") == "pending_activation":
+            raise HTTPException(status_code=403, detail="Your organisation hasn't been activated yet.")
 
     org_name = ""
     if user.get("organization_id"):

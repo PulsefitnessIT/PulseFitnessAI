@@ -10,6 +10,7 @@ Date: 27 November 2026. The starting commit was `3516aa6a97a1413feecaee96d2ceda3
 | 4 | Staff permissions were inconsistent (`auth.py` **and** the Account → Team screen in `account.py`) | One rule set, `utils/team_guards.py`. Nobody can change their own access. Managers can only manage staff inside their own sites and can never grant all-site access. Site IDs must belong to the organisation. A role or site change ends the person's sessions. Becoming a manager forces MFA enrolment. The owner role moves only through `POST /api/organization/ownership/transfer`, which needs the owner's password and a new owner who already uses MFA. Account → Team "invite" now creates a secure invitation (no temporary passwords, no direct accounts). |
 | 6 | Disabled accounts kept their existing sessions | `_load_user_core` rejects `active:false`, `is_active:false` and `status:"disabled"` on every request. Login does the same. |
 | 6 | Members of a customer still awaiting activation could sign in | Login returns 403 until the owner accepts the activation invitation. |
+| 6 | The CRM sign-in (`/api/crm/auth/login`) skipped account checks (found in iteration_343) | CRM sign-in and every CRM request now apply the same disabled and awaiting-activation checks. CRM accounts created automatically for platform staff no longer get the manager role. |
 | 7 | Legacy all-sites gym-floor logins bypassed the new site rules | In a multi-site organisation, an older login is refused and its sessions end. With one site, it is bound to that site. A site-restricted manager can no longer delete another site's handover notes. |
 | 11 | The owner already had a login in another organisation | No duplicate person is created. The customer is flagged `activation_review_required` and shown as "Activation review" in Customer Activation. |
 | 11 | Interrupted invitation acceptance | An acceptance stuck for over 5 minutes can be retried, and it completes with one user. |
@@ -18,6 +19,7 @@ Date: 27 November 2026. The starting commit was `3516aa6a97a1413feecaee96d2ceda3
 | – | Trial reminder retries | A failed reminder is retried at most 3 times; previously it retried every 5 minutes for ever. |
 
 ## 2. Test results (actual)
+- Independent test round iteration_343 confirmed all iteration_342 fixes (28/29). It found one more side door, the CRM sign-in, which is now fixed; its 7 tests in `tests/test_release1_iter343.py` pass.
 - Independent test round iteration_342 found 5 real defects (side-door Team endpoints, sign-in before activation, the disabled status, handover delete scope, legacy-invite 403). All 5 are fixed. Its 9 tests (`tests/test_release1_iter342.py`) now pass.
 - Release-critical suites (run against the preview after the fixes): 155 passed (see section 9).
 - **Zero-trust authorisation gate** (`test_auth_matrix`, `test_security_authz_matrix`, `test_step_up`, `test_abuse_guard`): 26/26. This was run both against the preview and in a CI-like run (fresh MongoDB, local backend). The only original failure was the two new public invitation endpoints. They are genuinely public: token-authenticated, rate-limited and scanner-safe. They were reviewed and added to `security_matrix_baseline.json`, and nothing else changed in the baseline.
@@ -91,6 +93,7 @@ The GitHub logs need a sign-in, so the failures were reproduced locally.
 - **Stripe:** the preview's Stripe key is the platform proxy key, which can't call Stripe's Subscription APIs (`Invalid API Key` on `Account.retrieve`).
   - A real test-mode lifecycle needs Pulse's own Stripe test account in a staging deployment: upgrade, cancel at period end, withdraw cancellation, expiry, re-subscribe, duplicate webhook and failed payment.
   - The lifecycle logic is covered by handler-level tests (`test_release_ce.py`).
+- **Existing sessions when an organisation is set back to awaiting activation:** sign-in is blocked, but a session opened beforehand stays valid until it expires. Normally there is none, because imported customers have no users.
 - **Existing managers:** managers created before this release are not forced onto MFA. Only new or promoted managers are. Decide whether to require MFA for all managers.
 - **Release B and D work outstanding:**
   - Quantity-preserving matching for machines without serial numbers.

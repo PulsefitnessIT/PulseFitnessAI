@@ -624,7 +624,7 @@ async def update_team_member(user_id: str, body: dict, user: dict = Depends(get_
     from utils.auth_guards import revoke_user_sessions
     assert_can_manage(user, target)
     updates = _team_member_updates(user, target, body)
-    if updates.get("role") == "manager":
+    if updates.get("role") in ("manager", "engineer"):
         updates["mfa_required"] = True
         updates["mfa_enrolment_required"] = True
     if updates:

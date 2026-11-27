@@ -253,7 +253,7 @@ export default function TeamSection({ profile }) {
             <div className="rounded border border-emerald-400/40 bg-emerald-400/10 p-3 text-xs space-y-1.5" style={{ color: 'var(--theme-text)' }} data-testid="account-team-invite-url">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-semibold mb-0.5">{t('settings.team_reset_link_issued', 'Password reset link issued · expires in 72 h')}</div>
+                  <div className="font-semibold mb-0.5">One-time link (emails are switched off) · works once, expires in 72 h</div>
                   <code className="font-mono text-[10px] break-all" style={{ color: 'var(--theme-text-muted)' }}>{inviteUrl}</code>
                 </div>
                 <button

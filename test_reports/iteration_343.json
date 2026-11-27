@@ -1,0 +1,42 @@
+{
+  "summary": "Release 1 final check after the iteration_342 fixes. All five iteration_342 defects are fixed. The three requested suites pass 22/22 (test_release1_iter342, test_release1_access, test_release1_gym_floor). I added tests/test_release1_iter343.py with 7 tests: 6 pass and 1 fails, and the failure repeats on a rerun. The combined run is 28/29. What passes on /api/account/team/*: a manager gets 403 when changing their own role or site access, when touching staff at other sites, the owner or other managers, when setting [] or out-of-scope sites, and when promoting staff to manager. Site ids are validated: an unknown site gives 400 and a non-list gives 400. A user from another org gives 404. A manager can still change own-site staff (200). POST /team/invite creates a secure_invitations row with no temp_password and no users row; emails are held. A restricted manager's invite defaults to their own sites, an outside site gives 403 and a manager inviting a manager gives 403. Promotion to manager sets mfa_enrolment_required, ends the old session (401) and the next login asks for MFA enrolment. Status 'disabled' blocks login and re-enabling restores it. Members of a pending_activation org get 403 on /api/auth/login, and a wrong password still gives 401. A restricted manager gets 404 deleting another site's handover note and 200 for their own site's note. A manager gets 403 withdrawing a legacy manager invite (and a staff one, because legacy rows have no site), and the owner can withdraw it. NEW side door found: /api/crm/auth/login falls back to the platform password and gives a working CRM token (crm /auth/me returns 200) to a Team-disabled user and to a member of a pending_activation org. It also creates a crm_users row with role 'manager' even when the person is platform staff. Frontend (Playwright): Account Settings -> Team & Roles for owner@isodemo.com has no self-join code block and no delivery or temporary password selector. Inviting a TEST_ teammate shows the one-time /accept-invite link, a toast saying emails are held, and no temp password box. The /login placeholder is 'you@gym.com'; the Navbar signup placeholder is 'you@gym.com' in code (the Navbar auth dialog is not shown on the landing page, so it was checked in code only). Customer Activation: typing in search filters correctly (TEST_343 shows 2 rows, Zebra shows 1, clearing shows all) and the flagged org's 'Verify & invite owner' button is disabled while the unflagged one is enabled. Smoke: owner and manager logins return tokens (owner checked in the UI, manager through the API only). Settings -> Team invite dialog opens with Manager/Staff roles and the site checkboxes. The new invitation appears as an invite card. The accept-invite page loads with name prefilled and the email masked.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/crm/auth/login", "issue": "No account-status or org-activation checks. With the platform password it gives a working CRM token to (a) a user with status 'disabled' set from Team and (b) a member of a pending_activation org. It also auto-creates a crm_users row with role 'manager' (or uses the existing one) for any platform user, staff included. Neither is_disabled() nor the pending_activation check from routes/auth.py is applied in routes/crm_auth.py crm_login (around lines 230-300).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/auth/me (utils/auth.py _load_user_core)", "issue": "A session opened before the org went pending_activation (or any token minted for such a user) still gets 200. Only login is blocked. The iteration_342 action item also asked to block existing sessions."},
+      {"endpoint": "PATCH /api/account/team/{id} role=engineer", "issue": "Promotion to engineer does not set mfa_enrolment_required; only manager promotion does. The iteration_342 action item said manager OR engineer."},
+      {"endpoint": "GET /api/account/team", "issue": "Pending secure invitations created from Account Settings -> Team are not listed there (the count stays at 16). They only show in Settings -> Team invite cards."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AccountSettings/team.js invite result box", "issue": "The heading reads 'Password reset link issued · expires in 72 h' (settings.team_reset_link_issued) after creating an invitation. It should say 'Invitation link created'.", "selector": "[data-testid='account-team-invite-url']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Account Settings -> Team & Roles vs Settings -> Team", "issues": ["Account Settings offers Staff/Manager/Engineer; Settings offers only Manager/Staff. The role choices don't match.", "team.js still has dead code: the tempPwd state and the account-team-invite-temp-pwd block are never set, and the form default still includes delivery:'reset_link'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_release1_iter343.py", "/app/backend/tests/test_release1_iter342.py", "/app/test_reports/pytest/iter343.xml"],
+  "action_items": [
+    "HIGH: In routes/crm_auth.py crm_login, before issuing a token, apply utils.team_guards.is_disabled() to the platform users row (and the crm row) and the pending_activation / portal_access not_activated org check. Do not auto-provision a crm_users row with role 'manager' for platform staff; map the role from users.role.",
+    "Optional: in _load_user_core, reject non-master-admin users whose org is pending_activation, so existing sessions are blocked too.",
+    "Optional: set mfa_enrolment_required on promotion to engineer, if that is the intended policy.",
+    "LOW: Change the invite-result heading in team.js from 'Password reset link issued' to an invitation wording; remove the dead tempPwd code and the delivery default.",
+    "LOW: List pending invitations in Account Settings -> Team, or link to them."
+  ],
+  "critical_code_review_comments": [
+    "team_guards.assert_can_manage is now used consistently by account.py PATCH, DELETE, site-access and send-reset-link. DELETE /account/team/{id} hard-deletes the users row, so sessions end because the user is not found. That works, but it is not audited.",
+    "The login pending_activation check covers onboarding_status only; portal_access == 'not_activated' alone does not block. secure_invites uses an OR of both checks.",
+    "Restricted-manager handover delete excludes notes with no site_id, which those managers can see in the list. This is conservative and acceptable, but the UI may show a delete button that returns 404."
+  ],
+  "updated_files": ["/app/backend/tests/test_release1_iter343.py"],
+  "success_rate": {"backend": "97% (28/29; the 1 failure is the new CRM login side door)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Only temporary TST data, all deleted by exact id or org id: tst-* orgs and users, the tst-i343-flag and tst-i343-plain activation orgs, crm_users and svc_engineers rows the tests created, and the one UI invitation b34c08cd-6630-4e45-99b9-9b225c5e105f in iso-demo-org (revoked, then deleted). Two onboarding_audit_events for that invitation (9822198e-..., 7e244f37-...) were left in place on purpose as audit trail.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest tests/test_release1_iter342.py tests/test_release1_access.py tests/test_release1_gym_floor.py tests/test_release1_iter343.py -p no:xdist. test_crm_login_side_door should pass once crm_login is fixed. For master admin UI, mint a token with tests.test_sage_sicon_customer_import._token('admin@pulsefitness.com') and set it as localStorage 'token' (MFA is enforced). Account Settings opens from nav-user-menu-btn -> nav-account-btn -> account-nav-team on /dashboard. The landing page '/' has no Navbar login; use /login.",
+  "rca of the issue": "CRM login is a separate auth route (routes/crm_auth.py) with its own platform-password fallback, added in Iter 216h197. The Release 1 rules for disabled accounts and pending activation were added to routes/auth.py login and utils/auth.py _load_user_core only, so the CRM route skips them. To reproduce: insert a user with status 'disabled' (or in an org with onboarding_status 'pending_activation'), POST /api/crm/auth/login with that email and password, get 200 with a token, then GET /api/crm/auth/me returns 200."
+}
