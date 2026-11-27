@@ -124,6 +124,7 @@ async def reissue_owner_invite(inv_id: str, user: dict = Depends(get_current_use
 
 class MigrateIn(BaseModel):
     apply: bool = False
+    organization_id: str | None = None
 
 
 @router.post("/master-admin/legacy-invites/migrate")
@@ -131,4 +132,4 @@ async def migrate_legacy(body: MigrateIn, user: dict = Depends(get_current_user)
     from routes.customer_account_import import _is_full_admin
     if not _is_full_admin(user):
         raise HTTPException(403, "Pulse Fitness administrator access required")
-    return await SI.migrate_legacy_invites(apply=body.apply, actor=user)
+    return await SI.migrate_legacy_invites(apply=body.apply, actor=user, organization_id=body.organization_id)

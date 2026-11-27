@@ -472,7 +472,7 @@ async def _mirror_crm_user_to_users(crm_user: dict, plaintext_password: str) -> 
 def _enforce_account_status(user: dict) -> None:
     """Refuse logins for disabled accounts or expired temp passwords. Raises
     ``HTTPException`` on failure; returns ``None`` when the account is good."""
-    if user.get("active") is False or user.get("is_active") is False:
+    if user.get("active") is False or user.get("is_active") is False or (user.get("status") or "").lower() == "disabled":
         # Provisioned-but-revoked accounts (e.g. removed Pulse Master Admins)
         # must not log in even if they still know their password.
         raise HTTPException(status_code=403, detail="Account disabled")
@@ -706,6 +706,11 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
             user_id=user.get("id", ""),
         )
         raise
+    if user.get("organization_id") and not user.get("is_master_admin"):
+        _o = await db.organizations.find_one({"id": user["organization_id"]}, {"_id": 0, "onboarding_status": 1})
+        if (_o or {}).get("onboarding_status") == "pending_activation":
+            # Imported customers: nobody signs in until the verified owner accepts their activation invitation.
+            raise HTTPException(status_code=403, detail="Your organisation hasn't been activated yet. Use the activation invitation from Pulse Fitness.")
 
     # 3a. Self-heal a detached org link (the "Honey Hancock" org-detachment).
     # Some Service-Desk-provisioned `users` rows were left with
@@ -1738,7 +1743,10 @@ async def cancel_invite(invite_id: str, user: dict = Depends(get_current_user)) 
     await _manager_may_manage_invite(user, invite_id)
     legacy_q = {"id": invite_id, "organization_id": user['organization_id']}
     if user.get('role') == 'manager':
-        legacy_q["role"] = "staff"  # managers may only withdraw staff invitations
+        row = await db.invites.find_one(legacy_q, {"_id": 0, "role": 1})
+        if row and (row.get("role") != "staff" or (user.get('allowed_site_ids') or [])):
+            # legacy rows carry no site scope, so a site-restricted manager can't vouch for them
+            raise HTTPException(status_code=403, detail="Only the owner can withdraw this invitation")
     legacy = await db.invites.delete_one(legacy_q)
     if legacy.deleted_count:
         return {"success": True}

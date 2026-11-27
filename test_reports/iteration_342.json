@@ -1,0 +1,56 @@
+{
+  "summary": "Independent retest of Release 1 items A to I. The existing regression suites pass 35/35 (test_release1_access, test_release1_gym_floor, test_release1_sicon_sample, test_release_ce, test_release_ce_extended, test_release_ce_iter341). The new file tests/test_release1_iter342.py has 9 tests: 4 pass and 5 fail, and the failures repeat on a rerun. What works: company-code registration returns 403 for an active org, an inactive org, a nonexistent code and a legacy invite email, and no user is created. Registration without a code still creates a new org with role owner. owner@isodemo.com and manager@isodemo.com can log in, and /auth/forgot-password returns 200. On the owner_activation path: verification is required; a Sage hold needs accounts_confirmed; links expire after 72h (410 once expired); 8 parallel accepts give exactly one 200 and one user; LITE, org id, sites and equipment are kept; the owner login returns requires_mfa_enrolment true with no token. The interrupted-acceptance recovery, the other-org 409 review flag and the legacy-invite migration dry run and apply all pass in the existing tests. Central revocation works: is_active false, active false and tokens_revoked_before all give 401 on /auth/me and /gym-floor/handover. Gym floor: setup without site_id in a multi-site org returns 400; a duplicate username returns 409; a manager setting up a device at another site gets 403; handover notes are scoped to the site plus notes with no site, and are not visible to other orgs; a device token gets 401/403 on non-gym-floor endpoints. The commercial gate returns 403 for imported orgs, and a self-signup org is not blocked by it. Sicon sample apply passes. Problems found: (1) the live Account Settings -> Team & Roles screen (/api/account/team/*) bypasses all of the new auth.py role and site rules; (2) members of a pending_activation org can sign in before activation; (3) Team status 'disabled' is not enforced; (4) a site-restricted manager can delete another site's handover notes; (5) when a manager tries to delete a legacy manager invite the API returns 404 instead of 403 (the row is safely not deleted). Frontend: the sign-up dialog shows auth-join-hint and has no company-code field. The accept-invite page with an invalid token shows only the 'not valid' state. Settings -> Invite dialog shows Manager/Staff roles and the site picker. Customer Activation shows 'Activation review: owner already has a login elsewhere' for a flagged org. Gym Floor Devices renders under Staffing -> People. The Plan & Billing products panel renders.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PATCH /api/account/team/{id}/site-access, PATCH /api/account/team/{id}, POST /api/account/team/invite, DELETE /api/account/team/{id} (routes/account.py)", "issue": "This is a side door around the Release 1 rules in auth.py. The Account Settings -> Team & Roles UI uses these endpoints. A manager restricted to Site A got 200 on every probe: (a) set their OWN allowed_site_ids to [] (unrestricted, all sites); (b) moved a Site-B staff member to Site A; (c) demoted another manager to staff; (d) created a user directly at Site B, with a temp password or reset link and no secure invitation. Site ids are never checked against the org; (e) deleted another manager. An owner can also promote to manager (or engineer) here without mfa_enrolment_required being set, and no sessions are revoked on role or scope changes.", "priority": "CRITICAL"},
+      {"endpoint": "POST /api/auth/login (and _load_user_core)", "issue": "A user whose org is pending_activation / not_activated can log in and gets a token (200). There is no check on the org's activation state anywhere. This contradicts requirement D ('inactive org members cannot log in before activation') and the UI caption 'Nobody can sign in until an owner is verified and invited'.", "priority": "HIGH"},
+      {"endpoint": "PATCH /api/account/team/{id} {status:'disabled'}", "issue": "The update stores status='disabled', but login and _load_user_core only check active / is_active. A disabled teammate keeps working sessions (/auth/me 200) and can still log in (200).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "DELETE /api/gym-floor/handover/{id}", "issue": "There is no site scope: a manager restricted to Site A deleted a Site-B handover note (200). The gym-floor staff roster and topics endpoints are also org-wide for site-restricted managers."},
+      {"endpoint": "DELETE /api/organization/invite/{legacy_manager_invite_id} as manager", "issue": "Returns 404 instead of 403. The row is correctly not deleted. Legacy staff-role rows have no site scope check for restricted managers."},
+      {"endpoint": "POST /api/master-admin/legacy-invites/migrate {apply:true}", "issue": "Acts on every pending legacy invite platform-wide, with no org filter. create_invitation can raise mid-loop (e.g. a 409 race), leaving a partial migration with no per-row error report. The regression test test_legacy_invites_migrate_to_secure_invitations runs apply:true against the shared DB. db.invites is currently empty, so no real data was touched."},
+      {"endpoint": "background trial reminder (utils.email)", "issue": "The 'Service Desk trial' email to sp.pytest.a87ad83ed4@example.com is retried every 5 minutes after the Resend 'API key is invalid' failure (10:49, 10:54). There is no backoff and no limit on retries after the claim-release change."},
+      {"endpoint": "POST /api/auth/login manager@isodemo.com", "issue": "The seeded manager gets a token without MFA, while newly promoted managers get mfa_enrolment_required. Managers are treated inconsistently."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AccountSettings/team.js", "issue": "The text 'Self-join invite code - Share this code so a new teammate can self-join your organisation' is still in the code (shown when inviteCode is set). The form also offers 'Show temporary password inline' and direct user creation, which goes around the secure invitation flow.", "selector": "[data-testid='account-team-invite-code']", "priority": "HIGH"},
+      {"component": "CustomerActivation search", "issue": "After typing in ca-search, the table still showed unfiltered rows. Requests are not cancelled or ordered, so the earlier empty-search response overwrote the filtered result.", "selector": "[data-testid='ca-search']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Account Settings -> Team & Roles", "issue": "Uses /api/account/team/* instead of the secured /organization/invite and /organization/staff/* endpoints, so the Release 1 permission rules are not enforced in the UI the customer actually sees.", "affected_selectors": ["[data-testid='account-team-invite-form']"]}
+    ],
+    "design_issues": [
+      {"screen": "Plan & Billing", "issues": ["The Products panel says 'Included in your agreement (no card payment)', but further down the page still shows 'Free Tier - No active subscription', 'Upgrade Plan' and priced modules marked ACTIVE. The messages contradict each other."]},
+      {"screen": "Customer Activation", "issues": ["A flagged 'Activation review' org still shows an enabled 'Verify & invite owner' button."]},
+      {"screen": "Sign-up dialog", "issues": ["The email placeholder 'you@gym.com or your kiosk username' is wrong for sign-up."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_release1_iter342.py", "/app/test_reports/pytest/iter342_new.xml", "/app/test_reports/pytest/iter342_existing.xml"],
+  "action_items": [
+    "CRITICAL: Apply the auth.py rules to routes/account.py /account/team/*, or retire these endpoints and point team.js at /organization/*. Rules to enforce: no self-change; managers may touch only staff inside their sites; never [] or out-of-scope sites for managers; validate site ids (400); manager or engineer promotion sets mfa_enrolment_required and revokes sessions. Replace direct user creation with secure invitations.",
+    "HIGH: Block login and existing sessions for users of orgs that are pending_activation / portal_access not_activated (except the owner-activation flow and Pulse staff).",
+    "HIGH: Treat status=='disabled' as disabled in _enforce_account_status and _load_user_core (or make the PATCH set is_active false and revoke sessions).",
+    "Remove the self-join code copy and the temp-password option from AccountSettings/team.js.",
+    "Site-scope DELETE /gym-floor/handover/{id} for restricted managers.",
+    "Return 403 (not 404) when a manager targets a legacy manager invite; site-scope legacy staff invites.",
+    "Add an optional org filter and per-row error handling to legacy-invites migrate; stop the regression test running apply:true platform-wide.",
+    "Add backoff or a retry cap for trial-reminder emails that fail.",
+    "Clean up 11 leftover TEST_C859A9_* orgs created at 10:31 today by another run (not created by this agent)."
+  ],
+  "critical_code_review_comments": [
+    "routes/account.py update_team_member_site_access and update_team_member have no self, role or site-scope checks and no revoke_user_sessions.",
+    "routes/account.py _parse_invite_payload accepts any allowed_site_ids without validating them against the org or the manager's scope.",
+    "utils/secure_invites.migrate_legacy_invites runs synchronously over up to 5000 rows; one exception aborts the whole run part-way.",
+    "gym_floor setup: the username uniqueness check is find-then-replace with no unique index (race). Gym-floor login has no lockout for shared device passwords (minimum 6 characters).",
+    "routes/auth.py is 1971 lines, over the 700-line guideline."
+  ],
+  "updated_files": ["/app/backend/tests/test_release1_iter342.py"],
+  "success_rate": {"backend": "88% (39/44 tests; 35/35 existing + 4/9 new)", "frontend": "90% (all requested screens render; stale self-join copy and side-door team UI)"},
+  "seed_data_creation": "Synthetic tst-* orgs and tst.i342.* users only, removed by exact id via _purge. Org tst-412122d67c (UI Activation review check) is deleted. Verified that 0 tst.i342 users and 0 tst-i342 legacy invites remain. Seeded iso-demo accounts were not modified.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run tests/test_release1_iter342.py. Its 5 failing tests encode the expected behaviour for the account/team side door, inactive-org login, status disabled, handover delete scope and the legacy manager invite 403. For master admin in the browser: mint a token with tests.test_sage_sicon_customer_import._token('admin@pulsefitness.com'), put it in localStorage 'token', then open /master-admin?section=onboarding -> onboarding-subtab-activation. To reach Account Settings sections use /dashboard?account=team|billing; Settings dialog is /dashboard?settings=1."
+}

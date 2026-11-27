@@ -6,7 +6,7 @@ import { Check, Copy, Loader2, Plus, Trash2 } from 'lucide-react';
 import { API, useAuthHeaders, FieldRow } from './shared';
 
 
-export default function TeamSection({ profile, inviteCode }) {
+export default function TeamSection({ profile }) {
   const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [members, setMembers] = useState([]);
@@ -22,7 +22,6 @@ export default function TeamSection({ profile, inviteCode }) {
   const [tempPwd, setTempPwd] = useState('');
   const [inviteUrl, setInviteUrl] = useState('');
   const [urlCopied, setUrlCopied] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
   const [editingSitesFor, setEditingSitesFor] = useState(null);  // user id whose site picker is open
   const [pendingSites, setPendingSites] = useState([]);
 
@@ -52,13 +51,11 @@ export default function TeamSection({ profile, inviteCode }) {
     setTempPwd(''); setInviteUrl('');
     try {
       const { data } = await axios.post(`${API}/account/team/invite`, form, { headers: headers() });
-      if (data.delivery === 'reset_link') {
-        setInviteUrl(data.invite_url || '');
-        toast.success(t('settings.team_reset_issued', 'Reset link issued — copy it or it will also be emailed when Resend is wired.'));
-      } else {
-        setTempPwd(data.temp_password || '');
-        toast.success(t('settings.team_invite_created', 'Invite created'));
-      }
+      // Release 1 — every new teammate receives a secure single-use invitation (72 h).
+      setInviteUrl(data.invite_url || '');
+      toast.success(data.invite_url
+        ? 'Invitation created. Emails are switched off, so copy the one-time link below.'
+        : 'Invitation emailed. The link works once and expires in 72 hours.');
       setForm({ email: '', full_name: '', role: 'staff', delivery: 'reset_link', allowed_site_ids: [] });
       await load();
     } catch (e) {
@@ -162,30 +159,6 @@ export default function TeamSection({ profile, inviteCode }) {
           }}
           data-testid="account-team-invite-form"
         >
-          {inviteCode && (
-            <div className="rounded-md p-3" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }}>
-              <div className="text-[10px] uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.team_selfjoin_code', 'Self-join invite code')}</div>
-              <div className="flex items-center gap-2">
-                <code className="text-base font-mono" style={{ color: 'var(--brand-color, var(--color-brand-blue))' }} data-testid="account-team-invite-code">{inviteCode}</code>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(inviteCode);
-                    setCodeCopied(true);
-                    setTimeout(() => setCodeCopied(false), 1500);
-                  }}
-                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border"
-                  style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
-                  data-testid="account-team-invite-code-copy"
-                >
-                  {codeCopied ? <Check size={12} /> : <Copy size={12} />} {codeCopied ? t('settings.team_copied', 'Copied') : t('settings.team_copy', 'Copy')}
-                </button>
-              </div>
-              <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-                {t('settings.team_selfjoin_hint', 'Share this code so a new teammate can self-join your organisation, or fill in the form below to send a direct invite.')}
-              </p>
-            </div>
-          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FieldRow label={t('settings.team_full_name', 'Full name')}>
               <input
@@ -215,17 +188,6 @@ export default function TeamSection({ profile, inviteCode }) {
                 <option value="staff">{t('settings.team_role_staff', 'Staff')}</option>
                 {isOwner && <option value="manager">{t('settings.team_role_manager', 'Manager')}</option>}
                 {isOwner && <option value="engineer">{t('settings.team_role_engineer', 'Engineer')}</option>}
-              </select>
-            </FieldRow>
-            <FieldRow label={t('settings.team_delivery', 'Delivery')}>
-              <select
-                value={form.delivery}
-                onChange={(e) => setForm({ ...form, delivery: e.target.value })}
-                className="account-input"
-                data-testid="account-team-invite-delivery"
-              >
-                <option value="reset_link">{t('settings.team_delivery_reset', 'Email password reset link (recommended)')}</option>
-                <option value="temp_password">{t('settings.team_delivery_temp', 'Show temporary password inline')}</option>
               </select>
             </FieldRow>
           </div>

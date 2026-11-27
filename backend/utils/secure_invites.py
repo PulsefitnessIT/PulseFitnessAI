@@ -290,6 +290,9 @@ async def _create_user(inv: dict, full_name: str, pw_hash: str) -> dict:
         "mfa_required": bool(inv.get("require_mfa")), "mfa_enrolment_required": bool(inv.get("require_mfa")),
     }
     await db.users.insert_one(dict(user))
+    if user["role"] == "engineer":
+        from routes.account import _sync_engineer_provisioning
+        await _sync_engineer_provisioning(user)
     return user
 
 
@@ -308,11 +311,12 @@ async def _activate_org(inv: dict, user: dict) -> None:
     await db.organizations.update_one({"id": inv["organization_id"]}, {"$set": s})
 
 
-async def migrate_legacy_invites(*, apply: bool, actor: dict) -> dict:
+async def migrate_legacy_invites(*, apply: bool, actor: dict, organization_id: Optional[str] = None) -> dict:
     """Reissue pending legacy `invites` (company-code era) through this service. Dry run by default.
     Role is capped at manager/staff; no site scope is invented (owners can narrow it when re-sending).
     Legacy rows are marked `migrated`, never deleted."""
-    rows = await db.invites.find({"status": "pending"}, {"_id": 0}).to_list(5000)
+    rows = await db.invites.find({"status": "pending", **({"organization_id": organization_id} if organization_id else {})},
+                                 {"_id": 0}).to_list(5000)
     plan = []
     for r in rows:
         org = await db.organizations.find_one({"id": r.get("organization_id")}, {"_id": 0})
@@ -339,8 +343,12 @@ async def migrate_legacy_invites(*, apply: bool, actor: dict) -> dict:
             legacy = next(r for r in rows if r.get("id") == p["legacy_id"])
             inviter = await db.users.find_one({"id": legacy.get("invited_by")}, {"_id": 0}) or actor
             org = await db.organizations.find_one({"id": p["organization_id"]}, {"_id": 0})
-            out = await create_invitation(kind="staff", org=org, email=p["email"], full_name=legacy.get("full_name") or "",
-                                          role=p["role"], actor=inviter, require_mfa=p["role"] == "manager")
+            try:
+                out = await create_invitation(kind="staff", org=org, email=p["email"], full_name=legacy.get("full_name") or "",
+                                              role=p["role"], actor=inviter, require_mfa=p["role"] == "manager")
+            except HTTPException as exc:
+                p["action"], p["reason"] = "error", str(exc.detail)
+                continue
             await db.invites.update_one({"id": p["legacy_id"]}, {"$set": {
                 "status": "migrated", "migrated_to": out["invitation"]["id"], "migrated_at": _now().isoformat(),
                 "migrated_by": actor.get("id")}})

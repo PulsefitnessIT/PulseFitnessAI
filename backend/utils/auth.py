@@ -287,7 +287,7 @@ async def _load_user_core(
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
-    if user.get("active") is False or user.get("is_active") is False:
+    if user.get("active") is False or user.get("is_active") is False or (user.get("status") or "").lower() == "disabled":
         # Release 1 — a disabled account loses every existing session immediately, not just future logins.
         raise HTTPException(status_code=401, detail="Account disabled")
     # Iter 220au · F-19 — server-side bulk session invalidation. Any

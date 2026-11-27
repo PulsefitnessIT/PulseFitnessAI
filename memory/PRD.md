@@ -39658,3 +39658,8 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Tests: backend/tests/test_release_ce.py, test_release_ce_extended.py, test_release_ce_iter341.py (all pass).
 - Open decision: company-code self-registration still allowed for ACTIVE orgs (user chose in Release A to block only imported/pending orgs). Recommend closing it now that secure invites exist.
 - Backlog: Release D (shared person id, unified opt-outs, product event outbox, CRM sites → sites, crm_users → users), live Stripe test-mode checkout run, P1-8/P1-9 from Release B, supervised Sage/Sicon live check.
+
+# ═══ 2026-11-27 · RELEASE 1 — internal production release candidate ═══
+- Company-code joining closed for all orgs; legacy invite migration endpoint; unified staff permission rules (auth.py + account.py); ownership transfer; disabled accounts lose sessions; unactivated org members can't sign in; legacy gym-floor org-wide logins can't bypass sites; owner-with-other-org-login flagged for activation review; interrupted acceptance recovery; Sicon sample-restricted apply; imported-customer purchase gate; trial reminder retry cap.
+- CI: ruff fixed, zero-trust gate fixed (2 reviewed public routes in baseline). `make regression` failures shown to predate the release (baseline commit ae183314).
+- Full report and READY / NOT READY table: memory/RELEASE_1_REPORT.md. Tests: tests/test_release1_*.py.

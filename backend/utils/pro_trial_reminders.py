@@ -97,7 +97,7 @@ async def sweep_trial_reminders(now: datetime | None = None) -> dict:
     stats = {"checked": 0, "reminded": 0}
     async for org in db.organizations.find(
             {"pro_trial_used_at": {"$exists": True}, "pro_trial_reminder_sent_at": None},
-            {"_id": 0, "id": 1, "name": 1, "module_trials": 1, "pro_trial_used_at": 1}):
+            {"_id": 0, "id": 1, "name": 1, "module_trials": 1, "pro_trial_used_at": 1, "pro_trial_reminder_attempts": 1}):
         stats["checked"] += 1
         ends = [_parse(t.get("expires_at")) for t in (org.get("module_trials") or {}).values() if isinstance(t, dict)]
         ends = [e for e in ends if e]
@@ -117,9 +117,11 @@ async def sweep_trial_reminders(now: datetime | None = None) -> dict:
             continue  # the trial-ending email already went from another sender
         if await send_trial_ending_email(org, ends_at):
             stats["reminded"] += 1
-        else:
+        elif (org.get("pro_trial_reminder_attempts") or 0) < 2:
+            # Failed send: allow at most 3 attempts in total, then stop (no endless 5-minute retries).
             await email_claims.release(key)
-            await db.organizations.update_one({"id": org["id"]}, {"$set": {"pro_trial_reminder_sent_at": None}})
+            await db.organizations.update_one({"id": org["id"]}, {"$set": {"pro_trial_reminder_sent_at": None},
+                                                                  "$inc": {"pro_trial_reminder_attempts": 1}})
     logger.info("[pro-trial] reminder sweep %s", stats)
     return stats
 

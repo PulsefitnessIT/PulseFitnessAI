@@ -8,7 +8,13 @@ Throughout:
 - Nothing has been live-verified from the development environment: these servers are not reachable from it.
 
 ## 0. Before you start
-1. Take a database backup (`mongodump --uri "$MONGO_URL" --db "$DB_NAME" --out backup-YYYYMMDD`) and keep it until sign-off.
+0. Confirm the deployed commit (`GET /api/build-info` → `commit`) matches the approved release commit.
+   - Confirm `flags` shows `SICON_ALLOW_WRITES`, `SAGE_ALLOW_WRITES`, `SICON_NIGHTLY_SYNC_ENABLED`, `INVITATION_EMAILS_LIVE` and `IMPORTED_CUSTOMER_PURCHASES_ENABLED` all **false**.
+1. Take a database backup and keep it until sign-off:
+   - Back up with `mongodump --uri "$MONGO_URL" --db "$DB_NAME" --gzip --out backup-YYYYMMDD`.
+   - Prove the backup restores on a separate restore host:
+     `mongorestore --gzip --nsFrom "$DB_NAME.*" --nsTo "restore_check.*" backup-YYYYMMDD`.
+   - Compare document counts for `organizations`, `users`, `equipment`, `sites`, `customer_account_refs` and `sicon_external_links`.
 2. Confirm the environment:
    - `SICON_SAGE_COMPANY="Pulse Fitness"`.
    - The Sicon connection (Master Admin → Integrations → Sicon) shows the **base URL and companyId** of the live installation.
@@ -56,7 +62,12 @@ Throughout:
    - "Proposed operational site" (source: Sicon sub-location) lists unknown locations.
 
 ## 6. Sample apply (only for the sample customers)
-1. In Sicon, temporarily restrict the preview to the sample customers if the plugin allows it. Otherwise accept that unknown customers stay held.
+1. **Never apply a full-estate preview on the live database.** Restrict the apply to the approved sample:
+   `POST /api/sicon/read/onboarding/{preview_run_id}/apply` with body `{"sample_org_ids": ["<org id 1>", "..."]}`.
+   The org ids are the ones recorded in step 2.
+   - Equipment, cases, customers and sites belonging to any other customer are skipped. They are not created and not queued.
+   - The run card shows `outside_sample.skipped`.
+   - Alternatively, run the apply in an isolated acceptance database restored from the step-0 backup.
 2. Import the approved preview once; a second Import of the same preview is refused.
 3. Check:
    - Equipment sits under the sample customers, not the Pulse organisation.

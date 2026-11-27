@@ -867,7 +867,7 @@ fontFamily: "'Proxima Nova', system-ui, sans-serif",
  defaultValue=""
  onChange={(e) => setFormData({...formData, email: e.target.value})}
  required
- placeholder="you@gym.com or your kiosk username"
+ placeholder={isLogin ? "you@gym.com or your kiosk username" : "you@gym.com"}
  className="bg-[var(--color-ink-alt)] border-white/10 text-white"
  data-testid="auth-email-input"
  />

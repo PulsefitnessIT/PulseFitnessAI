@@ -198,9 +198,12 @@ async def _send_reminder_if_due(org: Dict[str, Any], frontend_url: str) -> bool:
     if sent_ok:
         logger.info(f"[Trial] Sent {due_marker} reminder for org {org_id} to {recipient}")
     else:
-        await db.organizations.update_one({"id": org_id}, {"$pull": {"trial_reminders_sent": due_marker}})
-        if final_key:
-            await email_claims.release(final_key)
+        if ((org.get("trial_reminder_failures") or {}).get(due_marker) or 0) < 2:
+            # retry later, but at most 3 attempts in total
+            await db.organizations.update_one({"id": org_id}, {"$pull": {"trial_reminders_sent": due_marker},
+                                                               "$inc": {f"trial_reminder_failures.{due_marker}": 1}})
+            if final_key:
+                await email_claims.release(final_key)
     return sent_ok
 
 

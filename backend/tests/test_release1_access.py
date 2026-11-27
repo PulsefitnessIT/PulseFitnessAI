@@ -138,13 +138,18 @@ def test_legacy_invites_migrate_to_secure_invitations(H):
         {"id": ids[2], "organization_id": ina, "status": "pending", "role": "staff", "email": f"s.{ina}@example.com"}])
     M = f"{BASE}/api/master-admin/legacy-invites/migrate"
     try:
-        dry = requests.post(M, headers=H, json={}).json()
+        dry = {"plan": [], "apply": False, "reissued": 0}
+        for o in (oid, ina):
+            d = requests.post(M, headers=H, json={"organization_id": o}).json()
+            dry["plan"] += d["plan"]
+            dry["reissued"] += d["reissued"]
         mine = {p["legacy_id"]: p for p in dry["plan"] if p["legacy_id"] in ids}
         assert dry["apply"] is False and dry["reissued"] == 0
         assert mine[ids[1]]["role"] == "staff"  # legacy owner role is never carried over
         assert mine[ids[2]]["reason"] == "organisation_awaiting_activation"
         assert db.secure_invitations.count_documents({"organization_id": oid}) == 0
-        requests.post(M, headers=H, json={"apply": True})
+        for o in (oid, ina):  # scoped to the test organisations only
+            requests.post(M, headers=H, json={"apply": True, "organization_id": o})
         assert db.invites.find_one({"id": ids[0]})["status"] == "migrated"
         assert db.invites.find_one({"id": ids[2]})["status"] == "retired"
         si = db.secure_invitations.find_one({"organization_id": oid, "email": f"m.{oid}@example.com"})
@@ -202,5 +207,51 @@ def test_imported_customer_cannot_buy_online_yet():
                            ("/api/payments/checkout", {"package_id": "pro"})):
             r = requests.post(f"{BASE}{path}", headers=ho, json={**body, "origin_url": BASE})
             assert r.status_code == 403, (path, r.status_code, r.text)
+    finally:
+        _purge(db, oid)
+
+
+
+def test_account_team_endpoints_follow_the_same_rules():
+    db = _db()
+    oid = _mk_org(db, onboarding_status="active", portal_access="activated")
+    sa, sb = f"{oid}-a", f"{oid}-b"
+    db.sites.insert_many([{"id": sa, "organization_id": oid, "name": "A"}, {"id": sb, "organization_id": oid, "name": "B"}])
+    (own, ho), (mgr, hm), (mgr2, _), (stb, hs) = _users(db, oid, ("owner", []), ("manager", [sa]), ("manager", [sb]), ("staff", [sb]))
+    T = f"{BASE}/api/account/team"
+    em = f"tst.ai.{oid[-6:]}@example.com"
+    try:
+        assert requests.patch(f"{T}/{mgr}/site-access", headers=hm, json={"allowed_site_ids": []}).status_code == 403  # self
+        assert requests.patch(f"{T}/{stb}/site-access", headers=hm, json={"allowed_site_ids": [sa]}).status_code == 403  # other site
+        assert requests.patch(f"{T}/{mgr2}", headers=hm, json={"role": "staff"}).status_code == 403
+        assert requests.delete(f"{T}/{mgr2}", headers=hm).status_code == 403
+        assert requests.patch(f"{T}/{stb}/site-access", headers=ho, json={"allowed_site_ids": ["nope"]}).status_code == 400
+        # invite = secure invitation, never a direct account or temporary password
+        r = requests.post(f"{T}/invite", headers=hm, json={"email": em, "full_name": "AI", "role": "staff", "allowed_site_ids": [sb]})
+        assert r.status_code == 403
+        r = requests.post(f"{T}/invite", headers=hm, json={"email": em, "full_name": "AI", "role": "staff", "delivery": "temp_password"})
+        assert r.status_code == 200 and "temp_password" not in r.json() and r.json()["allowed_site_ids"] == [sa]
+        assert db.users.count_documents({"email": em}) == 0
+        # disabling through the Team screen ends sessions and blocks login
+        assert requests.patch(f"{T}/{stb}", headers=ho, json={"status": "disabled"}).status_code == 200
+        assert requests.get(f"{BASE}/api/auth/me", headers=hs).status_code == 401
+        # promotion to manager here also requires MFA
+        (st2, _), = _users(db, oid, ("staff", []))
+        assert requests.patch(f"{T}/{st2}", headers=ho, json={"role": "manager"}).status_code == 200
+        assert db.users.find_one({"id": st2})["mfa_enrolment_required"] is True
+    finally:
+        _purge(db, oid)
+
+
+def test_members_of_unactivated_org_cannot_sign_in():
+    from utils.auth import hash_password
+    db = _db()
+    oid = _mk_org(db)
+    (uid, _), = _users(db, oid, ("staff", []))
+    db.users.update_one({"id": uid}, {"$set": {"password": hash_password(PW)}})
+    email = db.users.find_one({"id": uid})["email"]
+    try:
+        r = requests.post(f"{BASE}/api/auth/login", headers=BYP, json={"email": email, "password": PW})
+        assert r.status_code == 403 and not r.json().get("token")
     finally:
         _purge(db, oid)

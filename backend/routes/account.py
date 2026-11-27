@@ -563,58 +563,26 @@ async def invite_team_member(body: dict, user: dict = Depends(get_current_user))
     parsed = _parse_invite_payload(body)
     _enforce_invite_role(user, parsed["role"])
 
-    existing = await db.users.find_one(
-        {"email": parsed["email"]}, {"_id": 0, "id": 1},
-    )
-    if existing:
-        raise HTTPException(status_code=409, detail="A user with this email already exists")
-
-    user_id = str(uuid.uuid4())
-    now_iso = datetime.now(timezone.utc).isoformat()
-    # When delivery=reset_link, we still seed a random password so the
-    # account row is valid — the user will overwrite it via the reset
-    # link before they can log in. We never disclose this seed.
-    seed_password = f"Welcome{secrets.token_hex(3)}!"
-    new_user = {
-        "id": user_id,
-        "email": parsed["email"],
-        "full_name": parsed["full_name"],
-        "password": hash_password(seed_password),
-        "role": parsed["role"],
-        "status": "active",
-        "avatar_url": None,
-        "organization_id": user.get("organization_id"),
-        "invited_by": user["id"],
-        "must_change_password": parsed["delivery"] != "reset_link",
-        "allowed_site_ids": parsed["allowed_site_ids"],
-        "created_at": now_iso,
-    }
-    await db.users.insert_one(new_user)
-    # Iter 227 — assigning the Engineer role auto-provisions the
-    # svc_engineers mapping that unlocks the Engineer App.
-    await _sync_engineer_provisioning(new_user)
-
-    response: dict = {
-        "id": user_id, "email": parsed["email"], "full_name": parsed["full_name"],
-        "role": parsed["role"], "allowed_site_ids": parsed["allowed_site_ids"],
-        "delivery": parsed["delivery"],
-    }
-    if parsed["delivery"] == "reset_link":
-        link = await _issue_reset_token(new_user, user.get("email", ""))
-        await db.users.update_one(
-            {"id": user_id},
-            {"$set": {
-                "password_reset_sent_at": now_iso,
-                "password_reset_sent_by": user.get("email", ""),
-            }},
-        )
-        response.update({
-            "invite_url": link["invite_url"],
-            "expires_at": link["expires_at"],
-        })
-    else:
-        response["temp_password"] = seed_password
-    return response
+    # Release 1 — no direct account creation or temporary passwords: every new teammate gets a secure,
+    # single-use invitation with role and site scope (same service as Settings → Team).
+    from utils import secure_invites as SI
+    from utils.team_guards import validate_org_sites, assert_sites_within_scope
+    sites = await validate_org_sites(user.get("organization_id"), parsed["allowed_site_ids"])
+    mine = user.get("allowed_site_ids") or []
+    if (user.get("role") or "").lower() == "manager" and mine and not sites:
+        sites = list(mine)
+    assert_sites_within_scope(user, sites)
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+    out = await SI.create_invitation(kind="staff", org=org, email=parsed["email"], full_name=parsed["full_name"],
+                                     role=parsed["role"], actor=user, allowed_site_ids=sites,
+                                     require_mfa=parsed["role"] == "manager")
+    inv = out["invitation"]
+    return {"id": inv["id"], "email": inv["email"], "full_name": inv["full_name"], "role": inv["role"],
+            "allowed_site_ids": inv["allowed_site_ids"], "delivery": "invitation",
+            "invitation_delivery": out["delivery"]["mode"], "invite_url": out.get("link"),
+            "expires_at": inv["expires_at"]}
 
 
 def _team_member_role_update(actor: dict, target: dict, raw_role) -> str:
@@ -652,12 +620,18 @@ async def update_team_member(user_id: str, body: dict, user: dict = Depends(get_
     )
     if not target:
         raise HTTPException(status_code=404, detail="Team member not found")
-    if target.get("role") == "owner" and (body or {}).get("role") not in (None, "owner"):
-        raise HTTPException(status_code=403, detail="Cannot change the Owner's role")
+    from utils.team_guards import assert_can_manage
+    from utils.auth_guards import revoke_user_sessions
+    assert_can_manage(user, target)
     updates = _team_member_updates(user, target, body)
+    if updates.get("role") == "manager":
+        updates["mfa_required"] = True
+        updates["mfa_enrolment_required"] = True
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.users.update_one({"id": user_id}, {"$set": updates})
+        if updates.get("role", target.get("role")) != target.get("role") or updates.get("status") == "disabled":
+            await revoke_user_sessions(user_id, reason="team_change")
     fresh = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
     # Iter 227 — re-sync the Engineer App mapping whenever the role changed.
     if "role" in updates:
@@ -672,12 +646,12 @@ async def remove_team_member(user_id: str, user: dict = Depends(get_current_user
         raise HTTPException(status_code=400, detail="Cannot remove yourself")
     target = await db.users.find_one(
         {"id": user_id, "organization_id": user.get("organization_id")},
-        {"_id": 0, "role": 1},
+        {"_id": 0, "id": 1, "role": 1, "allowed_site_ids": 1},
     )
     if not target:
         raise HTTPException(status_code=404, detail="Team member not found")
-    if target.get("role") == "owner":
-        raise HTTPException(status_code=403, detail="Cannot remove the Owner")
+    from utils.team_guards import assert_can_manage
+    assert_can_manage(user, target)
     await db.users.delete_one({"id": user_id})
     # Iter 227 — deactivate any Engineer App mapping for the removed teammate.
     await _sync_engineer_provisioning({"id": user_id, "organization_id": user.get("organization_id"), "role": "removed"})
@@ -699,26 +673,23 @@ async def update_team_member_site_access(user_id: str, body: dict, user: dict = 
     _require_team_admin(user)
     target = await db.users.find_one(
         {"id": user_id, "organization_id": user.get("organization_id")},
-        {"_id": 0, "id": 1, "role": 1},
+        {"_id": 0, "id": 1, "role": 1, "allowed_site_ids": 1},
     )
     if not target:
         raise HTTPException(status_code=404, detail="Team member not found")
     if target.get("role") == "owner":
         raise HTTPException(status_code=403, detail="Owners always see every site")
+    from utils.team_guards import assert_can_manage, assert_sites_within_scope, validate_org_sites
+    from utils.auth_guards import revoke_user_sessions
+    assert_can_manage(user, target)
     raw = (body or {}).get("allowed_site_ids")
     if not isinstance(raw, list):
         raise HTTPException(status_code=400, detail="allowed_site_ids must be a list of site ids")
-    cleaned = [str(s) for s in raw if isinstance(s, (str, int)) and str(s).strip()]
-    # Verify each id belongs to the caller's org so we can't pin staff
-    # to sites outside their tenant.
-    if cleaned:
-        valid_ids = {
-            s["id"] async for s in db.sites.find(
-                {"organization_id": user.get("organization_id"), "id": {"$in": cleaned}},
-                {"_id": 0, "id": 1},
-            )
-        }
-        cleaned = [s for s in cleaned if s in valid_ids]
+    cleaned = await validate_org_sites(user.get("organization_id"),
+                                       [str(s) for s in raw if isinstance(s, (str, int)) and str(s).strip()])
+    assert_sites_within_scope(user, cleaned)
+    if set(cleaned) != set(target.get("allowed_site_ids") or []):
+        await revoke_user_sessions(user_id, reason="site_scope_change")
     await db.users.update_one(
         {"id": user_id},
         {"$set": {
@@ -740,12 +711,15 @@ async def send_reset_link_to_team_member(user_id: str, user: dict = Depends(get_
     _require_team_admin(user)
     target = await db.users.find_one(
         {"id": user_id, "organization_id": user.get("organization_id")},
-        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1},
+        {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1, "allowed_site_ids": 1},
     )
     if not target:
         raise HTTPException(status_code=404, detail="Team member not found")
     if target.get("role") == "owner" and user.get("id") != target.get("id"):
         raise HTTPException(status_code=403, detail="Cannot send a reset link to the Owner")
+    if user.get("id") != target.get("id"):
+        from utils.team_guards import assert_can_manage
+        assert_can_manage(user, target)
     link = await _issue_reset_token(target, user.get("email", ""))
     now_iso = datetime.now(timezone.utc).isoformat()
     await db.users.update_one(

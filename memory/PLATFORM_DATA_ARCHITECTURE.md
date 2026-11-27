@@ -153,7 +153,7 @@ Releases C–E have not started: activation and invitations, MFA, site-specific 
 - **Staff invitations** (`/organization/invite`) replace sharing the company code.
   - Owners invite managers or staff; managers invite staff only, and only to sites they manage. Sites are validated against the org.
   - Managers must enrol MFA.
-  - Company-code self-registration is still refused for imported customers awaiting activation, as decided.
+  - Release 1 (27 Nov 2026, founder-approved): company-code self-registration is closed for **every** organisation. A code identifies an organisation, never authorises joining. Legacy invites are migrated through the secure service.
 - **Gym floor:** one device login per site. Devices see only their site's equipment and handover diary. Faults can only be logged against equipment at that site. Managers can disable or sign out devices.
 - **Trial reminder duplicates (root cause):** every sender checked, sent, then marked, so two workers could both send. There were also three overlapping "trial ending" emails (`trial_lifecycle` day 13, `lifecycle_emails` expiry_warn, `pro_trial_reminders`).
   - Now every sender claims before sending (`utils/email_claims.py`, unique key).
@@ -165,3 +165,13 @@ Releases C–E have not started: activation and invitations, MFA, site-specific 
 - Owner self-service: `GET /account/billing/modules`, `POST /account/billing/modules/{m}/cancel` (at period end) and `/reactivate` (undo before the end). Invoiced products must be cancelled through Pulse. Buying again after an end is recorded as a re-subscription on the same organisation.
 - Pulse reporting: `GET /master-admin/commercial/summary` gives MRR from list prices (annual as /12), plus per-product paying, cancelling, trial, included and ended counts, the activation funnel and the last 30 days of events. It is in Master Admin → Finance → Commercial lifecycle.
 - **Not done:** Stripe checkout was not run against real test-mode subscriptions here; webhooks were exercised by calling the handlers directly. Price changes and proration, and invoiced (BACS) customers' lifecycle, are outside this release.
+
+
+## 8. Release 1 — access hardening (27 Nov 2026)
+- One staff-administration rule set (`utils/team_guards.py`), used by `auth.py` (`/organization/staff/*`) and `account.py` (`/account/team/*`). Ownership changes only via `POST /organization/ownership/transfer` (password + new owner already on MFA).
+- Central session checks (`utils/auth._load_user_core`): disabled users (`active` / `is_active` false or `status` "disabled") lose every session. Role and site changes revoke sessions.
+- Members of `pending_activation` organisations cannot sign in.
+- Gym floor: older org-wide logins in multi-site organisations are refused.
+- Sicon supervised acceptance: an apply can be limited to `sample_org_ids`.
+- Commercial gate: imported customers can't check out until `IMPORTED_CUSTOMER_PURCHASES_ENABLED=true`.
+- Report: `memory/RELEASE_1_REPORT.md`.

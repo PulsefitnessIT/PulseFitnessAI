@@ -614,7 +614,9 @@ async def create_handover(body: HandoverEntry, viewer: dict = Depends(_any_viewe
 async def delete_handover(entry_id: str, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org_id = _org_id_of(user)
-    r = await db.gym_floor_handover.delete_one({"id": entry_id, "organization_id": org_id})
+    mine = user.get("allowed_site_ids") or []
+    q = {"id": entry_id, "organization_id": org_id, **({"site_id": {"$in": mine}} if mine else {})}
+    r = await db.gym_floor_handover.delete_one(q)
     if r.deleted_count == 0:
         raise HTTPException(404, "Entry not found")
     return {"ok": True}

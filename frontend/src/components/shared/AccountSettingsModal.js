@@ -236,7 +236,7 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
             {section === 'organisation' && <OrganisationSection billing={billing} profile={profile} />}
             {section === 'suppliers' && <SuppliersSection />}
             {section === 'documents' && <DocumentBrandingSettings API={API} />}
-            {section === 'team' && <TeamSection profile={profile} inviteCode={billing?.organization_code} />}
+            {section === 'team' && <TeamSection profile={profile} />}
             {section === 'data-export' && <DataExportSection />}
           </div>
         </div>
