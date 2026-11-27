@@ -13,6 +13,7 @@ import os
 import logging
 
 from fastapi import APIRouter, HTTPException, Depends, Body, Request
+from utils.commercial_gate import imported_purchase_gate
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -82,7 +83,7 @@ async def set_business_crm(
 
 # ─── Self-serve Stripe upgrade ──────────────────────────────────
 
-@router.post("/me/crm-business/checkout")
+@router.post("/me/crm-business/checkout", dependencies=[Depends(imported_purchase_gate)])
 async def create_business_crm_checkout(
     request: Request,
     body: dict = Body(default={}),

@@ -38,3 +38,45 @@ def assert_sites_within_scope(actor: dict, ids: list) -> None:
     mine = set(actor.get("allowed_site_ids") or [])
     if (actor.get("role") or "").lower() == "manager" and mine and (not ids or not set(ids) <= mine):
         raise HTTPException(status_code=403, detail="You can only give access to the sites you manage")
+
+
+# ---- Release 1 sign-off: one authoritative organisation access-state check ----
+import time as _time  # noqa: E402
+
+_ORG_CACHE: dict = {}
+_ORG_TTL = 10.0  # seconds; a customer set back to "awaiting activation" loses sessions within this window
+
+
+def org_access_blocked(org: dict) -> bool:
+    """Customer access is refused while an organisation is awaiting activation, not activated or still provisioning."""
+    if not org or org.get("is_operator_company"):
+        return False
+    return (org.get("onboarding_status") == "pending_activation"
+            or org.get("portal_access") == "not_activated"
+            or org.get("provisioning_state") == "importing")
+
+
+async def org_blocked(org_id) -> bool:
+    if not org_id:
+        return False
+    hit = _ORG_CACHE.get(org_id)
+    now = _time.monotonic()
+    if hit and now - hit[0] < _ORG_TTL:
+        return hit[1]
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "onboarding_status": 1, "portal_access": 1,
+                                                           "provisioning_state": 1, "is_operator_company": 1})
+    blocked = org_access_blocked(org or {})
+    _ORG_CACHE[org_id] = (now, blocked)
+    return blocked
+
+
+def is_pulse_admin(user: dict) -> bool:
+    return bool(user.get("is_master_admin") or user.get("is_pulse_admin"))
+
+
+async def assert_user_may_access(user: dict) -> None:
+    """Disabled account or blocked organisation -> 401/403. Pulse administrators are never blocked by a customer state."""
+    if is_disabled(user):
+        raise HTTPException(status_code=401, detail="Account disabled")
+    if not is_pulse_admin(user) and await org_blocked(user.get("organization_id")):
+        raise HTTPException(status_code=403, detail="Your organisation hasn't been activated yet. Use the activation invitation from Pulse Fitness.")

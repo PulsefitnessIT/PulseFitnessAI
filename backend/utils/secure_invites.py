@@ -98,9 +98,14 @@ async def _audit(event: str, inv: dict, actor: Optional[dict] = None, **extra) -
         "at": _now().isoformat(), **extra})
 
 
+def test_recipients() -> set:
+    """Approved Pulse test mailboxes that receive real invitation emails even while sending is switched off."""
+    return {e.strip().lower() for e in os.environ.get("INVITATION_TEST_RECIPIENTS", "").split(",") if e.strip()}
+
+
 async def _deliver(inv: dict, token: str, inviter_name: str) -> dict:
     link = invite_link(token)
-    if not emails_live():
+    if not emails_live() and inv["email"] not in test_recipients():
         return {"mode": "held", "at": _now().isoformat(),
                 "note": "Email held: invitation emails are switched off (INVITATION_EMAILS_LIVE)."}
     from utils.email import send_activation_invite_email
@@ -227,6 +232,10 @@ async def accept(token: str, *, full_name: str, password: str, email_confirm: st
     from utils.security import validate_password_strength, assert_password_not_breached
     inv = await _find(token)
     state = _state(inv)
+    if state == "used" and inv.get("accepted_user_id"):
+        u = await db.users.find_one({"id": inv["accepted_user_id"]}, {"_id": 0})
+        if u:
+            await complete_interrupted_activation(u)
     if state != "valid":
         raise HTTPException(410 if state != "invalid" else 400, _STATE_MSG[state])
     if (email_confirm or "").strip().lower() != inv["email"]:
@@ -248,8 +257,9 @@ async def accept(token: str, *, full_name: str, password: str, email_confirm: st
         {"$set": {"status": "accepting", "accepting_at": _now().isoformat()}}, projection={"_id": 0})
     if not claimed:
         raise HTTPException(410, _STATE_MSG["used"])
-    if claimed["kind"] == "owner_activation" and not org_awaiting_activation(
-            await db.organizations.find_one({"id": claimed["organization_id"]}, {"_id": 0})):
+    _org = await db.organizations.find_one({"id": claimed["organization_id"]}, {"_id": 0})
+    if claimed["kind"] == "owner_activation" and not org_awaiting_activation(_org) \
+            and (_org or {}).get("activated_via_invitation") != claimed["id"]:
         await db.secure_invitations.update_one({"id": inv["id"]}, {"$set": {
             "status": "revoked", "revoked_at": _now().isoformat(), "revoked_reason": "organisation_already_activated"}})
         raise HTTPException(410, "This organisation has already been activated. Ask its owner to invite you.")
@@ -263,14 +273,40 @@ async def accept(token: str, *, full_name: str, password: str, email_confirm: st
     except Exception:
         await db.secure_invitations.update_one({"id": inv["id"], "status": "accepting"}, {"$set": {"status": "pending"}})
         raise
-    now = _now().isoformat()
-    await db.secure_invitations.update_one({"id": inv["id"]}, {"$set": {"status": "accepted", "accepted_at": now,
-                                                                        "accepted_user_id": user["id"]}})
-    if claimed["kind"] == "owner_activation":
-        await _activate_org(claimed, user)
-    await _audit("invitation.accepted", claimed, user)
+    await _finish(claimed, user)
     return {"ok": True, "email": user["email"], "requires_mfa_setup": bool(claimed.get("require_mfa")),
             "kind": claimed["kind"]}
+
+
+async def _finish(inv: dict, user: dict) -> None:
+    """Idempotent completion: activate the organisation FIRST, then consume the invitation.
+    Every step can be repeated safely, so an interruption at any point is recovered by retrying or signing in."""
+    if inv["kind"] == "owner_activation":
+        await _activate_org(inv, user)
+    res = await db.secure_invitations.update_one(
+        {"id": inv["id"], "status": {"$in": ["pending", "accepting"]}},
+        {"$set": {"status": "accepted", "accepted_at": _now().isoformat(), "accepted_user_id": user["id"]}})
+    if res.modified_count:
+        await _audit("invitation.accepted", inv, user)
+
+
+async def complete_interrupted_activation(user: dict) -> bool:
+    """Called at sign-in: if this person's owner invitation was interrupted after their login was created,
+    finish it (they have just proved their password). Returns True when something was completed."""
+    if not user.get("invited_via"):
+        return False
+    inv = await db.secure_invitations.find_one(
+        {"id": user["invited_via"], "organization_id": user.get("organization_id"),
+         "status": {"$in": ["accepting", "accepted"]}}, {"_id": 0})
+    if not inv or (inv.get("accepted_user_id") not in (None, user["id"])):
+        return False
+    org = await db.organizations.find_one({"id": inv["organization_id"]}, {"_id": 0})
+    if inv["status"] == "accepted" and not (inv["kind"] == "owner_activation" and org_awaiting_activation(org)):
+        return False
+    await _finish(inv, user)
+    from utils import team_guards
+    team_guards._ORG_CACHE.pop(inv["organization_id"], None)
+    return True
 
 
 async def _create_user(inv: dict, full_name: str, pw_hash: str) -> dict:
@@ -309,6 +345,8 @@ async def _activate_org(inv: dict, user: dict) -> None:
     if not (org or {}).get("owner_id"):
         s["owner_id"] = user["id"]
     await db.organizations.update_one({"id": inv["organization_id"]}, {"$set": s})
+    from utils import team_guards
+    team_guards._ORG_CACHE.pop(inv["organization_id"], None)
 
 
 async def migrate_legacy_invites(*, apply: bool, actor: dict, organization_id: Optional[str] = None) -> dict:

@@ -706,11 +706,11 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
             user_id=user.get("id", ""),
         )
         raise
-    if user.get("organization_id") and not user.get("is_master_admin"):
-        _o = await db.organizations.find_one({"id": user["organization_id"]}, {"_id": 0, "onboarding_status": 1})
-        if (_o or {}).get("onboarding_status") == "pending_activation":
-            # Imported customers: nobody signs in until the verified owner accepts their activation invitation.
-            raise HTTPException(status_code=403, detail="Your organisation hasn't been activated yet. Use the activation invitation from Pulse Fitness.")
+    # Imported customers: nobody signs in until the verified owner accepts their activation invitation.
+    from utils.team_guards import assert_user_may_access
+    from utils.secure_invites import complete_interrupted_activation
+    await complete_interrupted_activation(user)  # recovers an owner activation interrupted part-way
+    await assert_user_may_access(user)
 
     # 3a. Self-heal a detached org link (the "Honey Hancock" org-detachment).
     # Some Service-Desk-provisioned `users` rows were left with

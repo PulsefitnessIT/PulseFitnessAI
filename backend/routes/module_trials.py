@@ -21,6 +21,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from utils.commercial_gate import imported_purchase_gate
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -111,7 +112,7 @@ async def get_module_trials(user: dict = Depends(get_current_user)):
     }
 
 
-@router.post("/me/module-trials/start")
+@router.post("/me/module-trials/start", dependencies=[Depends(imported_purchase_gate)])
 async def start_module_trial(
     body: dict = Body(...), user: dict = Depends(get_current_user),
 ):
@@ -169,7 +170,7 @@ async def start_module_trial(
     }
 
 
-@router.post("/me/upgrade-to-pro")
+@router.post("/me/upgrade-to-pro", dependencies=[Depends(imported_purchase_gate)])
 async def upgrade_to_pulse_pro(
     body: dict = Body(default_factory=dict), user: dict = Depends(get_current_user),
 ):
@@ -259,7 +260,7 @@ async def upgrade_to_pulse_pro(
     }
 
 
-@router.post("/me/module-purchase/checkout")
+@router.post("/me/module-purchase/checkout", dependencies=[Depends(imported_purchase_gate)])
 async def create_module_checkout(
     body: dict = Body(...), user: dict = Depends(get_current_user),
 ):

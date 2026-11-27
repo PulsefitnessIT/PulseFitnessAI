@@ -36,13 +36,49 @@ def crm_verify_password(password: str, hashed: str) -> bool:
         return False
 
 
-def crm_create_token(user_id: str) -> str:
+def crm_create_token(user_id: str, mfa: bool = False) -> str:
+    now = datetime.now(timezone.utc)
     payload = {
         'user_id': user_id,
         'crm': True,
-        'exp': datetime.now(timezone.utc) + timedelta(days=7)
+        'iat': int(now.timestamp()),
+        'mfa': bool(mfa),  # Release 1: True only after a second factor (CRM TOTP or an MFA-verified platform session)
+        'exp': now + timedelta(days=7)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+async def _platform_requires_mfa(plat: dict) -> bool:
+    from utils.mfa import user_requires_mfa
+    if user_requires_mfa(plat) or plat.get("mfa_enrolment_required"):
+        return True
+    st = await db.user_mfa.find_one({"user_id": plat.get("id")}, {"_id": 0, "enabled": 1})
+    return bool((st or {}).get("enabled"))
+
+
+async def _crm_access_check(crm_user: dict, plat, payload) -> None:
+    """Release 1 — the CRM token can never be stronger than the person's platform account."""
+    from utils.team_guards import is_disabled, is_pulse_admin, org_blocked
+    if is_disabled(crm_user):
+        raise HTTPException(status_code=401, detail="Account disabled")
+    if not plat:
+        if crm_user.get("cross_login_provisioned"):
+            raise HTTPException(status_code=401, detail="This CRM login's Pulse account no longer exists")  # orphan
+        if await org_blocked(crm_user.get("organization_id")):
+            raise HTTPException(status_code=403, detail="Your organisation hasn't been activated yet.")
+        return  # stand-alone CRM-only account (legitimate, own 2FA)
+    if is_disabled(plat):
+        raise HTTPException(status_code=401, detail="Account disabled")
+    cutoff = plat.get("tokens_revoked_before")
+    if payload is not None and cutoff and int(payload.get("iat", 0)) < int(cutoff):
+        raise HTTPException(status_code=401, detail="Session revoked. Sign in again.")
+    if crm_user.get("cross_login_provisioned") and crm_user.get("organization_id") and plat.get("organization_id") \
+            and crm_user["organization_id"] != plat["organization_id"] and not is_pulse_admin(plat):
+        raise HTTPException(status_code=401, detail="Your organisation membership has changed. Sign in again.")
+    if not is_pulse_admin(plat) and await org_blocked(plat.get("organization_id")):
+        raise HTTPException(status_code=403, detail="Your organisation hasn't been activated yet.")
+    if payload is not None and not payload.get("mfa") and await _platform_requires_mfa(plat):
+        raise HTTPException(status_code=401, detail="Two-step verification required. Open CRM from the Pulse portal.")
 
 
 def crm_verify_token(token: str) -> dict:
@@ -60,14 +96,13 @@ async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentia
     payload = crm_verify_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid CRM token")
+    if payload.get('pending_2fa'):
+        raise HTTPException(status_code=401, detail="Two-step verification not completed")
     user = await db.crm_users.find_one({"id": payload['user_id']}, {"_id": 0, "password": 0})
     if not user:
         raise HTTPException(status_code=401, detail="CRM user not found")
-    from utils.team_guards import is_disabled
-    _plat = await db.users.find_one({"email": (user.get("email") or "").lower().strip()},
-                                    {"_id": 0, "active": 1, "is_active": 1, "status": 1})
-    if is_disabled(user) or (_plat and is_disabled(_plat)):
-        raise HTTPException(status_code=401, detail="Account disabled")
+    _plat = await db.users.find_one({"email": (user.get("email") or "").lower().strip()}, {"_id": 0, "password": 0})
+    await _crm_access_check(user, _plat, payload)
     # ── Multi-site isolation (CRITICAL) ───────────────────────────────
     # CRM is a SEPARATE auth path backed by `crm_users`, which does NOT
     # carry `allowed_site_ids` or the platform role. Mirror role +
@@ -287,16 +322,12 @@ async def crm_login(data: dict):
         )
 
     # Release 1 — same account-state rules as the main sign-in.
-    from utils.team_guards import is_disabled
-    _plat = await db.users.find_one({"email": email}, {"_id": 0, "active": 1, "is_active": 1, "status": 1,
-                                                       "organization_id": 1, "is_master_admin": 1})
-    if is_disabled(user) or (_plat and is_disabled(_plat)):
-        raise HTTPException(status_code=403, detail="Account disabled")
-    _oid = (_plat or {}).get("organization_id") or user.get("organization_id")
-    if _oid and not (_plat or {}).get("is_master_admin"):
-        _o = await db.organizations.find_one({"id": _oid}, {"_id": 0, "onboarding_status": 1})
-        if (_o or {}).get("onboarding_status") == "pending_activation":
-            raise HTTPException(status_code=403, detail="Your organisation hasn't been activated yet.")
+    _plat = await db.users.find_one({"email": email}, {"_id": 0, "password": 0})
+    await _crm_access_check(user, _plat, None)
+    if _plat and not user.get("totp_enabled") and await _platform_requires_mfa(_plat):
+        # A password alone must not bypass platform two-step verification.
+        raise HTTPException(status_code=403, detail="Two-step verification is required for your account. "
+                                                    "Sign in to the Pulse portal and open CRM from there.")
 
     org_name = ""
     if user.get("organization_id"):
@@ -446,6 +477,7 @@ async def crm_cross_login(
     # ── Decode each candidate → resolve to a live user. Skip CRM/member
     #    tokens and revoked sessions. ─────────────────────────────────
     resolved_users: list[dict] = []
+    _mfa_map: dict = {}
     impersonation_user: dict | None = None
     bearer_user: dict | None = None
     saw_crm_token = False
@@ -467,6 +499,12 @@ async def crm_cross_login(
         if not uid:
             continue
         u = await db.users.find_one({"id": uid}, {"_id": 0})
+        if u:
+            from utils.team_guards import is_disabled as _dis
+            _cut = u.get("tokens_revoked_before")
+            if _dis(u) or (_cut and int(p.get("iat", 0)) < int(_cut)):
+                continue  # revoked session or disabled account can't be exchanged for CRM access
+            _mfa_map[u["id"]] = _mfa_map.get(u["id"], False) or bool(p.get("mfa_verified"))
         if u and not any(x.get("id") == u.get("id") for x in resolved_users):
             resolved_users.append(u)
         # The bearer (index 0) is the identity the SPA is EXPLICITLY presenting
@@ -648,7 +686,8 @@ async def crm_cross_login(
         org = await db.organizations.find_one({"id": crm_user["organization_id"]}, {"_id": 0, "name": 1})
         org_name = (org or {}).get("name", "")
 
-    crm_token = crm_create_token(crm_user["id"])
+    _xl_mfa = _mfa_map.get((main_user or {}).get("id"), any(_mfa_map.values()))
+    crm_token = crm_create_token(crm_user["id"], mfa=bool(_xl_mfa))
     from utils.crm_workspace import workspace_context
     _main_org = await db.organizations.find_one({"id": main_org_id}, {"_id": 0}) if main_org_id else None
     ws = await workspace_context(main_user, _main_org)
@@ -977,7 +1016,7 @@ async def validate_2fa(data: dict):
     # Try TOTP code
     totp = pyotp.TOTP(user.get("totp_secret", ""))
     if totp.verify(code, valid_window=1):
-        return {"token": crm_create_token(user["id"]), "user": await _build_auth_response(user)}
+        return {"token": crm_create_token(user["id"], mfa=True), "user": await _build_auth_response(user)}
 
     # Try backup code
     backup_codes = user.get("backup_codes", [])
@@ -986,7 +1025,7 @@ async def validate_2fa(data: dict):
         new_codes = [c for c in backup_codes if c != code_upper]
         await db.crm_users.update_one({"id": user["id"]}, {"$set": {"backup_codes": new_codes}})
         return {
-            "token": crm_create_token(user["id"]),
+            "token": crm_create_token(user["id"], mfa=True),
             "user": await _build_auth_response(user),
             "backup_code_used": True,
             "backup_codes_remaining": len(new_codes),

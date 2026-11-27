@@ -31,6 +31,12 @@ async def _sample():
         assert await adb.equipment.count_documents({"organization_id": a}) == 1
         assert await adb.equipment.count_documents({"organization_id": b}) == 0  # outside sample: untouched
         assert await adb.sicon_import_conflicts.count_documents({"run_id": runs[1], "external_id": f"82{tag}"}) == 0
+        # Nothing at all is written for the customer outside the sample: sites, cases, proposed sites, review items, links.
+        for coll in ("sites", "issues", "service_cases", "customer_proposed_sites", "sicon_import_conflicts", "review_items"):
+            n = await adb[coll].count_documents({"$or": [{"organization_id": b}, {"org_id": b}, {"customer_org_id": b}]})
+            assert n == 0, (coll, n)
+        assert await adb.sicon_external_links.count_documents({"external_id": f"82{tag}"}) == 0
+        assert await adb.crm2_companies.count_documents({"sage_customer_id": {"$regex": rb}}) == 0
         run = await adb.sicon_sync_runs.find_one({"id": runs[1]}, {"_id": 0})
         assert ((run.get("counts") or {}).get("outside_sample") or {}).get("skipped") == 1, run.get("counts")
     finally:

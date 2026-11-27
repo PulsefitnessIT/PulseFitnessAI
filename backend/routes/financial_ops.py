@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from utils.commercial_gate import imported_purchase_gate
 from datetime import datetime, timezone, timedelta
 
 import uuid
@@ -273,7 +274,7 @@ async def _check_auto_top_up(config: dict):
     logger.info(f"[FINANCIAL] LLM auto-top-up triggered: £{top_up_amount}")
 
 
-@router.post("/financial-ops/llm-top-up")
+@router.post("/financial-ops/llm-top-up", dependencies=[Depends(imported_purchase_gate)])
 async def trigger_llm_top_up(data: dict, user: dict = Depends(get_current_user)):
     """Manually trigger LLM credit top-up via Stripe."""
     _require_master_admin(user)
@@ -428,7 +429,7 @@ async def _record_payment_transaction(session, user: dict, package: dict, packag
     })
 
 
-@router.post("/financial-ops/checkout")
+@router.post("/financial-ops/checkout", dependencies=[Depends(imported_purchase_gate)])
 async def create_checkout_session(request: Request, data: dict, user: dict = Depends(get_current_user)):
     """Create a Stripe checkout session for subscription or top-up payment."""
     if not STRIPE_API_KEY:

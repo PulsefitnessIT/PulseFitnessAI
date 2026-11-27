@@ -343,6 +343,9 @@ async def _resolve_gym_floor_session(x_gym_floor_token: Optional[str]) -> Option
                                                    {"_id": 0, "enabled": 1, "site_id": 1, "organization_id": 1})
     if not cred or not cred.get("enabled", True):
         return None
+    from utils.team_guards import org_blocked
+    if await org_blocked(cred.get("organization_id")):
+        return None  # customer not (or no longer) activated
     site = await _legacy_site(cred)
     if site is False:
         return None  # legacy all-sites login can no longer bypass site restrictions

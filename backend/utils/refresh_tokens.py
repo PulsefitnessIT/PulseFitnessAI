@@ -163,6 +163,9 @@ async def renew_access_from_refresh(
         cutoff = user.get("tokens_revoked_before")
         if cutoff and int(payload.get("iat", 0)) < int(cutoff):
             return None
+        from utils.team_guards import is_disabled, is_pulse_admin, org_blocked
+        if is_disabled(user) or (not is_pulse_admin(user) and await org_blocked(user.get("organization_id"))):
+            return None
         from utils.auth import create_token, set_auth_cookie, purge_legacy_cookie_scopes, record_user_session
         from utils.auth_guards import access_token_ttl_hours
         ttl_hours = access_token_ttl_hours(user)
