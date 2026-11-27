@@ -79,6 +79,10 @@ async def ensure_indexes() -> None:
     _IDX = True
 
 
+def org_awaiting_activation(org: Optional[dict]) -> bool:
+    return bool(org) and (org.get("onboarding_status") == "pending_activation" or org.get("portal_access") == "not_activated")
+
+
 def _expired(inv: dict) -> bool:
     try:
         return datetime.fromisoformat(inv["expires_at"]) <= _now()
@@ -118,9 +122,14 @@ async def create_invitation(*, kind: str, org: dict, email: str, full_name: str,
         raise HTTPException(409, "This person already has a login in this organisation" if same else
                             "This email already has a Pulse Fitness login with another organisation. Use a different email.")
     now = _now()
-    await db.secure_invitations.update_many(
-        {"organization_id": org["id"], "email": email, "status": "pending"},
-        {"$set": {"status": "superseded", "superseded_at": now.isoformat()}})
+    # One owner invitation per organisation (any email); otherwise one per person.
+    sup = {"organization_id": org["id"], "status": "pending"}
+    sup.update({"kind": "owner_activation"} if kind == "owner_activation" else {"email": email})
+    await db.secure_invitations.update_many(sup, {"$set": {"status": "superseded", "superseded_at": now.isoformat()}})
+    if kind != "owner_activation":
+        await db.secure_invitations.update_many(
+            {"organization_id": org["id"], "email": email, "status": "pending"},
+            {"$set": {"status": "superseded", "superseded_at": now.isoformat()}})
     token = secrets.token_urlsafe(32)
     ttl = OWNER_TTL_HOURS if kind == "owner_activation" else STAFF_TTL_HOURS
     inv = {
@@ -148,10 +157,12 @@ async def create_invitation(*, kind: str, org: dict, email: str, full_name: str,
     return out
 
 
-async def revoke(inv_id: str, actor: dict, org_id: Optional[str] = None) -> dict:
+async def revoke(inv_id: str, actor: dict, org_id: Optional[str] = None, kind: Optional[str] = None) -> dict:
     q = {"id": inv_id, "status": "pending"}
     if org_id:
         q["organization_id"] = org_id
+    if kind:
+        q["kind"] = kind
     inv = await db.secure_invitations.find_one_and_update(
         q, {"$set": {"status": "revoked", "revoked_at": _now().isoformat(), "revoked_by": actor.get("id")}},
         projection={"_id": 0})
@@ -161,14 +172,18 @@ async def revoke(inv_id: str, actor: dict, org_id: Optional[str] = None) -> dict
     return public_view({**inv, "status": "revoked"})
 
 
-async def reissue(inv_id: str, actor: dict, org_id: Optional[str] = None) -> dict:
+async def reissue(inv_id: str, actor: dict, org_id: Optional[str] = None, kind: Optional[str] = None) -> dict:
     q = {"id": inv_id, "status": {"$in": ["pending", "expired"]}}
     if org_id:
         q["organization_id"] = org_id
+    if kind:
+        q["kind"] = kind
     inv = await db.secure_invitations.find_one(q, {"_id": 0})
     if not inv:
         raise HTTPException(404, "Only a pending or expired invitation can be re-sent")
     org = await db.organizations.find_one({"id": inv["organization_id"]}, {"_id": 0})
+    if inv["kind"] == "owner_activation" and not org_awaiting_activation(org):
+        raise HTTPException(409, "This customer is already activated. Their owner invites staff from Settings.")
     return await create_invitation(kind=inv["kind"], org=org, email=inv["email"], full_name=inv.get("full_name", ""),
                                    role=inv["role"], actor=actor, allowed_site_ids=inv.get("allowed_site_ids"),
                                    require_mfa=inv.get("require_mfa", False), verification=inv.get("verification"))
@@ -212,8 +227,10 @@ async def accept(token: str, *, full_name: str, password: str, email_confirm: st
     if state != "valid":
         raise HTTPException(410 if state != "invalid" else 400, _STATE_MSG[state])
     if (email_confirm or "").strip().lower() != inv["email"]:
-        await db.secure_invitations.update_one({"id": inv["id"]}, {"$inc": {"failed_attempts": 1}})
-        if (inv.get("failed_attempts") or 0) + 1 >= 5:
+        after = await db.secure_invitations.find_one_and_update(
+            {"id": inv["id"]}, {"$inc": {"failed_attempts": 1}}, projection={"_id": 0, "failed_attempts": 1},
+            return_document=True)
+        if (after or {}).get("failed_attempts", 0) >= 5:
             await db.secure_invitations.update_one({"id": inv["id"], "status": "pending"},
                                                    {"$set": {"status": "revoked", "revoked_at": _now().isoformat(),
                                                              "revoked_reason": "too_many_attempts"}})
@@ -226,6 +243,11 @@ async def accept(token: str, *, full_name: str, password: str, email_confirm: st
         {"$set": {"status": "accepting", "accepting_at": _now().isoformat()}}, projection={"_id": 0})
     if not claimed:
         raise HTTPException(410, _STATE_MSG["used"])
+    if claimed["kind"] == "owner_activation" and not org_awaiting_activation(
+            await db.organizations.find_one({"id": claimed["organization_id"]}, {"_id": 0})):
+        await db.secure_invitations.update_one({"id": inv["id"]}, {"$set": {
+            "status": "revoked", "revoked_at": _now().isoformat(), "revoked_reason": "organisation_already_activated"}})
+        raise HTTPException(410, "This organisation has already been activated. Ask its owner to invite you.")
     try:
         user = await _create_user(claimed, full_name, hash_password(password))
     except Exception:
@@ -264,6 +286,9 @@ async def _create_user(inv: dict, full_name: str, pw_hash: str) -> dict:
 async def _activate_org(inv: dict, user: dict) -> None:
     """Owner accepted: the customer becomes active. Entitlements are NOT changed (LITE stays LITE)."""
     now = _now().isoformat()
+    await db.secure_invitations.update_many(
+        {"organization_id": inv["organization_id"], "kind": "owner_activation", "status": "pending"},
+        {"$set": {"status": "superseded", "superseded_at": now}})
     org = await db.organizations.find_one({"id": inv["organization_id"]}, {"_id": 0, "owner_id": 1})
     s = {"onboarding_status": "active", "portal_access": "activated", "activated_at": now,
          "activated_via_invitation": inv["id"], "activated_owner_user_id": user["id"],

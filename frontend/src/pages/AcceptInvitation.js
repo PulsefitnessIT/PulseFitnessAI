@@ -64,7 +64,7 @@ export default function AcceptInvitation() {
     try {
       const r = await axios.post(`${API}/invitations/accept`, { token, email: form.email, full_name: form.full_name, password: form.password });
       setDone(r.data);
-    } catch (ex) { setErr(formatApiError(ex, 'Could not accept the invitation')); }
+    } catch (ex) { { const f = formatApiError(ex, 'Could not accept the invitation'); setErr(f.detail || f.title); }; }
     setBusy(false);
   };
 

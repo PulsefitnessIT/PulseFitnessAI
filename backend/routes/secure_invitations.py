@@ -113,10 +113,10 @@ async def invite_owner(org_id: str, body: OwnerInviteIn, user: dict = Depends(ge
 @router.post("/master-admin/customer-activation/invitations/{inv_id}/revoke")
 async def revoke_owner_invite(inv_id: str, user: dict = Depends(get_current_user)):
     await _pulse(user, "activation.invite")
-    return await SI.revoke(inv_id, user)
+    return await SI.revoke(inv_id, user, kind="owner_activation")
 
 
 @router.post("/master-admin/customer-activation/invitations/{inv_id}/reissue")
 async def reissue_owner_invite(inv_id: str, user: dict = Depends(get_current_user)):
     await _pulse(user, "activation.invite")
-    return await SI.reissue(inv_id, user)
+    return await SI.reissue(inv_id, user, kind="owner_activation")

@@ -51,6 +51,7 @@ import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
 import SiteStaffManager from '@/pages/LiteDashboard/staffing/SiteStaffManager';
+import GymFloorManagerTab from '@/pages/LiteDashboard/GymFloorManagerTab';
 import ComplianceTab from '@/pages/LiteDashboard/staffing/ComplianceTab';
 import ProductTour from '@/components/shared/ProductTour';
 import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
@@ -87,6 +88,7 @@ const GROUPS_ALL = [
     { id: 'access-matrix', label: 'Who Can See What', icon: ShieldAlert, roles: MGR },
     { id: 'compliance', label: 'Compliance', icon: ShieldCheck, roles: MGR },
     { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
+    { id: 'gym-floor-devices', label: 'Gym Floor Devices', icon: KeyRound, roles: MGR },
   ] },
   // Rota = everything schedule-related.
   { id: 'rota', label: 'Rota', icon: Calendar, children: [
@@ -336,6 +338,7 @@ export default function StaffingConsole({ hideBell = false } = {}) {
         {tab === 'myclock'     && <MyClockTab     headers={headers} />}
         {tab === 'staff'       && (isMOD ? <MODStaffTab headers={headers} /> : <StaffTab headers={headers} />)}
         {tab === 'site-access' && <SiteStaffManager headers={headers} />}
+        {tab === 'gym-floor-devices' && <GymFloorManagerTab />}
         {tab === 'leave'       && <LeaveTab       headers={headers} isManager={isManager} />}
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
         {tab === 'performance' && <PerformanceTab headers={headers} />}

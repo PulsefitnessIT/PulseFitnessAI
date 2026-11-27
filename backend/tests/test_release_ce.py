@@ -151,7 +151,6 @@ def test_staff_invite_site_scope_and_manager_limits(H):
         assert requests.post(u, headers=ho, json={"email": "x@example.com", "role": "staff", "allowed_site_ids": ["nope"]}).status_code == 400
         assert requests.post(u, headers=hm, json={"email": "y@example.com", "role": "manager"}).status_code == 400
         assert requests.post(u, headers=hm, json={"email": "y@example.com", "role": "staff", "allowed_site_ids": [sb]}).status_code == 403
-        assert requests.post(u, headers=hm, json={"email": "y@example.com", "role": "staff"}).status_code == 403
         r = requests.post(u, headers=hm, json={"email": f"tst.s.{mgr[:5]}@example.com", "role": "staff", "allowed_site_ids": [sa]})
         assert r.status_code == 200 and "company_code" not in r.json() and r.json()["link"]
         rm = requests.post(u, headers=ho, json={"email": f"tst.mm.{mgr[:5]}@example.com", "role": "manager", "allowed_site_ids": [sb]}).json()
@@ -285,4 +284,52 @@ def test_lite_to_pro_upgrade_cancel_end_and_reporting(H):
     finally:
         loop.close()
         db.payment_transactions.delete_many({"session_id": {"$regex": "^cs_tst"}})
+        _purge(db, oid)
+
+
+def test_second_owner_invite_cannot_activate_after_first(H):
+    db = _db()
+    oid = _mk_org(db)
+    a, b = f"tst.a.{uuid.uuid4().hex[:6]}@example.com", f"tst.b.{uuid.uuid4().hex[:6]}@example.com"
+    try:
+        ra = _owner_invite(H, oid, a).json()
+        rb = _owner_invite(H, oid, b).json()  # different email: supersedes the first owner invite
+        assert db.secure_invitations.find_one({"id": ra["invitation"]["id"]})["status"] == "superseded"
+        assert _accept(_tok_from(ra["link"]), a).status_code == 410
+        # force a stale second pending owner invite to simulate a race, then activate via b
+        db.secure_invitations.update_one({"id": ra["invitation"]["id"]}, {"$set": {"status": "pending"}})
+        assert _accept(_tok_from(rb["link"]), b).status_code == 200
+        assert db.secure_invitations.find_one({"id": ra["invitation"]["id"]})["status"] == "superseded"
+        db.secure_invitations.update_one({"id": ra["invitation"]["id"]}, {"$set": {"status": "pending"}})
+        assert _accept(_tok_from(ra["link"]), a).status_code == 410
+        assert db.users.count_documents({"organization_id": oid, "role": "owner"}) == 1
+        r = requests.post(f"{BASE}/api/master-admin/customer-activation/invitations/{ra['invitation']['id']}/reissue", headers=H, timeout=30)
+        assert r.status_code in (404, 409)
+    finally:
+        _purge(db, oid)
+
+
+def test_manager_cannot_cancel_or_resend_outside_scope(H):
+    db = _db()
+    oid = _mk_org(db, onboarding_status="active", portal_access="activated")
+    sa, sb = f"{oid}-a", f"{oid}-b"
+    db.sites.insert_many([{"id": sa, "organization_id": oid, "name": "A"}, {"id": sb, "organization_id": oid, "name": "B"}])
+    own, mgr = str(uuid.uuid4()), str(uuid.uuid4())
+    db.users.insert_many([
+        {"id": own, "email": f"tst.o.{own[:6]}@example.com", "organization_id": oid, "role": "owner", "full_name": "O"},
+        {"id": mgr, "email": f"tst.m.{mgr[:6]}@example.com", "organization_id": oid, "role": "manager", "full_name": "M",
+         "allowed_site_ids": [sa]}])
+    ho = {"Authorization": f"Bearer {_token(f'tst.o.{own[:6]}@example.com')}"}
+    hm = {"Authorization": f"Bearer {_token(f'tst.m.{mgr[:6]}@example.com')}"}
+    u = f"{BASE}/api/organization/invite"
+    try:
+        im = requests.post(u, headers=ho, json={"email": f"tst.x.{own[:5]}@example.com", "role": "manager"}).json()["invitation"]["id"]
+        isb = requests.post(u, headers=ho, json={"email": f"tst.y.{own[:5]}@example.com", "role": "staff", "allowed_site_ids": [sb]}).json()["invitation"]["id"]
+        assert requests.delete(f"{u}/{im}", headers=hm).status_code == 403
+        assert requests.post(f"{u}/{isb}/resend", headers=hm).status_code == 403
+        assert requests.delete(f"{u}/{isb}", headers=hm).status_code == 403
+        # restricted manager with no sites given defaults to their own sites
+        r = requests.post(u, headers=hm, json={"email": f"tst.z.{own[:5]}@example.com", "role": "staff"})
+        assert r.status_code == 200 and r.json()["invitation"]["allowed_site_ids"] == [sa]
+    finally:
         _purge(db, oid)

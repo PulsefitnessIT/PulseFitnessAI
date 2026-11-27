@@ -13,9 +13,9 @@ const LABEL = {
 };
 
 const Row = ({ p, isOwner, onAction, busy }) => (
-  <div className="flex flex-wrap items-center justify-between gap-2 py-2 border-t border-white/5" data-testid={`product-row-${p.module}`}>
+  <div className="flex flex-wrap items-center justify-between gap-2 py-2 border-t border-[var(--theme-border)]" data-testid={`product-row-${p.module}`}>
     <div>
-      <p className="text-white text-sm font-medium">{p.name}</p>
+      <p className="text-[var(--theme-text)] text-sm font-medium">{p.name}</p>
       <p className="text-xs text-[var(--color-text-muted)]" data-testid={`product-status-${p.module}`}>
         {LABEL[p.status] || p.status}{p.status === 'cancelling' && p.current_period_end ? ` · ${p.current_period_end.slice(0, 10)}` : ''}
         {p.monthly_price && ['not_subscribed', 'ended', 'lite', 'trial'].includes(p.status) ? ` · £${p.monthly_price}/mo` : ''}
@@ -49,12 +49,12 @@ export default function ProductSubscriptionsPanel({ API }) {
       body = { reason };
     }
     setBusy(true); setMsg('');
-    try { const r = await axios.post(`${API}/account/billing/modules/${module}/${what}`, body, H); setMsg(r.data.message); load(); } catch (e) { setMsg(formatApiError(e)); }
+    try { const r = await axios.post(`${API}/account/billing/modules/${module}/${what}`, body, H); setMsg(r.data.message); load(); } catch (e) { { const f = formatApiError(e); setMsg(f.detail || f.title); }; }
     setBusy(false);
   };
-  if (!d) return <Card className="bg-[var(--color-ink-alt)] border-white/10 p-5"><Loader2 className="animate-spin text-white" size={16} /></Card>;
+  if (!d) return <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-5"><Loader2 className="animate-spin text-[var(--theme-text)]" size={16} /></Card>;
   return (
-    <Card className="bg-[var(--color-ink-alt)] border-white/10 p-5" data-testid="product-subscriptions-panel">
+    <Card className="bg-[var(--theme-surface)] border-[var(--theme-border)] p-5" data-testid="product-subscriptions-panel">
       <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2 flex items-center gap-2"><Package size={14} /> Products</h3>
       {d.products.map((p) => <Row key={p.module} p={p} isOwner={d.is_owner} onAction={onAction} busy={busy} />)}
       <p className="text-[11px] text-[var(--color-text-muted)] mt-2">Cancelling keeps the product until the end of the billing period. Your equipment, sites and history are never deleted; Operations returns to LITE.</p>

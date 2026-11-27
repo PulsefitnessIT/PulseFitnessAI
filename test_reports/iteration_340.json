@@ -1,0 +1,64 @@
+{
+  "summary": "Release C + E tested end-to-end. Backend: 42 tests (the 7 in test_release_ce, 8 new edge-case tests in test_release_ce_extended, plus the Release A/B regression suites). 39 pass and 3 fail; all 3 failures are real security/logic bugs in invitations. Regression A/B: all pass. UI: owner activation (Customer Activation tab -> Verify & invite owner -> held link -> history), the public /accept-invite page (wrong email, success, reuse), Settings -> Team invites as owner and manager (role options, site picker, held link, Send new link, Cancel) and Master Admin -> Finance -> Commercial lifecycle were all run in the browser. Found and FIXED a page-crashing bug: any API error on /accept-invite (e.g. wrong email) crashed React because formatApiError returns an object. Found 2 integration gaps: the Products panel and the Gym Floor device setup cannot be reached by customer owners in the UI.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/invitations/accept (owner_activation)", "issue": "Two owner invites for different emails can be pending for the same org. Creating one does not supersede the other, because superseding only matches the same email. After owner A accepts and the org is activated, owner B's link still works: org ends up with 2 owner users (verified: 200, owners=2). accept()/_activate_org never re-checks that the org is still pending_activation.", "priority": "HIGH"},
+      {"endpoint": "POST /api/master-admin/customer-activation/invitations/{id}/reissue", "issue": "Reissue does not check org activation status. After the customer is activated, reissuing an older pending owner invite returns 200 with a fresh owner link. invite_owner has the 409 'already activated' guard but reissue (SI.reissue) bypasses it.", "priority": "HIGH"},
+      {"endpoint": "DELETE /api/organization/invite/{id} and POST /api/organization/invite/{id}/resend", "issue": "Permission gaps: (1) a manager can CANCEL the owner's manager invitation (200; resend is blocked, cancel is not). (2) A manager restricted to Site A can RESEND a staff invite scoped to Site B (200) and receives the new one-time held link for a site they don't manage. Need the same role and allowed_site_ids checks as invite_staff.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/organization/invite (restricted manager)", "issue": "A site-restricted manager must send allowed_site_ids, otherwise the call returns 403. But see the UI bug: the UI never sends them when the manager has only 1 site. Suggest the backend defaults to the manager's own sites when none are given."},
+      {"endpoint": "master-admin revoke/reissue", "issue": "The endpoints don't restrict kind to owner_activation, so Pulse admins can revoke/reissue staff invites through the owner endpoint. Low risk."},
+      {"endpoint": "utils/pro_trial_reminders.py", "issue": "The claim is not released when send_trial_ending_email fails, so that trial never gets a reminder. The key date comes from min(module_trials.expires_at), while trial_lifecycle/lifecycle_emails use org.trial_ends_at. If those dates differ, the dedupe misses."},
+      {"endpoint": "secure_invites.accept", "issue": "The wrong-email lockout counter is read-modify-write (not atomic). Concurrent wrong attempts can exceed 5 before the lock. Low risk."},
+      {"endpoint": "GET /api/gym-floor/handover (device session)", "issue": "Handover entries a manager posts without a site_id (site_id null) are invisible to every site device. Probably intended, but worth confirming."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AcceptInvitation.js / OwnerInviteDialog.js / ProductSubscriptionsPanel.js", "issue": "FIXED BY TESTER: setErr(formatApiError(...)) stored an object {title, detail, status} and rendered it, which crashed the page with 'Objects are not valid as a React child'. This hit any error on /accept-invite (wrong email, weak password) and would hit the owner-invite dialog (e.g. 409 Sage hold) and Products panel errors. Changed to use f.detail || f.title. Verified that the wrong-email message now displays.", "selector": "[data-testid=accept-invite-submit]", "priority": "CRITICAL (fixed)"},
+      {"component": "OwnerInviteDialog InviteHistory", "issue": "'Send new link' (reissue) throws away the response. While emails are held, the new one-time link is never shown, and the old link is superseded, so the admin is left with no usable link. act() also has no error handling (unhandled rejection).", "selector": "[data-testid^=oi-reissue-]", "priority": "HIGH"},
+      {"component": "SettingsTab invite dialog (site-restricted manager)", "issue": "InviteSitePicker hides itself when the user sees fewer than 2 sites. manager@isodemo.com (only site A) therefore gets no picker, sends allowed_site_ids=[], and gets a 403 'You can only invite people to the sites you manage'. Restricted managers with one site can never invite staff from the UI. Verified in the browser.", "selector": "[data-testid=send-invite-btn]", "priority": "HIGH"},
+      {"component": "SettingsTab OnboardingWizard step 3 (handleInvite)", "issue": "Still calls /organization/invite but throws away the held link, shows 'Invite sent' even though nothing was emailed, always offers Manager (managers get a 400), and has no site picker.", "selector": "[data-testid=onboard-send-invite-btn]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Release E Products panel", "issue": "ProductSubscriptionsPanel is only mounted in pages/AccountPanel.js. Navbar renders AccountPanel ONLY for is_master_admin/is_pulse_admin. Customer owners get AccountSettingsModal, whose Plan & Billing (AccountSettings/billing) has no Products panel and no calls to /account/billing/modules. Owners therefore cannot cancel or keep products from the UI.", "affected_selectors": ["[data-testid=product-subscriptions-panel]", "[data-testid^=product-cancel-]"]},
+      {"flow": "Gym floor per-site device setup", "issue": "GymFloorManagerTab (device list + site selector) is only mounted in MODPortal/MODProDashboard. LiteDashboardPage removed the gym-floor tab (iter 241 comment), so LITE/PRO commercial owners have no UI to create or disable site devices. The backend was fully tested by API. UI selectors gym-floor-devices and gym-floor-setup-site were not reachable in the browser.", "affected_selectors": ["[data-testid=gym-floor-devices]", "[data-testid=gym-floor-setup-site]"]}
+    ],
+    "design_issues": [
+      {"screen": "Owner invite dialog (Manage, with invite history)", "issues": ["Content overflows the dialog horizontally. The email input, close (X) button and 'Cancel' history button are clipped on the right. The history row span uses 'truncate' inside a flex row with no min-w-0, and the long email plus buttons push the width out."]},
+      {"screen": "Settings -> Team & Org", "issues": ["The 'Company Code' card still says 'Share this code with staff to join your organization' with an empty code pill. That contradicts Release C (secure invites replace company codes)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_release_ce.py", "/app/backend/tests/test_release_ce_extended.py", "/app/test_reports/pytest/iteration_340.xml"],
+  "action_items": [
+    "In secure_invites.accept (owner_activation), re-check org.onboarding_status == pending_activation (409/410 otherwise). When one owner invite is accepted, supersede all other pending owner_activation invites for the org. Consider superseding other-email pending owner invites when creating a new one.",
+    "In reissue for owner_activation, refuse with 409 once the org is activated (same guard as invite_owner).",
+    "cancel_invite: managers may only cancel staff invites within their allowed_site_ids. resend_invite: also enforce the manager's site scope.",
+    "OwnerInviteDialog: show the reissue response link (held) and handle errors in act().",
+    "InviteSitePicker/SettingsTab: for restricted managers, auto-select their single site (or have the backend default to the manager's sites).",
+    "Mount ProductSubscriptionsPanel in AccountSettingsModal Plan & Billing for owners.",
+    "Expose GymFloorManagerTab (or the Setup panel) in the LITE/PRO dashboard (e.g. under Staffing).",
+    "OnboardingWizard step 3 invite: show the held link, use role options by user role, include the site picker.",
+    "Fix owner invite dialog overflow (min-w-0 on the history span / wrap buttons). Remove or reword the Company Code card."
+  ],
+  "critical_code_review_comments": [
+    "secure_invites._activate_org is not idempotent against multiple owner invites. owner_id is only set if missing, but a second owner user is still created.",
+    "Master-admin revoke/reissue accept any invitation kind; restrict them to owner_activation.",
+    "AcceptInvitation only reads the token on mount. A same-tab hash change to a different token keeps the old state (minor).",
+    "routes/gym_floor.py is ~750 lines; consider splitting device management out.",
+    "commercial summary MRR counts every org with modules.X.source=='paid' and enabled, including invoiced/admin-edited docs that set source=paid without a Stripe sub. Consider also requiring module_subscriptions.X.stripe_subscription_id."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/AcceptInvitation.js",
+    "/app/frontend/src/pages/MasterAdmin/CustomerImport/OwnerInviteDialog.js",
+    "/app/frontend/src/components/shared/ProductSubscriptionsPanel.js",
+    "/app/backend/tests/test_release_ce_extended.py"
+  ],
+  "success_rate": {"backend": "93% (39/42; 3 real bugs)", "frontend": "~70% (activation, accept page, owner team invites and commercial report work; restricted-manager invite broken; Products panel and gym-floor setup unreachable for customers)"},
+  "seed_data_creation": "Synthetic TST orgs only, all purged by id. UI test org tst-ui-d5da59fe was purged. Two TST staff invitations created in iso-demo-org (tst.ui.staff.iso1@example.com) and the activation_events row 'first_staff_invited' they triggered (id 0f14f152...) were deleted by id, so the demo org is back to its original state. No emails sent; INVITATION_EMAILS_LIVE not set.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: pytest tests/test_release_ce.py tests/test_release_ce_extended.py (the 3 failing extended tests encode the expected secure behaviour). UI auth: mint tokens with tests.test_sage_sicon_customer_import._token(email) and set localStorage 'token'. Admin tokens seemed to stop working after ~8-10 min, so re-mint before each browser run. Settings Team dialog opens at /dashboard?settings=1. Customer Activation is at /master-admin?section=onboarding&tab=activation, Commercial report at /master-admin?section=commercial. In the role Select, filter options by exact text: 'Manager - ... invite staff' also contains 'staff'.",
+  "rca of the issue": "Accept page crash: formatApiError() returns {title, detail, status}, but the new Release C/E components passed it straight to setErr/setMsg and rendered it as a React child. Second-owner bug: create_invitation only supersedes pending invites with the same (org, email), and accept() validates only the invitation state, not the org's activation state."
+}

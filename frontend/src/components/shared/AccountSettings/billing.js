@@ -7,6 +7,7 @@ import { useAuth } from '@/App';
 import { API, useAuthHeaders } from './shared';
 import PulseProUpgradeCta from '@/components/shared/PulseProUpgradeCta';
 import TrialRequestCard from './TrialRequestCard';
+import ProductSubscriptionsPanel from '@/components/shared/ProductSubscriptionsPanel';
 
 
 export default function BillingSection({ billing, _onClose }) {
@@ -57,6 +58,7 @@ export default function BillingSection({ billing, _onClose }) {
     <div className="space-y-6" data-testid="account-section-billing">
       <PulseProUpgradeCta inSettings />
       <TrialRequestCard />
+      <ProductSubscriptionsPanel API={API} />
       {/* Trial state — visible when org is in any trial status */}
       {isTrial && (
         <div

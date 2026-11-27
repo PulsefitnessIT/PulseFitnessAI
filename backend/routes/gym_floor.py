@@ -556,8 +556,11 @@ class HandoverEntry(BaseModel):
 async def list_handover(limit: int = 100, viewer: dict = Depends(_any_viewer)):
     org_id = viewer.get("organization_id") or _org_id_of(viewer)
     limit = max(1, min(limit, 500))
+    scope = _site_scope(viewer)
+    if scope:  # notes posted without a site are shared with every site
+        scope = {"site_id": {"$in": (scope["site_id"].get("$in") if isinstance(scope["site_id"], dict) else [scope["site_id"]]) + [None]}}
     entries = await db.gym_floor_handover.find(
-        {"organization_id": org_id, **_site_scope(viewer)}, {"_id": 0},
+        {"organization_id": org_id, **scope}, {"_id": 0},
     ).sort("created_at", -1).limit(limit).to_list(limit)
     return {"entries": entries}
 

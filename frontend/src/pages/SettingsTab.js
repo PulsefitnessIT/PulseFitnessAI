@@ -314,7 +314,7 @@ const SettingsTab = () => {
  <Copy size={16} />
  </Button>
  </div>
- <p className="text-xs text-[var(--color-text-muted)] mt-1">Share this code with staff to join your organization</p>
+ <p className="text-xs text-[var(--color-text-muted)] mt-1">Your organisation reference. To add people, use Invite Member: they get a secure link that works once.</p>
  </div>
  )}
  </div>
@@ -523,7 +523,7 @@ const SettingsTab = () => {
  </Select>
  </div>
 
- <InviteSitePicker API={API} value={inviteForm.allowed_site_ids} onChange={(v) => setInviteForm({ ...inviteForm, allowed_site_ids: v })} restricted={user.role === 'manager' && (user.allowed_site_ids || []).length > 0} />
+ <InviteSitePicker API={API} value={inviteForm.allowed_site_ids} onChange={(v) => setInviteForm({ ...inviteForm, allowed_site_ids: v })} restricted={user.role === 'manager' && (user.allowed_site_ids || []).length > 0} restrictedTo={user.allowed_site_ids || []} />
 
  <Alert className="bg-[var(--theme-surface-hover)] border-[var(--theme-border)]">
  <AlertDescription className="text-[var(--color-text-muted)] text-sm">
@@ -905,6 +905,7 @@ const SettingsTab = () => {
 };
 
 const OnboardingStepWizard = ({ API, onGoToSection }) => {
+ const { user } = useAuth();
  const [currentStep, setCurrentStep] = useState(0);
  const [supplierForm, setSupplierForm] = useState({ name: '', email: '', phone: '', contact_person: '' });
  const [addedSuppliers, setAddedSuppliers] = useState([]);
@@ -962,12 +963,12 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  e.preventDefault();
  const token = localStorage.getItem('token');
  try {
- await axios.post(`${API}/organization/invite`, { email: inviteEmail, role: inviteRole, full_name: '' }, {
+ const r = await axios.post(`${API}/organization/invite`, { email: inviteEmail, role: inviteRole, full_name: '' }, {
  headers: { Authorization: `Bearer ${token}` }
  });
- setInvitedMembers([...invitedMembers, inviteEmail]);
+ setInvitedMembers([...invitedMembers, { email: inviteEmail, link: r.data.link }]);
  setInviteEmail('');
- notify.success('Invite sent');
+ notify.success(r.data.message);
  } catch (err) { notifyApiError(notify, err, 'Failed to invite'); }
  };
 
@@ -1113,7 +1114,7 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  <SelectValue />
  </SelectTrigger>
  <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)]">
- <SelectItem value="manager">Manager</SelectItem>
+ {user?.role === 'owner' && <SelectItem value="manager">Manager</SelectItem>}
  <SelectItem value="staff">Staff</SelectItem>
  </SelectContent>
  </Select>
@@ -1124,20 +1125,18 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  </form>
  {invitedMembers.length > 0 && (
  <div className="mt-3">
- <p className="text-[var(--color-text-muted)] text-sm mb-2">Invites sent:</p>
- <div className="flex flex-wrap gap-2">
- {invitedMembers.map((email, i) => (
- <Badge key={i} className="bg-green-500/20 text-green-400">{email}</Badge>
+ <p className="text-[var(--color-text-muted)] text-sm mb-2">Invitations created:</p>
+ <div className="space-y-2">
+ {invitedMembers.map((m, i) => (
+ <div key={i} className="text-sm" data-testid={`onboard-invited-${i}`}>
+ <Badge className="bg-green-500/20 text-green-400">{m.email}</Badge>
+ {m.link && <p className="text-xs text-[var(--color-text-muted)] mt-1">Emails are switched off. Give them this one-time link: <span className="font-mono break-all">{m.link}</span></p>}
+ </div>
  ))}
  </div>
  </div>
  )}
- {orgInfo?.company_code && (
- <div className="p-4 bg-[var(--color-ink-alt)] rounded-lg border border-white/10">
- <p className="text-[var(--color-text-muted)] text-sm">Or share your company code for self-registration:</p>
- <p className="text-[var(--theme-text)] font-mono text-lg mt-1">{orgInfo.company_code}</p>
- </div>
- )}
+
  </div>
  )}
 

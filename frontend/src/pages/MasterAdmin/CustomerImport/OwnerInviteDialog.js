@@ -13,14 +13,23 @@ const H = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 const contactName = (c) => c.full_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email;
 
 const InviteHistory = ({ invites, onChanged }) => {
-  const act = async (id, what) => { await axios.post(`${API}/master-admin/customer-activation/invitations/${id}/${what}`, {}, { headers: H() }); onChanged(); };
+  const [link, setLink] = useState('');
+  const [err, setErr] = useState('');
+  const act = async (id, what) => {
+    setErr(''); setLink('');
+    try {
+      const r = await axios.post(`${API}/master-admin/customer-activation/invitations/${id}/${what}`, {}, { headers: H() });
+      if (r.data?.link) setLink(r.data.link);
+    } catch (e) { const f = formatApiError(e); setErr(f.detail || f.title); }
+    onChanged();
+  };
   if (!invites.length) return null;
   return (
     <div className="border-t pt-3 mt-3 space-y-1.5" data-testid="oi-history">
       <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Invitations</p>
       {invites.map((i) => (
-        <div key={i.id} className="flex items-center justify-between text-xs gap-2" data-testid={`oi-inv-${i.id}`}>
-          <span className="truncate">{i.email} · <b>{i.status}</b> · {(i.verification || {}).method || ''}</span>
+        <div key={i.id} className="flex flex-wrap items-center justify-between text-xs gap-2" data-testid={`oi-inv-${i.id}`}>
+          <span className="truncate min-w-0 flex-1">{i.email} · <b>{i.status}</b> · {(i.verification || {}).method || ''}</span>
           {i.status === 'pending' && (
             <span className="flex gap-1">
               <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => act(i.id, 'reissue')} data-testid={`oi-reissue-${i.id}`}>Send new link</Button>
@@ -29,6 +38,8 @@ const InviteHistory = ({ invites, onChanged }) => {
           )}
         </div>
       ))}
+      {link && <p className="text-[11px] font-mono break-all bg-amber-50 border border-amber-200 rounded p-2" data-testid="oi-reissue-link">New one-time link (emails off): {link}</p>}
+      {err && <p className="text-xs text-red-600" data-testid="oi-history-error">{err}</p>}
     </div>
   );
 };
@@ -39,7 +50,7 @@ export default function OwnerInviteDialog({ org, onClose }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [res, setRes] = useState(null);
-  const load = () => axios.get(`${API}/master-admin/customer-activation/${org.id}`, { headers: H() }).then((r) => setD(r.data)).catch((e) => setErr(formatApiError(e)));
+  const load = () => axios.get(`${API}/master-admin/customer-activation/${org.id}`, { headers: H() }).then((r) => setD(r.data)).catch((e) => { const f = formatApiError(e); setErr(f.detail || f.title); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [org.id]);
   const pick = (id) => {
@@ -51,12 +62,12 @@ export default function OwnerInviteDialog({ org, onClose }) {
     try {
       const r = await axios.post(`${API}/master-admin/customer-activation/${org.id}/owner-invite`, { ...f, contact_id: f.contact_id || null }, { headers: H() });
       setRes(r.data); load();
-    } catch (ex) { setErr(formatApiError(ex, 'Could not create the invitation')); }
+    } catch (ex) { { const f = formatApiError(ex, 'Could not create the invitation'); setErr(f.detail || f.title); }; }
     setBusy(false);
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose(!!res)}>
-      <DialogContent className="max-w-lg" data-testid="owner-invite-dialog">
+      <DialogContent className="max-w-lg w-[95vw] overflow-x-hidden" data-testid="owner-invite-dialog">
         <DialogHeader><DialogTitle>Verify and invite the owner of {org.name}</DialogTitle></DialogHeader>
         {!d ? <p className="text-sm text-zinc-500 flex gap-2"><Loader2 className="animate-spin" size={14} />Loading…</p> : res ? (
           <div className="space-y-3" data-testid="oi-result">
@@ -79,7 +90,7 @@ export default function OwnerInviteDialog({ org, onClose }) {
                   {d.contacts.map((c) => <option key={c.id} value={c.id}>{contactName(c)} · {c.email}{c.job_title ? ` · ${c.job_title}` : ''}</option>)}
                 </select></div>
             )}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
               <div><Label>Owner name</Label><Input required value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} data-testid="oi-name" /></div>
               <div><Label>Owner email</Label><Input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="oi-email" /></div>
             </div>

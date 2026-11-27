@@ -112,10 +112,14 @@ async def sweep_trial_reminders(now: datetime | None = None) -> dict:
         if not claimed.modified_count:
             continue
         from utils import email_claims
-        if not await email_claims.claim(email_claims.trial_ending_key(org["id"], ends_at.isoformat()), sender="pro_trial"):
+        key = email_claims.trial_ending_key(org["id"], ends_at.isoformat())
+        if not await email_claims.claim(key, sender="pro_trial"):
             continue  # the trial-ending email already went from another sender
         if await send_trial_ending_email(org, ends_at):
             stats["reminded"] += 1
+        else:
+            await email_claims.release(key)
+            await db.organizations.update_one({"id": org["id"]}, {"$set": {"pro_trial_reminder_sent_at": None}})
     logger.info("[pro-trial] reminder sweep %s", stats)
     return stats
 

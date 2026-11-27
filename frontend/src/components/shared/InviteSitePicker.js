@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 // Release C — choose which sites an invited person can access. None ticked = all sites (owners only).
-export default function InviteSitePicker({ API, value, onChange, restricted }) {
+export default function InviteSitePicker({ API, value, onChange, restricted, restrictedTo }) {
   const [sites, setSites] = useState([]);
   useEffect(() => {
     axios.get(`${API}/sites`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-      .then((r) => setSites(r.data.sites || [])).catch(() => {});
-  }, [API]);
-  if (sites.length < 2) return null;
+      .then((r) => {
+        const list = (r.data.sites || []).filter((s) => !restricted || !restrictedTo?.length || restrictedTo.includes(s.id));
+        setSites(list);
+        if (restricted && list.length === 1 && !value.length) onChange([list[0].id]);
+      }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API, restricted]);
+  if (sites.length < 2 && !restricted) return null;
   const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
   return (
     <div data-testid="invite-site-picker">

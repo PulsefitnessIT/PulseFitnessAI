@@ -1689,7 +1689,8 @@ async def invite_staff(invite: InviteStaff, user: dict = Depends(get_current_use
             raise HTTPException(status_code=400, detail="One or more sites don't belong to your organisation")
     mine = user.get('allowed_site_ids') or []
     if user.get('role') == 'manager' and mine:
-        if not sites or not set(sites) <= set(mine):
+        sites = sites or list(mine)  # default to the manager's own sites
+        if not set(sites) <= set(mine):
             raise HTTPException(status_code=403, detail="You can only invite people to the sites you manage")
     out = await SI.create_invitation(
         kind="staff", org=org, email=invite.email, full_name=invite.full_name or "", role=invite.role,
@@ -1721,15 +1722,32 @@ async def list_invites(user: dict = Depends(get_current_user)) -> dict:
     return {"invites": invites, "count": len(invites)}
 
 
+async def _manager_may_manage_invite(user: dict, invite_id: str) -> None:
+    """Managers can only manage staff invitations for sites they manage."""
+    if user.get('role') != 'manager':
+        return
+    inv = await db.secure_invitations.find_one({"id": invite_id, "organization_id": user['organization_id']},
+                                               {"_id": 0, "role": 1, "allowed_site_ids": 1})
+    if not inv:
+        return
+    if inv.get("role") != "staff":
+        raise HTTPException(status_code=403, detail="Only the owner can manage a manager invitation")
+    mine = set(user.get('allowed_site_ids') or [])
+    theirs = set(inv.get("allowed_site_ids") or [])
+    if mine and (not theirs or not theirs <= mine):
+        raise HTTPException(status_code=403, detail="You can only manage invitations for the sites you manage")
+
+
 @router.delete("/organization/invite/{invite_id}")
 async def cancel_invite(invite_id: str, user: dict = Depends(get_current_user)) -> dict:
     from utils import secure_invites as SI
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Access denied")
+    await _manager_may_manage_invite(user, invite_id)
     legacy = await db.invites.delete_one({"id": invite_id, "organization_id": user['organization_id']})
     if legacy.deleted_count:
         return {"success": True}
-    await SI.revoke(invite_id, user, org_id=user['organization_id'])
+    await SI.revoke(invite_id, user, org_id=user['organization_id'], kind="staff")
     return {"success": True}
 
 
@@ -1738,11 +1756,8 @@ async def resend_invite(invite_id: str, user: dict = Depends(get_current_user)) 
     from utils import secure_invites as SI
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Access denied")
-    if user.get('role') == 'manager':
-        inv = await db.secure_invitations.find_one({"id": invite_id, "organization_id": user['organization_id']}, {"_id": 0, "role": 1})
-        if inv and inv.get("role") != "staff":
-            raise HTTPException(status_code=403, detail="Only the owner can re-send a manager invitation")
-    return await SI.reissue(invite_id, user, org_id=user['organization_id'])
+    await _manager_may_manage_invite(user, invite_id)
+    return await SI.reissue(invite_id, user, org_id=user['organization_id'], kind="staff")
 
 
 @router.patch("/organization/staff/{staff_id}/role")
