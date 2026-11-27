@@ -39643,3 +39643,18 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Live acceptance procedure: memory/LIVE_ACCEPTANCE_SAGE_SICON.md.
 - Tests: 149 import/onboarding tests plus 105 of 106 Sicon tests passing; the one Sicon failure passes when run alone.
 - Iteration 339 follow-up: links owned by another org are never re-statused or re-owned (set_status / held_by_other_org). Equipment updates are scoped by organization_id. Final rerun: 134 import/onboarding tests plus 48 Sicon/identity tests passing.
+
+# ═══ 2026-11-27 · RELEASE C (secure access) + RELEASE E (commercial lifecycle) — tested (iterations 340, 341) ═══
+- Release C: secure invitations (`utils/secure_invites.py`, `routes/secure_invitations.py`).
+  - Single-use, hashed tokens, scanner-safe `#token` link, 72 h expiry, held emails unless INVITATION_EMAILS_LIVE=true.
+  - Owner activation in Customer Activation: verification recorded, forced MFA, LITE kept. One owner invite per org.
+  - Staff invites replace sharing the company code: role and site scope, manager limits.
+- Gym floor: per-site device logins with 16 h sessions; disable and sign-out. Reached from Staffing → People → Gym Floor Devices.
+- Trial reminder duplicates fixed: claim-before-send plus one shared "trial ending" claim (`utils/email_claims.py`).
+- Release E: `utils/commercial_lifecycle.py`, `routes/commercial_lifecycle.py`, `commercial_events`.
+  - LITE→PRO, cancel at period end, end (back to LITE, data kept), re-subscribe.
+  - Owner Products panel in Plan & Billing.
+  - Master Admin → Finance → Commercial lifecycle (MRR, funnel, events).
+- Tests: backend/tests/test_release_ce.py, test_release_ce_extended.py, test_release_ce_iter341.py (all pass).
+- Open decision: company-code self-registration still allowed for ACTIVE orgs (user chose in Release A to block only imported/pending orgs). Recommend closing it now that secure invites exist.
+- Backlog: Release D (shared person id, unified opt-outs, product event outbox, CRM sites → sites, crm_users → users), live Stripe test-mode checkout run, P1-8/P1-9 from Release B, supervised Sage/Sicon live check.

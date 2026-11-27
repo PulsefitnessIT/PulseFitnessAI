@@ -12,7 +12,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const H = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 const contactName = (c) => c.full_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email;
 
-const InviteHistory = ({ invites, onChanged }) => {
+const InviteHistory = ({ invites, onChanged, onReissued }) => {
   const [link, setLink] = useState('');
   const [err, setErr] = useState('');
   const act = async (id, what) => {
@@ -20,6 +20,7 @@ const InviteHistory = ({ invites, onChanged }) => {
     try {
       const r = await axios.post(`${API}/master-admin/customer-activation/invitations/${id}/${what}`, {}, { headers: H() });
       if (r.data?.link) setLink(r.data.link);
+      onReissued?.();
     } catch (e) { const f = formatApiError(e); setErr(f.detail || f.title); }
     onChanged();
   };
@@ -111,7 +112,7 @@ export default function OwnerInviteDialog({ org, onClose }) {
             <Button type="submit" disabled={busy} className="w-full rounded-full" data-testid="oi-submit">{busy && <Loader2 className="animate-spin mr-2" size={14} />}Create invitation</Button>
           </form>
         )}
-        {d && <InviteHistory invites={d.invitations} onChanged={load} />}
+        {d && <InviteHistory invites={d.invitations} onChanged={load} onReissued={() => setRes((x) => (x ? { ...x, link: '' } : x))} />}
       </DialogContent>
     </Dialog>
   );

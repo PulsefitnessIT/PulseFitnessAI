@@ -24,7 +24,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
@@ -346,6 +346,7 @@ async def _resolve_gym_floor_session(x_gym_floor_token: Optional[str]) -> Option
 
 # Combined auth dep — manager (via Bearer) OR gym-floor-token header.
 async def _any_viewer(
+    request: Request,
     x_gym_floor_token: Optional[str] = Header(None, alias="X-Gym-Floor-Token"),
     authorization: Optional[str] = Header(None),
 ) -> dict:
@@ -354,16 +355,13 @@ async def _any_viewer(
     if s:
         return {"organization_id": s["organization_id"], "_gym_floor_session": True, "site_id": s.get("site_id")}
     # Fall back to Bearer — delegate to get_current_user
-    if authorization:
-        try:
-            from utils.auth import verify_token
-            payload = verify_token(authorization.split(" ", 1)[1])
-            if payload:
-                u = await db.users.find_one({"id": payload["user_id"]}, {"_id": 0, "password_hash": 0})
-                if u:
-                    return u
-        except Exception:
-            pass
+    if authorization and " " in authorization:
+        # Full session checks (revocation, deactivation, MFA) — same as every other route.
+        from fastapi.security import HTTPAuthorizationCredentials
+        from utils.auth import get_current_user as _gcu
+        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=authorization.split(" ", 1)[1])
+        u = await _gcu(request, creds)
+        return {k: v for k, v in u.items() if k not in ("password", "password_hash")}
     raise HTTPException(401, "Not authenticated")
 
 

@@ -235,7 +235,7 @@ const GymFloorManagerTab = () => {
                   </button>
                 </div>
               </div>
-              <Button type="submit" disabled={busy} className="w-full rounded-full bg-[var(--color-brand-blue)] text-white hover:bg-[var(--color-brand-blue-hover)]" data-testid="gym-floor-setup-submit">
+              <Button type="submit" disabled={busy} className="w-full rounded-full bg-[#0073A4] text-white hover:bg-[#005f88]" data-testid="gym-floor-setup-submit">
                 {busy ? t('staffing.gfm_saving', 'Saving…') : cred && sites.length <= 1 ? t('staffing.gfm_rotate', 'Rotate credentials') : sites.length > 1 ? 'Save site device login' : t('staffing.gfm_create_login', 'Create gym-floor login')}
               </Button>
             </form>

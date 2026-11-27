@@ -8,7 +8,7 @@ import { formatApiError } from '@/lib/formatApiError';
 
 // Release E — each paid product with its own status, cancel at period end, and undo.
 const LABEL = {
-  active: 'Active', cancelling: 'Ends at period end', trial: 'Free trial', included: 'Included by Pulse Fitness',
+  active: 'Active', cancelling: 'Ends at period end', trial: 'Free trial', included: 'Included in your agreement with Pulse Fitness (no card payment)',
   ended: 'Ended (data kept)', lite: 'LITE (free)', not_subscribed: 'Not subscribed',
 };
 

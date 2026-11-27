@@ -1,0 +1,52 @@
+{
+  "summary": "Retest of the iteration_340 fixes for Release C/E. Backend: 23/23 pass (17 existing tests in test_release_ce and test_release_ce_extended, plus 6 new ones in test_release_ce_iter341.py). The new tests cover: only one pending owner invite per org; a stale owner invite after activation returns 410 and creates no user; master-admin revoke/reissue return 404 for staff invites; manager site scope on cancel/resend/invite returns 403; a restricted manager who sends no sites gets their own site by default (200); the wrong-email lockout holds under 8 concurrent requests; device handover notes are scoped to the device's site plus notes with no site; the pro-trial reminder claim is released when the send fails. Frontend: every requested flow was checked in the browser and works. (1) OwnerInviteDialog: 'Send new link' shows oi-reissue-link, a 409 shows oi-history-error (409 simulated with route interception), and there is no horizontal overflow (scrollWidth == clientWidth == 510). (2) Restricted manager -> Settings -> Invite: site picker shows only Demo Head Office, preselected; role list is Staff only; invite-held-link shown; stored invite has allowed_site_ids=[iso-demo-site-a]. (3) Onboarding wizard step 3 as owner: role options are Manager/Staff, onboard-invited-0 shows the held link. (4) Products panel is visible to owner@isodemo.com in Account Settings -> Plan & Billing. (5) Staffing -> People -> Gym Floor Devices renders GymFloorManagerTab. The site selector lists 3 sites for the owner. A device was created for Demo Branch B, then 'Sign out devices' and Disable both worked. The restricted manager sees no site-B device and no selector. (6) Regression passes: /accept-invite (wrong email shows an error, correct email succeeds, org stays LITE, owner has mfa_required), Customer Activation tab, Commercial lifecycle report. One real security gap remains: POST /api/auth/register with company_code still lets anyone holding the code join an ACTIVE org as staff, with no invitation and no site restriction.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/auth/register (company_code)", "issue": "Company-code self-registration still works on the backend for any activated org. Reproduced on a synthetic TST org: register with only the company_code returned 200 and a token, and created a role=staff user with no allowed_site_ids (all-site access) and no invitation. The UI box was removed, but the code is still shown in Settings and the API accepts it. This bypasses the new secure single-use invitations and site scoping. Fix: reject company_code sign-up unless a matching pending legacy invite exists, or remove the path entirely.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/organization/invites", "issue": "A site-restricted manager gets every staff and manager invite in the org, including other sites' invites (emails, names, site ids). Filter to role=staff and allowed_site_ids within the manager's sites."},
+      {"endpoint": "DELETE /api/organization/invite/{id} (legacy db.invites)", "issue": "_manager_may_manage_invite returns early when the id is not in secure_invitations, so a manager can delete any legacy db.invites row (including manager-role ones) without a role or site check."},
+      {"endpoint": "gym_floor._any_viewer (Bearer fallback)", "issue": "It decodes the JWT directly and skips get_current_user's checks (jti revocation, tokens_revoked_before, is_active, MFA). A revoked or deactivated user's token still works on /gym-floor/handover, among others. The projection also excludes 'password_hash', but the users field is named 'password', so the hash is loaded into the viewer dict."},
+      {"endpoint": "secure_invites.create_invitation", "issue": "Redundant second update_many for staff invites (lines 129-132 repeat the supersede already done at line 128)."},
+      {"endpoint": "tests _purge helper", "issue": "_purge in test_release_ce.py does not remove onboarding_audit_events or activation_events for synthetic orgs. 264 audit and 32 activation rows for tst-* orgs are left over from earlier runs. They were not deleted, because the rule is never to delete by prefix."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "OnboardingWizard step 0 (Organisation)", "issue": "Company Code card still says 'Share this with staff to join your organisation'. This contradicts the removal of company-code self-registration. Reword it to match the Team & Org card.", "selector": "[data-testid='onboarding-step-org']", "priority": "LOW"},
+      {"component": "Settings Team & Org", "issue": "Company Code shows an empty pill plus a copy button for iso-demo-org, which has no company_code. Hide it when the value is empty.", "selector": "[data-testid='copy-company-code-btn']", "priority": "LOW"},
+      {"component": "OwnerInviteDialog", "issue": "After 'Send new link', the original 'One-time link (shown once)' box (oi-held-link) still shows the now-superseded first link next to the new one. Hide or replace it so admins don't hand out a dead link.", "selector": "[data-testid='oi-held-link']", "priority": "LOW"},
+      {"component": "OnboardingWizard step 3", "issue": "No InviteSitePicker in the wizard (the Settings dialog has one). Owners of multi-site orgs cannot set a site scope here. The backend default covers restricted managers.", "selector": "[data-testid='onboarding-step-team']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Gym Floor Devices Setup", "issues": ["'Save site device login' and 'Add staff member' buttons: dark text on brand-blue background, barely readable"]},
+      {"screen": "Settings onboarding wizard", "issues": ["'Send Invite' (onboard-send-invite-btn) uses text-[var(--theme-text)] on --brand-color: low contrast"]},
+      {"screen": "Account Settings -> Plan & Billing", "issues": ["Products panel says 'Pulse Fitness PRO (Operations) - Included by Pulse Fitness', while the card right below says 'Free Tier - No active subscription / Upgrade Plan'. The two messages contradict each other for included-PRO customers."]},
+      {"screen": "Master Admin Onboarding Dashboard", "issues": ["Step 4 text still says 'invitations open in the next release'"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_release_ce_iter341.py", "/app/backend/tests/test_release_ce.py", "/app/backend/tests/test_release_ce_extended.py", "/app/test_reports/pytest/pytest_results_iter341.xml"],
+  "action_items": [
+    "HIGH: Close the company_code self-registration path in routes/auth.py _resolve_org_and_role for activated orgs (require a pending invite, or remove it). Stop presenting the code as a way to join.",
+    "Scope GET /organization/invites for site-restricted managers.",
+    "Apply the manager role/site check to legacy db.invites deletion as well.",
+    "Make gym_floor._any_viewer reuse get_current_user's validation (revocation/is_active/MFA) and exclude 'password' from the projection.",
+    "Fix low-contrast brand buttons (Gym Floor setup, wizard Send Invite), the wizard Company Code text, the empty company-code pill, and the stale first link in OwnerInviteDialog after reissue.",
+    "Extend tests _purge to remove onboarding_audit_events / activation_events for synthetic orgs."
+  ],
+  "critical_code_review_comments": [
+    "auth.py _resolve_org_and_role: company_code sign-up still grants staff with all-site access for active orgs. This conflicts with Release C's goal of replacing company-code sharing.",
+    "gym_floor.py _any_viewer bypasses central auth checks.",
+    "auth.py update_staff_role still allows promoting to 'owner' (pre-existing; consider restricting).",
+    "routes/gym_floor.py is 751 lines; consider splitting (setup/devices vs handover vs faults)."
+  ],
+  "updated_files": ["/app/backend/tests/test_release_ce_iter341.py"],
+  "success_rate": {"backend": "100% (23/23); 1 HIGH security gap found outside the suite (company_code register)", "frontend": "100% of requested flows pass; 4 minor UI and 4 design issues"},
+  "seed_data_creation": "Created and then removed: synthetic org tst-iter341-ui (with its owner user, invites and audit rows); 2 staff invites in iso-demo-org (tst.ui341.mgr@example.com, tst.ui341.wiz@example.com) and their audit rows; the activation_event 'first_staff_invited' created by my invite; gym-floor credential iso-demo-org:iso-demo-site-b (test-gf-iter341); and the 7 gym_floor_topics that this setup seeded for iso-demo-org (none existed before). pytest TST orgs are purged by id.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && set -a && . ./.env && set +a && python -m pytest tests/test_release_ce.py tests/test_release_ce_extended.py tests/test_release_ce_iter341.py -p no:cacheprovider (do not pass -n). UI auth: mint a token with tests.test_sage_sicon_customer_import._token(email) and set localStorage 'token'. Mint a fresh token for every browser run: the SPA refreshes and rotates the token, so the old jti is revoked after the browser closes. Gym Floor Devices: set localStorage 'staffing.activeLeaf:<user_id>'='gym-floor-devices' (iso-owner / iso-manager) and open /dashboard?tab=staffing, then click gym-floor-panel-setup. Customer Activation only lists orgs with onboarding_status=pending_activation. To test the OwnerInviteDialog error path, intercept the reissue route; timing a DB flip in the background was unreliable. To verify the company_code fix: register with company_code against an active TST org and expect 4xx.",
+  "rca of the issue": "Company-code join: Release C added secure invites and blocked company-code sign-up only for orgs awaiting activation (pending_activation / not_activated / importing). For activated orgs, the old branch still falls through to role='staff' with no allowed_site_ids. Reproduction: create an active org with a company_code, POST /api/auth/register {email, password, full_name, company_code} -> 200 and a staff user is created. Mitigation: require a matching pending invite, or drop company_code joining."
+}

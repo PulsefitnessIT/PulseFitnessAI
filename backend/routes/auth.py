@@ -1717,6 +1717,9 @@ async def list_invites(user: dict = Depends(get_current_user)) -> dict:
         {"organization_id": user['organization_id'], "kind": "staff", "status": {"$in": ["pending", "accepted"]}},
         {"_id": 0, "token_hash": 0}).sort("created_at", -1).to_list(50)
     now = datetime.now(timezone.utc).isoformat()
+    mine = set(user.get('allowed_site_ids') or [])
+    if user.get('role') == 'manager' and mine:
+        rows = [r for r in rows if r.get("role") == "staff" and r.get("allowed_site_ids") and set(r["allowed_site_ids"]) <= mine]
     invites = [{**SI.public_view(r), "status": "expired" if r["status"] == "pending" and r["expires_at"] <= now else r["status"]}
                for r in rows]
     return {"invites": invites, "count": len(invites)}
@@ -1744,7 +1747,10 @@ async def cancel_invite(invite_id: str, user: dict = Depends(get_current_user)) 
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Access denied")
     await _manager_may_manage_invite(user, invite_id)
-    legacy = await db.invites.delete_one({"id": invite_id, "organization_id": user['organization_id']})
+    legacy_q = {"id": invite_id, "organization_id": user['organization_id']}
+    if user.get('role') == 'manager':
+        legacy_q["role"] = "staff"  # managers may only withdraw staff invitations
+    legacy = await db.invites.delete_one(legacy_q)
     if legacy.deleted_count:
         return {"success": True}
     await SI.revoke(invite_id, user, org_id=user['organization_id'], kind="staff")

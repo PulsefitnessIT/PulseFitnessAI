@@ -297,7 +297,7 @@ const SettingsTab = () => {
  <Label className="text-[var(--color-text-muted)]">{t('settings.org_name')}</Label>
  <p className="text-[var(--theme-text)] text-lg">{organization.name}</p>
  </div>
- {user.role !== 'staff' && (
+ {user.role !== 'staff' && organization.company_code && (
  <div>
  <Label className="text-[var(--color-text-muted)]">Company Code</Label>
  <div className="flex items-center space-x-2">
@@ -915,6 +915,7 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  const [inviteEmail, setInviteEmail] = useState('');
  const [inviteRole, setInviteRole] = useState('staff');
  const [invitedMembers, setInvitedMembers] = useState([]);
+ const [inviteSites, setInviteSites] = useState([]);
  const [orgInfo, setOrgInfo] = useState(null);
 
  useEffect(() => {
@@ -963,7 +964,7 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  e.preventDefault();
  const token = localStorage.getItem('token');
  try {
- const r = await axios.post(`${API}/organization/invite`, { email: inviteEmail, role: inviteRole, full_name: '' }, {
+ const r = await axios.post(`${API}/organization/invite`, { email: inviteEmail, role: inviteRole, full_name: '', allowed_site_ids: inviteSites }, {
  headers: { Authorization: `Bearer ${token}` }
  });
  setInvitedMembers([...invitedMembers, { email: inviteEmail, link: r.data.link }]);
@@ -1020,7 +1021,7 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  <div className="p-4 bg-[var(--color-ink-alt)] rounded-lg border border-white/10">
  <p className="text-[var(--color-text-muted)] text-sm">Company Code</p>
  <p className="text-[var(--theme-text)] text-lg font-mono">{orgInfo.company_code}</p>
- <p className="text-[var(--color-text-muted)] text-xs mt-1">Share this with staff to join your organisation</p>
+ <p className="text-[var(--color-text-muted)] text-xs mt-1">Your organisation reference. Add people with a secure invitation in step 4.</p>
  </div>
  <div className="p-4 bg-[var(--color-ink-alt)] rounded-lg border border-white/10">
  <p className="text-[var(--color-text-muted)] text-sm">Subscription</p>
@@ -1119,10 +1120,11 @@ const OnboardingStepWizard = ({ API, onGoToSection }) => {
  </SelectContent>
  </Select>
  </div>
- <Button type="submit" size="sm" className="text-[var(--theme-text)]" style={{ backgroundColor: 'var(--brand-color)' }} data-testid="onboard-send-invite-btn">
+ <Button type="submit" size="sm" className="text-white bg-[#0073A4] hover:bg-[#005f88]" data-testid="onboard-send-invite-btn">
  Send Invite
  </Button>
  </form>
+ <InviteSitePicker API={API} value={inviteSites} onChange={setInviteSites} restricted={user?.role === 'manager' && (user?.allowed_site_ids || []).length > 0} restrictedTo={user?.allowed_site_ids || []} />
  {invitedMembers.length > 0 && (
  <div className="mt-3">
  <p className="text-[var(--color-text-muted)] text-sm mb-2">Invitations created:</p>

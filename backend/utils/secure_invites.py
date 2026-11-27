@@ -126,10 +126,6 @@ async def create_invitation(*, kind: str, org: dict, email: str, full_name: str,
     sup = {"organization_id": org["id"], "status": "pending"}
     sup.update({"kind": "owner_activation"} if kind == "owner_activation" else {"email": email})
     await db.secure_invitations.update_many(sup, {"$set": {"status": "superseded", "superseded_at": now.isoformat()}})
-    if kind != "owner_activation":
-        await db.secure_invitations.update_many(
-            {"organization_id": org["id"], "email": email, "status": "pending"},
-            {"$set": {"status": "superseded", "superseded_at": now.isoformat()}})
     token = secrets.token_urlsafe(32)
     ttl = OWNER_TTL_HOURS if kind == "owner_activation" else STAFF_TTL_HOURS
     inv = {

@@ -30,6 +30,8 @@ def _purge(db, oid):
     for c in ("users", "sites", "equipment", "gym_floor_credentials", "gym_floor_sessions", "gym_floor_handover",
               "secure_invitations", "commercial_events", "crm2_contacts"):
         db[c].delete_many({"organization_id": oid} if c != "crm2_contacts" else {"linked_organization_id": oid})
+    db.onboarding_audit_events.delete_many({"org_id": oid})
+    db.activation_events.delete_many({"organization_id": oid})
     db.organizations.delete_one({"id": oid})
     db.user_mfa.delete_many({"user_id": {"$in": uids}})
 

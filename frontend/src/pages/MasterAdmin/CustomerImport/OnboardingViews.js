@@ -41,7 +41,7 @@ export function OnboardingDashboard({ go }) {
           <li><b>Import Centre:</b> import Sage customer accounts, then Sicon contacts, then sites, equipment and contracts.</li>
           <li><b>Review Centre:</b> resolve anything held: possible duplicates, unmatched contacts, proposed sites.</li>
           <li><b>Onboarding Projects:</b> track each customer’s readiness.</li>
-          <li><b>Customer Activation:</b> verify the owner, then invite them (invitations open in the next release).</li>
+          <li><b>Customer Activation:</b> verify the owner, then send a secure single-use invitation. Activation keeps them on LITE.</li>
         </ol>
         <Button className="mt-3" size="sm" onClick={() => go('import-centre')} data-testid="od-start-import">Open Import Centre</Button>
       </Card>
