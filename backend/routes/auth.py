@@ -1671,83 +1671,78 @@ async def list_staff(user: dict = Depends(get_current_user)) -> dict:
 
 @router.post("/organization/invite")
 async def invite_staff(invite: InviteStaff, user: dict = Depends(get_current_user)) -> dict:
+    """Release C — secure, single-use invitation with role and site scope (replaces sharing the company code)."""
+    from utils import secure_invites as SI
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Only owners and managers can invite staff")
-    if invite.role not in ['manager', 'staff']:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'manager' or 'staff'")
-
-    existing = await db.users.find_one({"email": invite.email, "organization_id": user['organization_id']}, {"_id": 0})
-    if existing:
-        raise HTTPException(status_code=400, detail="User already exists in organization")
-
-    existing_invite = await db.invites.find_one({"email": invite.email, "organization_id": user['organization_id'], "status": "pending"}, {"_id": 0})
-    if existing_invite:
-        raise HTTPException(status_code=400, detail="Invite already sent")
-
+    allowed_roles = ['manager', 'staff'] if user.get('role') == 'owner' else ['staff']
+    if invite.role not in allowed_roles:
+        raise HTTPException(status_code=400, detail="Managers can invite staff only" if user.get('role') == 'manager'
+                            else "Invalid role. Must be 'manager' or 'staff'")
     org = await db.organizations.find_one({"id": user['organization_id']}, {"_id": 0})
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-
-    # Legacy orgs created before the company_code rollout may not have one.
-    # Lazily generate + persist so the invite flow keeps working everywhere.
-    company_code = org.get('company_code')
-    if not company_code:
-        company_code = str(uuid.uuid4())[:8].upper()
-        await db.organizations.update_one(
-            {"id": user['organization_id']},
-            {"$set": {"company_code": company_code}},
-        )
-
-    invite_doc = {
-        "id": str(uuid.uuid4()),
-        "email": invite.email,
-        "full_name": invite.full_name,
-        "role": invite.role,
-        "organization_id": user['organization_id'],
-        "organization_name": org.get('name', ''),
-        "invited_by": user['id'],
-        "status": "pending",
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.invites.insert_one(invite_doc)
-
-    # Iter 215d4 — activation funnel event (first staff invited). Best-effort.
+    sites = [str(s) for s in (invite.allowed_site_ids or []) if s]
+    if sites:
+        found = await db.sites.count_documents({"id": {"$in": sites}, "organization_id": org["id"]})
+        if found != len(set(sites)):
+            raise HTTPException(status_code=400, detail="One or more sites don't belong to your organisation")
+    mine = user.get('allowed_site_ids') or []
+    if user.get('role') == 'manager' and mine:
+        if not sites or not set(sites) <= set(mine):
+            raise HTTPException(status_code=403, detail="You can only invite people to the sites you manage")
+    out = await SI.create_invitation(
+        kind="staff", org=org, email=invite.email, full_name=invite.full_name or "", role=invite.role,
+        actor=user, allowed_site_ids=sites, require_mfa=invite.role == "manager")
     try:
         from routes.activation_events import record_activation_event
-        await record_activation_event(
-            user['organization_id'], "first_staff_invited",
-            trigger_user_id=user.get("id"),
-            payload={"invite_id": invite_doc["id"], "role": invite.role},
-        )
+        await record_activation_event(user['organization_id'], "first_staff_invited", trigger_user_id=user.get("id"),
+                                      payload={"invite_id": out["invitation"]["id"], "role": invite.role})
     except Exception:
         pass
-
-    return {
-        "invite_id": invite_doc['id'],
-        "company_code": company_code,
-        "message": f"Share this company code with {invite.email}: {company_code}"
-    }
+    held = out["delivery"]["mode"] == "held"
+    out["invite_id"] = out["invitation"]["id"]
+    out["message"] = (f"Invitation created for {invite.email}. Email sending is switched off, so copy the one-time link below."
+                      if held else f"Invitation emailed to {invite.email}. The link works once and expires in 72 hours.")
+    return out
 
 
 @router.get("/organization/invites")
 async def list_invites(user: dict = Depends(get_current_user)) -> dict:
+    from utils import secure_invites as SI
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Access denied")
-    invites = await db.invites.find(
-        {"organization_id": user['organization_id']},
-        {"_id": 0}
-    ).sort("created_at", -1).to_list(50)
+    rows = await db.secure_invitations.find(
+        {"organization_id": user['organization_id'], "kind": "staff", "status": {"$in": ["pending", "accepted"]}},
+        {"_id": 0, "token_hash": 0}).sort("created_at", -1).to_list(50)
+    now = datetime.now(timezone.utc).isoformat()
+    invites = [{**SI.public_view(r), "status": "expired" if r["status"] == "pending" and r["expires_at"] <= now else r["status"]}
+               for r in rows]
     return {"invites": invites, "count": len(invites)}
 
 
 @router.delete("/organization/invite/{invite_id}")
 async def cancel_invite(invite_id: str, user: dict = Depends(get_current_user)) -> dict:
+    from utils import secure_invites as SI
     if user.get('role') not in ['owner', 'manager']:
         raise HTTPException(status_code=403, detail="Access denied")
-    result = await db.invites.delete_one({"id": invite_id, "organization_id": user['organization_id']})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Invite not found")
+    legacy = await db.invites.delete_one({"id": invite_id, "organization_id": user['organization_id']})
+    if legacy.deleted_count:
+        return {"success": True}
+    await SI.revoke(invite_id, user, org_id=user['organization_id'])
     return {"success": True}
+
+
+@router.post("/organization/invite/{invite_id}/resend")
+async def resend_invite(invite_id: str, user: dict = Depends(get_current_user)) -> dict:
+    from utils import secure_invites as SI
+    if user.get('role') not in ['owner', 'manager']:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if user.get('role') == 'manager':
+        inv = await db.secure_invitations.find_one({"id": invite_id, "organization_id": user['organization_id']}, {"_id": 0, "role": 1})
+        if inv and inv.get("role") != "staff":
+            raise HTTPException(status_code=403, detail="Only the owner can re-send a manager invitation")
+    return await SI.reissue(invite_id, user, org_id=user['organization_id'])
 
 
 @router.patch("/organization/staff/{staff_id}/role")

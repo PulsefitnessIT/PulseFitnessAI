@@ -69,6 +69,7 @@ const SubProcessorsPage = lazy(() => import('@/pages/legal/SubProcessorsPage'));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const LiteDashboardPage = lazy(() => import('@/pages/LiteDashboardPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
+const AcceptInvitation = lazy(() => import('@/pages/AcceptInvitation'));
 const SSOCompletePage = lazy(() => import('@/pages/SSOCompletePage'));
 const JoinPage = lazy(() => import('@/pages/PublicSignup/JoinPage'));
 const JoinSuccess = lazy(() => import('@/pages/PublicSignup/JoinSuccess'));
@@ -561,6 +562,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/login" element={<LoginRedirectPage />} />
       <Route path="/launch" element={user ? (isExternalEngineer(user) ? <Navigate to="/svc/engineer" replace /> : <LauncherPage />) : <Navigate to="/login" replace />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/accept-invite" element={<AcceptInvitation />} />
       <Route path="/sso-complete" element={<SSOCompletePage />} />
       <Route path="/change-password" element={user ? <ForceChangePasswordPage /> : <Navigate to="/login" replace />} />
       <Route path="/complete-profile" element={user ? <CompleteProfilePage /> : <Navigate to="/" replace />} />

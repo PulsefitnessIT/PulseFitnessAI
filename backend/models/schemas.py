@@ -99,6 +99,7 @@ class InviteStaff(BaseModel):
     email: EmailStr
     role: str
     full_name: Optional[str] = None
+    allowed_site_ids: list[str] = []
 
 
 class ChatMessage(BaseModel):

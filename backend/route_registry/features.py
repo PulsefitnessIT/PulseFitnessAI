@@ -68,6 +68,8 @@ from routes.staffing_tasks import router as staffing_tasks_router
 from routes.staffing_hr import router as staffing_hr_router
 from routes.staff_access import router as staff_access_router
 from routes.customer_account_import import router as customer_account_import_router
+from routes.secure_invitations import router as secure_invitations_router
+from routes.commercial_lifecycle import router as commercial_lifecycle_router
 from routes.build_info import router as build_info_router
 from routes.staff_onboarding_wizard import router as staff_onboarding_wizard_router
 from routes.staff_portal import router as staff_portal_router
@@ -339,6 +341,8 @@ _UNGATED_ROUTERS = (
     staffing_hr_router,
     staff_access_router,
     customer_account_import_router,
+    secure_invitations_router,
+    commercial_lifecycle_router,
     build_info_router,
     staff_onboarding_wizard_router,
     staff_portal_router,

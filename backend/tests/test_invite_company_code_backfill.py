@@ -55,7 +55,8 @@ def test_invite_works_when_company_code_missing(operator_headers):
     assert resp.status_code == 200, f"invite must not 500: {resp.text}"
     body = resp.json()
     assert body.get("invite_id")
-    assert body.get("company_code"), "company_code must be present (backfilled if needed)"
+    # Release C: the company code is no longer shared; a secure single-use invitation is created instead.
+    assert "company_code" not in body and body["invitation"]["status"] == "pending"
     assert email in body.get("message", "")
 
     # Tidy up: cancel the invite we just created

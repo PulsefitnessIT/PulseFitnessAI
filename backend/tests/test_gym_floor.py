@@ -71,6 +71,10 @@ class TestGymFloorSetup:
             "password": GYM_FLOOR_CRED["password"],
             "staff_names": ["Alice Smith", "Bob Jones", "Charlie Brown"]
         }
+        # Release C: device logins are per site; a multi-site org must choose one.
+        sites = requests.get(f"{BASE_URL}/api/gym-floor/status", headers=headers).json().get("sites") or []
+        if len(sites) > 1:
+            payload["site_id"] = sites[0]["id"]
         resp = requests.post(f"{BASE_URL}/api/gym-floor/setup", json=payload, headers=headers)
         assert resp.status_code == 200, f"Setup failed: {resp.status_code} {resp.text}"
         data = resp.json()

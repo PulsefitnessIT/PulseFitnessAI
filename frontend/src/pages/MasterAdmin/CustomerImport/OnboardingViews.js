@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import OwnerInviteDialog from './OwnerInviteDialog';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const H = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -51,18 +52,20 @@ export function OnboardingDashboard({ go }) {
 export function CustomerActivation() {
   const [q, setQ] = useState('');
   const [d, setD] = useState({ total: 0, customers: [] });
+  const [open, setOpen] = useState(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     axios.get(`${API}/master-admin/customer-import/activation`, { headers: H(), params: { search: q || undefined } }).then((r) => setD(r.data)).catch(() => {});
-  }, [q]);
+  }, [q, tick]);
   return (
     <div className="space-y-3" data-testid="customer-activation">
       <Card className="p-4 rounded-xl border-sky-200 bg-sky-50 text-sm text-sky-900" data-testid="ca-notice">
-        Imported customers can’t sign in yet. In the next release you’ll verify each owner here, then send a secure, single-use invitation. Until then nobody is invited automatically.
+        Imported customers can’t sign in until you verify the owner and send a secure, single-use invitation. Nobody is invited automatically, and activating never switches on paid products.
       </Card>
       <Input className="h-8 w-72" placeholder="Search customer or account number" value={q} onChange={(e) => setQ(e.target.value)} data-testid="ca-search" />
       <Card className="rounded-xl border-zinc-200 overflow-auto">
         <table className="w-full text-xs">
-          <thead className="bg-zinc-50 text-left text-zinc-500"><tr><th className="p-2">Customer</th><th className="p-2">Account</th><th className="p-2">Town</th><th className="p-2 text-right">Contacts</th><th className="p-2 text-right">With email</th><th className="p-2 text-right">Sites</th><th className="p-2">Sage</th><th className="p-2">Ready to invite?</th></tr></thead>
+          <thead className="bg-zinc-50 text-left text-zinc-500"><tr><th className="p-2">Customer</th><th className="p-2">Account</th><th className="p-2">Town</th><th className="p-2 text-right">Contacts</th><th className="p-2 text-right">With email</th><th className="p-2 text-right">Sites</th><th className="p-2">Sage</th><th className="p-2">Ready to invite?</th><th className="p-2">Invitation</th><th className="p-2" /></tr></thead>
           <tbody>
             {d.customers.map((c) => (
               <tr key={c.id} className="border-t" data-testid={`ca-row-${c.id}`}>
@@ -70,12 +73,15 @@ export function CustomerActivation() {
                 <td className="p-2 text-right">{c.contacts}</td><td className="p-2 text-right">{c.contacts_with_email}</td><td className="p-2 text-right">{c.sites}</td>
                 <td className="p-2">{c.hidden ? 'Hidden' : c.on_hold ? 'On hold' : 'Active'}</td>
                 <td className="p-2">{c.hidden || c.on_hold ? 'Check with Accounts first' : c.contacts_with_email ? 'Owner to verify' : 'Needs a contact email'}</td>
+                <td className="p-2" data-testid={`ca-inv-status-${c.id}`}>{c.invitation ? `${c.invitation.status} · ${c.invitation.email}` : '—'}</td>
+                <td className="p-2"><Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setOpen(c)} data-testid={`ca-invite-${c.id}`}>{c.invitation?.status === 'pending' ? 'Manage' : 'Verify & invite owner'}</Button></td>
               </tr>
             ))}
           </tbody>
         </table>
         <p className="p-2 text-[11px] text-zinc-500">{d.total} customer(s) awaiting activation</p>
       </Card>
+      {open && <OwnerInviteDialog org={open} onClose={() => { setOpen(null); setTick((t) => t + 1); }} />}
     </div>
   );
 }

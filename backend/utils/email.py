@@ -725,6 +725,36 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
     return await send_email(email, f"Onboarding invitation for {customer_name or 'your organisation'}", html, category="support")
 
 
+async def send_activation_invite_email(inv: dict, link: str, inviter_name: str) -> bool:
+    """Branded, single-use invitation: owner activation for an imported customer, or a staff invite."""
+    import html as _h
+    org = _h.escape(inv.get("organization_name") or "your organisation")
+    name = _h.escape(inv.get("full_name") or "")
+    owner = inv.get("kind") == "owner_activation"
+    title = f"Activate {org} on Pulse Fitness" if owner else f"You're invited to join {org} on Pulse Fitness"
+    lead = ("Pulse Fitness has set up your organisation's account, with your equipment, sites and service history "
+            "already in place. As the verified owner, you can now activate it and choose your password."
+            if owner else f"{_h.escape(inviter_name)} has invited you to join {org} as {_h.escape(inv.get('role', 'staff'))}.")
+    mfa = ("<p style='color:#565B5E;line-height:1.7;margin:0 0 16px;'>For security, you'll set up two-step verification "
+           "with an authenticator app the first time you sign in.</p>") if inv.get("require_mfa") else ""
+    body = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+    <div style="padding: 36px 32px;">
+        <h2 style="color:#26292B;margin:0 0 16px;font-size:20px;">{title}</h2>
+        <p style="color:#565B5E;line-height:1.7;margin:0 0 16px;">{'Hi ' + name + ',' if name else 'Hello,'}</p>
+        <p style="color:#565B5E;line-height:1.7;margin:0 0 16px;">{lead}</p>
+        {mfa}
+        <div style="text-align:center;margin:32px 0;">
+            <a href="{link}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;">
+               {'Activate my account' if owner else 'Accept invitation'}</a>
+        </div>
+        <p style="color:#9A9FA1;font-size:13px;line-height:1.6;">This link works once and expires in 72 hours. Opening it does nothing until you confirm your email and choose a password. If you weren't expecting this, ignore it — nothing will happen.</p>
+        <hr style="border:none;border-top:1px solid #F0F0F0;margin:24px 0;" />
+        <p style="color:#9A9FA1;font-size:12px;">If the button doesn't work, paste this link into your browser:<br/><span style="color:#0091CA;word-break:break-all;">{link}</span></p>
+    </div></div>"""
+    html = await wrap_branded(body, inv.get("organization_id"))
+    return await send_email(inv["email"], title, html, organization_id=inv.get("organization_id"), category="support")
+
+
 async def send_mod_equipment_capture_email(email: str, site_name: str, capture_url: str,
                                            sender_name: str = "Pulse Fitness", expiry_days: int = 60) -> bool:
     """Send a MOD site a secure link to capture their own equipment list online."""

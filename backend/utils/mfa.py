@@ -325,4 +325,5 @@ def user_mfa_enrolment_forced(user: dict) -> bool:
         return True
     if (user.get("role") or "").lower() in _mfa_required_roles():
         return True
-    return False
+    # Release C — owners/managers who joined through a secure invitation must enrol.
+    return bool(user.get("mfa_enrolment_required"))

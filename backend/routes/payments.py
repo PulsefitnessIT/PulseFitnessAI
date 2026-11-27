@@ -423,6 +423,8 @@ async def _handle_checkout_completed(data: dict) -> None:
 
 async def _handle_subscription_deleted(data: dict) -> None:
     """Handle customer.subscription.deleted webhook event."""
+    from utils.commercial_lifecycle import on_subscription_deleted
+    await on_subscription_deleted(data)
     customer_email = data.get("customer_email") or ""
     if customer_email:
         await db.users.update_one(
@@ -440,6 +442,8 @@ async def _handle_subscription_deleted(data: dict) -> None:
 async def _handle_subscription_updated(data: dict) -> None:
     """Handle customer.subscription.updated — keeps the partner profile
     in sync with Stripe (status, price ID, cancel-at-period-end)."""
+    from utils.commercial_lifecycle import on_subscription_updated
+    await on_subscription_updated(data)
     try:
         from routes.partners import handle_partner_subscription_event
         await handle_partner_subscription_event(data)
@@ -656,6 +660,11 @@ async def _activate_module_subscription(user_id: str, module_id: str, session_id
     org_id = (user or {}).get("organization_id")
     if not org_id:
         return
+    previous = await db.organizations.find_one({"id": org_id}, {"_id": 0}) or {}
+    if ((previous.get("modules") or {}).get(module_id) or {}).get("source") == "paid" and \
+            ((previous.get("module_subscriptions") or {}).get(module_id) or {}).get("stripe_subscription_id") == (session or {}).get("subscription") \
+            and (session or {}).get("subscription"):
+        return  # already applied (webhook + status poll both fire)
     set_doc = {
         f"modules.{module_id}.enabled": True,
         f"modules.{module_id}.source": "paid",
@@ -671,6 +680,9 @@ async def _activate_module_subscription(user_id: str, module_id: str, session_id
             set_doc["account_type"] = "pulse_pro"
             set_doc["previous_account_type"] = "lite"
     await db.organizations.update_one({"id": org_id}, {"$set": set_doc})
+    from utils.commercial_lifecycle import on_module_paid
+    cycle = ((session or {}).get("metadata") or {}).get("billing_cycle") or "monthly"
+    await on_module_paid(org_id, module_id, previous=previous, billing_cycle=cycle, actor_id=user_id)
     from utils.audit import audit_log
     await audit_log("module_subscription_paid", user_id, (user or {}).get("email", ""),
                     "payment", session_id, f"Subscribed to {module_id} module")

@@ -30,8 +30,8 @@ Last updated: Nov 2026, Release A. This document covers what exists today and th
 | Members → Marketing audiences | **Works (read)**: direct query of `members`, filtered on `marketing_consent` | |
 | Opt-outs respected everywhere | **Partial**: `comms_optouts` is checked at dispatch; `notification_prefs` is separate | Release D |
 | Cross-module events / outbox | **Missing** for products (outbox exists only for Sage/Sicon finance sync) | Release D |
-| Gym-floor access | **Org-wide** shared credential (`gym_floor_credentials` keyed by org; sessions carry no `site_id`) | Release C (must become site-specific) |
-| LITE → PRO upgrade | Same org / equipment records (modules flag only) | Not yet independently tested (Release E) |
+| Gym-floor access | **Site-specific** device logins (`gym_floor_credentials` id `<org>:<site>`; sessions carry `site_id`, expire after 16 h, end on disable/re-key). Older org-wide logins keep working and are flagged for replacement | Release C (done) |
+| LITE → PRO upgrade | Same org / equipment records; recorded in `commercial_events`; ending PRO returns to LITE with data kept | Release E (done, tested in preview with Stripe events simulated) |
 
 ## 3. Release A safeguards (done and tested)
 - New imported customers get LITE only, status pending_activation / not_activated. No users, passwords or emails are created.
@@ -138,3 +138,30 @@ Releases C–E have not started: activation and invitations, MFA, site-specific 
 - **P1-9:** contract identity across sources, plus safe legacy Undo for sites, equipment and contracts.
 - **Delegated staff UI outside Master Admin.**
 - **Releases C–E.** The existing `/auth/organization/invite` shares a company code and is not a secure invitation; Release C must replace it, using the clerk-auth skill.
+
+
+## 6. Release C — secure access (Nov 2026)
+- **One invitation service** (`utils/secure_invites.py`, collection `secure_invitations`) for owner activation and staff invites.
+  - A random token is shown only in the link; only its SHA-256 hash is stored. One pending invitation per person per organisation (unique partial index); a new one supersedes the old.
+  - **Scanner-safe:** the link is `/accept-invite#token=…`. The fragment is never sent to the server and opening the link changes nothing. Inspect and accept are explicit POSTs.
+  - **Single use:** acceptance claims the invitation atomically (`pending → accepting → accepted`). It expires after 72 h. Five wrong email confirmations lock it.
+  - **Emails held by default:** nothing is sent unless `INVITATION_EMAILS_LIVE=true`. While held, the one-time link is shown once to whoever created it and never stored. The branded email is `send_activation_invite_email`.
+- **Owner activation** (`/master-admin/customer-activation/*`, permission `activation.invite` or full Pulse admin):
+  - Requires a recorded verification method and notes. Sage hold/hidden accounts need an explicit "confirmed with Accounts".
+  - Acceptance creates the owner with forced MFA enrolment (`mfa_enrolment_required`) and sets the org `active` / `activated`.
+  - Entitlements are untouched: LITE stays LITE.
+- **Staff invitations** (`/organization/invite`) replace sharing the company code.
+  - Owners invite managers or staff; managers invite staff only, and only to sites they manage. Sites are validated against the org.
+  - Managers must enrol MFA.
+  - Company-code self-registration is still refused for imported customers awaiting activation, as decided.
+- **Gym floor:** one device login per site. Devices see only their site's equipment and handover diary. Faults can only be logged against equipment at that site. Managers can disable or sign out devices.
+- **Trial reminder duplicates (root cause):** every sender checked, sent, then marked, so two workers could both send. There were also three overlapping "trial ending" emails (`trial_lifecycle` day 13, `lifecycle_emails` expiry_warn, `pro_trial_reminders`).
+  - Now every sender claims before sending (`utils/email_claims.py`, unique key).
+  - One shared "trial ending" claim per org per trial end date.
+
+## 7. Release E — commercial lifecycle (Nov 2026)
+- `utils/commercial_lifecycle.py`. Every product change is written to `commercial_events`: purchased, upgraded_lite_to_pro, cancellation_scheduled / withdrawn, ended, reactivated.
+- A paid product ends only on Stripe `customer.subscription.deleted` (or status canceled / unpaid). Products included by Pulse (source `admin`) are never switched off by Stripe events. Ending Operations returns the org to LITE with all sites, equipment and history kept.
+- Owner self-service: `GET /account/billing/modules`, `POST /account/billing/modules/{m}/cancel` (at period end) and `/reactivate` (undo before the end). Invoiced products must be cancelled through Pulse. Buying again after an end is recorded as a re-subscription on the same organisation.
+- Pulse reporting: `GET /master-admin/commercial/summary` gives MRR from list prices (annual as /12), plus per-product paying, cancelling, trial, included and ended counts, the activation funnel and the last 30 days of events. It is in Master Admin → Finance → Commercial lifecycle.
+- **Not done:** Stripe checkout was not run against real test-mode subscriptions here; webhooks were exercised by calling the handlers directly. Price changes and proration, and invoiced (BACS) customers' lifecycle, are outside this release.

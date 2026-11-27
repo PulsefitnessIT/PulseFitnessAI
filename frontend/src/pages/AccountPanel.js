@@ -11,6 +11,7 @@ import DigestPreferencesCard from '../components/shared/DigestPreferencesCard';
 import UsageMeterCard from '../components/shared/UsageMeterCard';
 import NotificationPreferencesPanel from '../components/shared/NotificationPreferencesPanel';
 import SubscriptionManagementPanel from '../components/shared/SubscriptionManagementPanel';
+import ProductSubscriptionsPanel from '../components/shared/ProductSubscriptionsPanel';
 import LocalizationPanel from '../components/shared/AccountSettings/LocalizationPanel';
 import { ActiveSessionsPanel } from '../components/shared/AccountSettings/ActiveSessionsPanel';
 import {
@@ -87,6 +88,7 @@ const AccountPanel = ({ open, onClose }) => {
               currentPlan={billing.current_plan}
               onNavigate={onClose}
             />
+            <ProductSubscriptionsPanel API={API} />
 
             {/* Organization */}
             {billing.organization && (

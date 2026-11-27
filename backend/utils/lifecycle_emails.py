@@ -144,8 +144,16 @@ async def _dispatch(template: str, org: dict, user: dict, subject: str, html: st
     email = user.get("email") or org.get("primary_contact_email")
     if not email:
         return False
+    from utils import email_claims
     if await _already_sent(org_id, template):
         return False
+    key = f"lifecycle:{org_id}:{template}"
+    if not await email_claims.claim(key, sender="lifecycle_emails"):
+        return False  # another worker is sending (or sent) this one
+    final_key = email_claims.trial_ending_key(org_id, org.get("trial_ends_at")) if template == "expiry_warn" else None
+    if final_key and not await email_claims.claim(final_key, sender="lifecycle_emails"):
+        await _mark_sent(org_id, user_id, template, email)
+        return False  # a 'trial ending' email already went from another sender
     if not await can_send_lifecycle_email(user_id, template):
         await _mark_sent(org_id, user_id, template, email)  # mark anyway so we don't retry
         return False
@@ -155,6 +163,9 @@ async def _dispatch(template: str, org: dict, user: dict, subject: str, html: st
         return True
     except Exception:
         logger.exception("[lifecycle-email] %s send failed for %s", template, email)
+        await email_claims.release(key)
+        if final_key:
+            await email_claims.release(final_key)
         return False
 
 

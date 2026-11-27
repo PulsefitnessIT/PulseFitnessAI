@@ -46,6 +46,7 @@ DELEGATED_PERMISSIONS = {
     "imports.commit": "Run approved imports",
     "imports.undo": "Undo imports",
     "activation.view": "See the customer activation list",
+    "activation.invite": "Verify owners and send activation invitations",
     "sage.confidential": "See confidential Sage finance / credit fields",
 }
 
@@ -1542,6 +1543,11 @@ async def activation_queue(search: str = "", skip: int = 0, limit: int = Query(5
         o["on_hold"] = bool((st.get("sage_status") or {}).get("on_hold"))
         o["hidden"] = bool((st.get("sage_status") or {}).get("hidden"))
         o["users"] = await db.users.count_documents({"organization_id": o["id"]})
+        inv = await db.secure_invitations.find_one({"organization_id": o["id"], "kind": "owner_activation"},
+                                                   {"_id": 0, "status": 1, "expires_at": 1, "email": 1}, sort=[("created_at", -1)])
+        if inv and inv["status"] == "pending" and inv["expires_at"] <= datetime.now(timezone.utc).isoformat():
+            inv["status"] = "expired"
+        o["invitation"] = inv
         out.append(o)
     return {"total": total, "customers": out}
 

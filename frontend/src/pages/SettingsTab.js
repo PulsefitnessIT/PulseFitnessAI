@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import axios from 'axios';
+import InviteSitePicker from '../components/shared/InviteSitePicker';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { UserPlus, Copy, Crown, Shield, User, Trash2, Building, Plus, Mail, Phone, Upload, CheckCircle, PoundSterling, Save, Edit3, Send, Wrench } from 'lucide-react';
@@ -27,7 +28,8 @@ const SettingsTab = () => {
  const [staff, setStaff] = useState([]);
  const [invites, setInvites] = useState([]);
  const [showInviteDialog, setShowInviteDialog] = useState(false);
- const [inviteForm, setInviteForm] = useState({ email: '', role: 'staff', full_name: '' });
+ const [inviteForm, setInviteForm] = useState({ email: '', role: 'staff', full_name: '', allowed_site_ids: [] });
+ const [inviteLink, setInviteLink] = useState('');
  const [suppliers, setSuppliers] = useState([]);
  const [showSupplierDialog, setShowSupplierDialog] = useState(false);
  const [editingSupplier, setEditingSupplier] = useState(null);
@@ -93,8 +95,8 @@ const SettingsTab = () => {
  );
  
  notify.success(response.data.message);
- setShowInviteDialog(false);
- setInviteForm({ email: '', role: 'staff', full_name: '' });
+ setInviteForm({ email: '', role: 'staff', full_name: '', allowed_site_ids: [] });
+ if (response.data.link) setInviteLink(response.data.link); else setShowInviteDialog(false);
  loadData();
  } catch (error) {
  notifyApiError(notify, error, 'Failed to send invite');
@@ -439,9 +441,13 @@ const SettingsTab = () => {
  <div className="flex items-center justify-between">
  <div>
  <p className="text-[var(--theme-text)] font-semibold">{invite.email}</p>
- <p className="text-[var(--color-text-muted)] text-sm">Invited as {invite.role}</p>
+ <p className="text-[var(--color-text-muted)] text-sm">Invited as {invite.role}{(invite.allowed_site_ids || []).length ? ` · ${invite.allowed_site_ids.length} site(s)` : ''} · expires {String(invite.expires_at || '').slice(0, 10)}</p>
  </div>
+ <div className="flex items-center gap-2">
  <Badge className="bg-yellow-500/20 text-yellow-400">Pending</Badge>
+ <Button size="sm" variant="outline" data-testid={`invite-resend-${invite.id}`} onClick={async () => { try { const r = await axios.post(`${API}/organization/invite/${invite.id}/resend`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }); if (r.data.link) { setInviteLink(r.data.link); setShowInviteDialog(true); } else notify.success('New invitation sent'); loadData(); } catch (err) { notifyApiError(notify, err, 'Could not re-send'); } }}>Send new link</Button>
+ <Button size="sm" variant="outline" data-testid={`invite-cancel-${invite.id}`} onClick={async () => { try { await axios.delete(`${API}/organization/invite/${invite.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }); loadData(); } catch (err) { notifyApiError(notify, err, 'Could not cancel'); } }}>Cancel</Button>
+ </div>
  </div>
  </Card>
  ))}
@@ -462,11 +468,18 @@ const SettingsTab = () => {
  </Alert>
 
  {/* Invite Staff Dialog */}
- <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+ <Dialog open={showInviteDialog} onOpenChange={(o) => { setShowInviteDialog(o); if (!o) setInviteLink(''); }}>
  <DialogContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)]" data-testid="invite-dialog">
  <DialogHeader>
  <DialogTitle className="text-[var(--theme-text)]">{t('settings.invite_member')}</DialogTitle>
  </DialogHeader>
+ {inviteLink ? (
+ <div className="space-y-3" data-testid="invite-held-link">
+ <p className="text-sm">Invitation emails are switched off, so nothing was sent. Give this one-time link to the person directly. It works once and expires in 72 hours.</p>
+ <p className="font-mono text-xs break-all p-3 rounded bg-[var(--theme-surface-hover)]">{inviteLink}</p>
+ <Button type="button" className="w-full" onClick={() => { navigator.clipboard?.writeText(inviteLink); notify.success('Link copied'); }} data-testid="invite-copy-link">Copy link</Button>
+ </div>
+ ) : (
  <form onSubmit={handleInviteStaff} className="space-y-4">
  <div>
  <Label htmlFor="invite_email" className="text-[var(--theme-text)]">Email Address</Label>
@@ -504,15 +517,17 @@ const SettingsTab = () => {
  <SelectValue />
  </SelectTrigger>
  <SelectContent className="bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)]">
- <SelectItem value="manager">Manager - Can manage equipment and invite staff</SelectItem>
+ {user.role === 'owner' && <SelectItem value="manager">Manager - Can manage equipment and invite staff</SelectItem>}
  <SelectItem value="staff">Staff - Can log issues and view equipment</SelectItem>
  </SelectContent>
  </Select>
  </div>
 
+ <InviteSitePicker API={API} value={inviteForm.allowed_site_ids} onChange={(v) => setInviteForm({ ...inviteForm, allowed_site_ids: v })} restricted={user.role === 'manager' && (user.allowed_site_ids || []).length > 0} />
+
  <Alert className="bg-[var(--theme-surface-hover)] border-[var(--theme-border)]">
  <AlertDescription className="text-[var(--color-text-muted)] text-sm">
- Staff member will need to register using your company code: <strong className="text-[var(--theme-text)]">{organization?.company_code}</strong>
+ They get a secure link that works once and expires in 72 hours.{inviteForm.role === 'manager' ? ' Managers set up two-step verification when they first sign in.' : ''}
  </AlertDescription>
  </Alert>
 
@@ -520,6 +535,7 @@ const SettingsTab = () => {
  Send Invite
  </Button>
  </form>
+ )}
  </DialogContent>
  </Dialog>
  </>}

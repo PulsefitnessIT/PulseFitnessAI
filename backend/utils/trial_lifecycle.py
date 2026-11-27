@@ -184,14 +184,23 @@ async def _send_reminder_if_due(org: Dict[str, Any], frontend_url: str) -> bool:
         html = _trial_reminder_html(org.get("name", "there"), days_left or 1, upgrade_url)
         subject = ("Final day of your Pulse Fitness trial" if due_marker == "day13"
                    else f"{days_left} days left of your Pulse Fitness trial")
+    # Claim before sending (atomic), so two workers can never both send the same reminder.
+    claimed = await db.organizations.update_one(
+        {"id": org_id, "trial_reminders_sent": {"$ne": due_marker}},
+        {"$addToSet": {"trial_reminders_sent": due_marker}, "$set": {"last_trial_reminder_at": now.isoformat()}})
+    if not claimed.modified_count:
+        return False
+    from utils import email_claims
+    final_key = email_claims.trial_ending_key(org_id, org.get("trial_ends_at")) if due_marker == "day13" else None
+    if final_key and not await email_claims.claim(final_key, sender="trial_lifecycle"):
+        return False  # another sender already told them the trial is ending
     sent_ok = await send_email(recipient, subject, html, organization_id=org_id)
     if sent_ok:
-        await db.organizations.update_one(
-            {"id": org_id},
-            {"$addToSet": {"trial_reminders_sent": due_marker},
-             "$set": {"last_trial_reminder_at": now.isoformat()}}
-        )
         logger.info(f"[Trial] Sent {due_marker} reminder for org {org_id} to {recipient}")
+    else:
+        await db.organizations.update_one({"id": org_id}, {"$pull": {"trial_reminders_sent": due_marker}})
+        if final_key:
+            await email_claims.release(final_key)
     return sent_ok
 
 

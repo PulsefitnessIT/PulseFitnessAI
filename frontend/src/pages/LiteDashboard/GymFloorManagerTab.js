@@ -8,6 +8,7 @@
  *     manager. Flagged entries are highlighted for moderation review.
  */
 import { useCallback, useEffect, useState } from 'react';
+import GymFloorDevices from './GymFloorDevices';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
@@ -15,7 +16,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, KeyRound, ShieldAlert, Trash2, Plus, CopyIcon, Tag, Eye, EyeOff,
+import { Users, KeyRound, ShieldAlert, Trash2, Plus, Tag, Eye, EyeOff,
 } from 'lucide-react';
 import { useInlineBanner, useConfirm } from '@/components/notifications';
 
@@ -31,6 +32,9 @@ const GymFloorManagerTab = () => {
   const isManager = userRole === 'owner' || userRole === 'manager' || user?.is_master_admin || modPro;
 
   const [cred, setCred] = useState(null);
+  const [creds, setCreds] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [siteId, setSiteId] = useState('');
   const [staff, setStaff] = useState([]);
   const [topics, setTopics] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -54,6 +58,8 @@ const GymFloorManagerTab = () => {
     try {
       const s = await axios.get(`${API}/gym-floor/status`, { headers });
       setCred(s.data.credential || null);
+      setCreds(s.data.credentials || []);
+      setSites(s.data.sites || []);
     } catch {}
     try {
       const [st, tp, en] = await Promise.all([
@@ -82,6 +88,7 @@ const GymFloorManagerTab = () => {
         username: form.username,
         password: form.password,
         staff_names: [],
+        site_id: siteId || undefined,
       }, { headers });
       show({
         tone: 'success',
@@ -190,20 +197,18 @@ const GymFloorManagerTab = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="p-5 rounded-xl" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><KeyRound size={14} /> {t('staffing.gfm_shared_creds', 'Shared credentials')}</h3>
-            {cred ? (
-              <div className="p-3 rounded-lg mb-3 flex items-center justify-between gap-3" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }}>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.gfm_active_username', 'Active username')}</p>
-                  <p className="text-sm font-mono font-semibold">{cred.username}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={copyUrl} className="rounded-full text-xs" data-testid="gym-floor-copy-link">
-                  <CopyIcon size={12} className="mr-1" /> {t('staffing.gfm_copy_url', 'Copy login URL')}
-                </Button>
-              </div>
-            ) : (
-              <p className="text-sm mb-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.gfm_no_login', 'No shared login yet — create one below.')}</p>
-            )}
+            <GymFloorDevices API={API} headers={headers} creds={creds} onCopy={copyUrl} onChanged={load} />
             <form onSubmit={submitSetup} className="space-y-2">
+              {sites.length > 1 && (
+                <div>
+                  <Label className="text-xs">Site this device is for</Label>
+                  <select value={siteId} onChange={(e) => setSiteId(e.target.value)} className="w-full h-9 rounded-md border px-2 text-sm bg-transparent" style={{ borderColor: 'var(--theme-border)' }} data-testid="gym-floor-setup-site">
+                    <option value="">Choose a site…</option>
+                    {sites.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                  </select>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>Each site gets its own login. A device only sees that site's equipment and diary.</p>
+                </div>
+              )}
               <div>
                 <Label className="text-xs">{t('staffing.gfm_username', 'Username')}</Label>
                 <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder={t('staffing.gfm_username_ph', 'e.g. studio-floor')} data-testid="gym-floor-setup-username" />
@@ -231,7 +236,7 @@ const GymFloorManagerTab = () => {
                 </div>
               </div>
               <Button type="submit" disabled={busy} className="w-full rounded-full bg-[var(--color-brand-blue)] text-white hover:bg-[var(--color-brand-blue-hover)]" data-testid="gym-floor-setup-submit">
-                {busy ? t('staffing.gfm_saving', 'Saving…') : cred ? t('staffing.gfm_rotate', 'Rotate credentials') : t('staffing.gfm_create_login', 'Create gym-floor login')}
+                {busy ? t('staffing.gfm_saving', 'Saving…') : cred && sites.length <= 1 ? t('staffing.gfm_rotate', 'Rotate credentials') : sites.length > 1 ? 'Save site device login' : t('staffing.gfm_create_login', 'Create gym-floor login')}
               </Button>
             </form>
           </Card>

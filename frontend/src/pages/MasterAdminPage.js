@@ -37,6 +37,7 @@ const PendingReviewPanel = lazy(() => import('./MasterAdmin/PendingReviewPanel')
 const AdminTasks = lazy(() => import('./MasterAdmin/AdminTasks'));
 const AdminRoles = lazy(() => import('./MasterAdmin/AdminRoles'));
 const AdminPayments = lazy(() => import('./MasterAdmin/AdminPayments'));
+const CommercialReport = lazy(() => import('./MasterAdmin/CommercialReport'));
 const AdminPartners = lazy(() => import('./MasterAdmin/AdminPartners'));
 const AdminEngineerHealth = lazy(() => import('./MasterAdmin/AdminEngineerHealth'));
 const AdminRefundsPanel = lazy(() => import('./MasterAdmin/AdminRefundsPanel'));
@@ -473,6 +474,8 @@ const MasterAdminPage = ({ _onBack }) => {
         );
       case 'payments':
         return <AdminPayments stats={stats} organizations={organizations} />;
+      case 'commercial':
+        return <CommercialReport />;
       case 'partners':
         return <AdminPartners />;
       case 'engineer-health':

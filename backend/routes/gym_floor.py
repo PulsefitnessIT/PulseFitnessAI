@@ -21,7 +21,7 @@ import logging
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -139,6 +139,43 @@ class GymFloorSetup(BaseModel):
     username: str = Field(min_length=3, max_length=60)
     password: str = Field(min_length=6, max_length=120)
     staff_names: list[str] = Field(default_factory=list)
+    site_id: Optional[str] = None
+    label: Optional[str] = Field(default=None, max_length=80)
+
+
+SESSION_HOURS = 16
+
+
+async def _resolve_device_site(org_id: str, site_id: Optional[str], user: dict) -> Optional[str]:
+    """Release C — device logins are site-specific. Org-wide only when the org has no sites yet."""
+    sites = await db.sites.find({"organization_id": org_id}, {"_id": 0, "id": 1}).to_list(5000)
+    ids = {x["id"] for x in sites}
+    if site_id:
+        if site_id not in ids:
+            raise HTTPException(400, "That site doesn't belong to your organisation")
+    elif len(ids) == 1:
+        site_id = next(iter(ids))
+    elif len(ids) > 1:
+        raise HTTPException(400, "Choose which site this gym-floor device login is for")
+    mine = (user or {}).get("allowed_site_ids") or []
+    if mine and site_id not in mine:
+        raise HTTPException(403, "You can only set up devices for the sites you manage")
+    return site_id
+
+
+async def _end_sessions(cred_id: str, org_id: str) -> None:
+    q = {"credential_id": cred_id}
+    if cred_id == org_id:
+        q = {"organization_id": org_id, "$or": [{"credential_id": cred_id}, {"credential_id": {"$exists": False}}]}
+    await db.gym_floor_sessions.delete_many(q)
+
+
+def _site_scope(viewer: dict) -> dict:
+    """Mongo filter limiting a viewer to their site(s). Managers with no site restriction see everything."""
+    if viewer.get("_gym_floor_session"):
+        return {"site_id": viewer["site_id"]} if viewer.get("site_id") else {}
+    mine = viewer.get("allowed_site_ids") or []
+    return {"site_id": {"$in": mine}} if mine else {}
 
 
 @router.post("/gym-floor/setup")
@@ -147,16 +184,27 @@ async def setup_gym_floor(body: GymFloorSetup, user: dict = Depends(get_current_
     org_id = _org_id_of(user)
     if not org_id:
         raise HTTPException(400, "No organization bound to this account")
+    site_id = await _resolve_device_site(org_id, body.site_id, user)
+    cred_id = f"{org_id}:{site_id}" if site_id else org_id
+    username = body.username.strip().lower()
+    clash = await db.gym_floor_credentials.find_one({"username": username, "id": {"$ne": cred_id}}, {"_id": 1})
+    if clash:
+        raise HTTPException(409, "That username is already used by another gym-floor device. Choose another.")
+    site = await db.sites.find_one({"id": site_id}, {"_id": 0, "name": 1}) if site_id else None
     doc = {
-        "id": org_id,
+        "id": cred_id,
         "organization_id": org_id,
-        "username": body.username.strip().lower(),
+        "site_id": site_id,
+        "site_name": (site or {}).get("name"),
+        "label": (body.label or "").strip() or None,
+        "username": username,
         "password_hash": _hash(body.password),
         "created_at": _now_iso(),
         "created_by": user.get("email"),
         "enabled": True,
     }
-    await db.gym_floor_credentials.replace_one({"id": org_id}, doc, upsert=True)
+    await db.gym_floor_credentials.replace_one({"id": cred_id}, doc, upsert=True)
+    await _end_sessions(cred_id, org_id)  # a new password signs out every device using the old one
     # Seed topics (idempotent)
     existing = await db.gym_floor_topics.count_documents({"organization_id": org_id})
     if existing == 0:
@@ -180,7 +228,7 @@ async def setup_gym_floor(body: GymFloorSetup, user: dict = Depends(get_current_
             }},
             upsert=True,
         )
-    return {"ok": True, "username": doc["username"]}
+    return {"ok": True, "username": doc["username"], "credential_id": cred_id, "site_id": site_id}
 
 
 @router.get("/gym-floor/status")
@@ -189,8 +237,54 @@ async def gym_floor_status(user: dict = Depends(get_current_user)):
     org_id = _org_id_of(user)
     if not org_id:
         return {"configured": False}
-    cred = await db.gym_floor_credentials.find_one({"id": org_id}, {"_id": 0, "password_hash": 0})
-    return {"configured": bool(cred), "credential": cred}
+    q = {"organization_id": org_id}
+    mine = user.get("allowed_site_ids") or []
+    if mine:
+        q["site_id"] = {"$in": mine}
+    creds = await db.gym_floor_credentials.find(q, {"_id": 0, "password_hash": 0}).to_list(500)
+    now = _now_iso()
+    for c in creds:
+        c["active_sessions"] = await db.gym_floor_sessions.count_documents(
+            {"credential_id": c["id"], "expires_at": {"$gt": now}})
+        c["org_wide_legacy"] = not c.get("site_id")
+    sq = {"organization_id": org_id, **({"id": {"$in": mine}} if mine else {})}
+    sites = await db.sites.find(sq, {"_id": 0, "id": 1, "name": 1}).sort("name", 1).to_list(5000)
+    return {"configured": bool(creds), "credential": creds[0] if creds else None, "credentials": creds, "sites": sites}
+
+
+async def _manage_cred(cred_id: str, user: dict) -> dict:
+    _require_manager(user)
+    org_id = _org_id_of(user)
+    cred = await db.gym_floor_credentials.find_one({"id": cred_id, "organization_id": org_id}, {"_id": 0, "password_hash": 0})
+    if not cred:
+        raise HTTPException(404, "Device login not found")
+    mine = user.get("allowed_site_ids") or []
+    if mine and cred.get("site_id") not in mine:
+        raise HTTPException(403, "You can only manage devices for the sites you manage")
+    return cred
+
+
+@router.post("/gym-floor/devices/{cred_id}/disable")
+async def disable_device(cred_id: str, user: dict = Depends(get_current_user)):
+    cred = await _manage_cred(cred_id, user)
+    await db.gym_floor_credentials.update_one({"id": cred_id}, {"$set": {"enabled": False, "disabled_at": _now_iso(),
+                                                                       "disabled_by": user.get("email")}})
+    await _end_sessions(cred_id, cred["organization_id"])
+    return {"ok": True}
+
+
+@router.post("/gym-floor/devices/{cred_id}/enable")
+async def enable_device(cred_id: str, user: dict = Depends(get_current_user)):
+    await _manage_cred(cred_id, user)
+    await db.gym_floor_credentials.update_one({"id": cred_id}, {"$set": {"enabled": True}, "$unset": {"disabled_at": ""}})
+    return {"ok": True}
+
+
+@router.post("/gym-floor/devices/{cred_id}/sign-out")
+async def sign_out_device(cred_id: str, user: dict = Depends(get_current_user)):
+    cred = await _manage_cred(cred_id, user)
+    await _end_sessions(cred_id, cred["organization_id"])
+    return {"ok": True}
 
 
 # ═════════════════ Shared-credential login ═════════════════
@@ -209,21 +303,45 @@ async def gym_floor_login(body: GymFloorLogin):
         raise HTTPException(401, "Invalid credentials")
     # Session token — short-lived, stores org_id and a marker.
     token = f"gfloor-{secrets.token_urlsafe(24)}"
+    now = datetime.now(timezone.utc)
     await db.gym_floor_sessions.insert_one({
         "token": token,
         "organization_id": cred["organization_id"],
-        "created_at": _now_iso(),
+        "credential_id": cred["id"],
+        "site_id": cred.get("site_id"),
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(hours=SESSION_HOURS)).isoformat(),
     })
     return {
         "token": token,
         "organization_id": cred["organization_id"],
+        "site_id": cred.get("site_id"),
+        "site_name": cred.get("site_name"),
+        "expires_at": (now + timedelta(hours=SESSION_HOURS)).isoformat(),
     }
 
 
 async def _resolve_gym_floor_session(x_gym_floor_token: Optional[str]) -> Optional[dict]:
     if not x_gym_floor_token:
         return None
-    return await db.gym_floor_sessions.find_one({"token": x_gym_floor_token}, {"_id": 0})
+    s = await db.gym_floor_sessions.find_one({"token": x_gym_floor_token}, {"_id": 0})
+    if not s:
+        return None
+    exp = s.get("expires_at")
+    if not exp:
+        try:
+            exp = (datetime.fromisoformat(s["created_at"]) + timedelta(hours=SESSION_HOURS)).isoformat()
+        except Exception:
+            exp = ""
+    if exp <= _now_iso():
+        await db.gym_floor_sessions.delete_one({"token": x_gym_floor_token})
+        return None
+    cred = await db.gym_floor_credentials.find_one({"id": s.get("credential_id") or s["organization_id"]},
+                                                   {"_id": 0, "enabled": 1, "site_id": 1})
+    if not cred or not cred.get("enabled", True):
+        return None
+    s["site_id"] = cred.get("site_id")
+    return s
 
 
 # Combined auth dep — manager (via Bearer) OR gym-floor-token header.
@@ -234,7 +352,7 @@ async def _any_viewer(
     # Try the shared-session first
     s = await _resolve_gym_floor_session(x_gym_floor_token)
     if s:
-        return {"organization_id": s["organization_id"], "_gym_floor_session": True}
+        return {"organization_id": s["organization_id"], "_gym_floor_session": True, "site_id": s.get("site_id")}
     # Fall back to Bearer — delegate to get_current_user
     if authorization:
         try:
@@ -431,6 +549,7 @@ class HandoverEntry(BaseModel):
     topic_id: str
     notes: str = Field(min_length=1, max_length=4000)
     shift_date: Optional[str] = None  # ISO date
+    site_id: Optional[str] = None  # managers choose the site; devices use their own
 
 
 @router.get("/gym-floor/handover")
@@ -438,7 +557,7 @@ async def list_handover(limit: int = 100, viewer: dict = Depends(_any_viewer)):
     org_id = viewer.get("organization_id") or _org_id_of(viewer)
     limit = max(1, min(limit, 500))
     entries = await db.gym_floor_handover.find(
-        {"organization_id": org_id}, {"_id": 0},
+        {"organization_id": org_id, **_site_scope(viewer)}, {"_id": 0},
     ).sort("created_at", -1).limit(limit).to_list(limit)
     return {"entries": entries}
 
@@ -449,10 +568,18 @@ async def create_handover(body: HandoverEntry, viewer: dict = Depends(_any_viewe
     if not org_id:
         raise HTTPException(400, "Missing organization context")
 
+    site_id = None
+    if not viewer.get("_gym_floor_session") and body.site_id:
+        mine = viewer.get("allowed_site_ids") or []
+        if (mine and body.site_id not in mine) or not await db.sites.find_one(
+                {"id": body.site_id, "organization_id": org_id}, {"_id": 1}):
+            raise HTTPException(400, "That site isn't one of yours")
+        site_id = body.site_id
     moderation = await _moderate(body.notes)
     doc = {
         "id": str(uuid.uuid4()),
         "organization_id": org_id,
+        "site_id": viewer.get("site_id") if viewer.get("_gym_floor_session") else site_id,
         "staff_name": body.staff_name.strip(),
         "topic_id": body.topic_id,
         "notes": body.notes.strip(),
@@ -500,7 +627,7 @@ async def gym_floor_equipment(viewer: dict = Depends(_any_viewer)):
     if not org_id:
         raise HTTPException(400, "Missing organization context")
     rows = await db.equipment.find(
-        {"organization_id": org_id},
+        {"organization_id": org_id, **_site_scope(viewer)},
         {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "manufacturer": 1,
          "equipment_type": 1, "location": 1, "supplier": 1},
     ).sort("name", 1).to_list(2000)
@@ -524,7 +651,7 @@ async def gym_floor_create_fault(body: GymFloorFaultIn, viewer: dict = Depends(_
         raise HTTPException(400, "Your contact details are incomplete — ask the manager to add your email before logging faults.")
 
     eq = await db.equipment.find_one(
-        {"id": body.equipment_id, "organization_id": org_id}, {"_id": 0},
+        {"id": body.equipment_id, "organization_id": org_id, **_site_scope(viewer)}, {"_id": 0},
     )
     if not eq:
         raise HTTPException(400, "Equipment not found on this site.")

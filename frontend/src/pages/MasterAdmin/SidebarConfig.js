@@ -97,6 +97,7 @@ export const SIDEBAR_ITEMS = [
       { id: 'org-billing',   label: 'Org billing',    icon: Receipt },
       { id: 'collections',   label: 'Collections',    icon: AlertCircle },
       { id: 'payments',      label: 'Payments',       icon: CreditCard },
+      { id: 'commercial',    label: 'Commercial lifecycle', icon: BarChart3 },
       { id: 'stripe-connect',label: 'Stripe',         icon: Banknote },
       { id: 'financial-ops', label: 'Financial ops',  icon: PoundSterling, gymaxisOnly: true },
       { id: 'refunds',       label: 'Refunds',        icon: RotateCcw, gymaxisOnly: true },
@@ -278,6 +279,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   'org-billing':        'finance',
   'collections':        'finance',
   'payments':           'finance',
+  'commercial':         'finance',
   'financial-ops':      'finance',
   'refunds':            'finance',
   'capex-config':       'finance',
@@ -315,6 +317,7 @@ export const sectionTitles = {
   archive: 'Archive',                           // Iter 216h53 — relocated from Service Desk
   'ask-support': 'Ask Support Desk',
   payments: 'Payments & subscriptions',
+  commercial: 'Commercial lifecycle',
   trials: 'Trials',
   'activation-funnel': 'Customer activation',   // Iter 216h17 — terminology cleanup
   'sales-insights': 'Sales insights',
@@ -384,6 +387,7 @@ export const sectionDescriptions = {
   trust: 'Platform health, security events, and integration status — detect before customers do',
   'ask-support': 'Human-escalated AI support cases, CSAT trends, and deflection analytics',
   payments: 'Revenue tracking and subscription management',
+  commercial: 'Paid products by customer: MRR, LITE to PRO upgrades, cancellations, re-subscriptions and activation of imported customers.',
   analytics: 'Cross-gym analytics and trends',
   'marketing-suite': 'Marketing Suite — plans, subscriptions, platform-wide KPIs',
   'marketing-studio': 'Pulse Fitness Growth Hub — funnel view across trials, SEO, outbound, CRM pipeline and sales insights.',
