@@ -1,0 +1,56 @@
+{
+  "summary": "Retest of the iteration_338 fixes. All 12 tests in test_release_ab_iter338.py now pass, including the 4 that failed before (cross-tenant claim, moved equipment, SOURCE_CTX leak, noid preview). Regression is green when each file is run alone: identity 2, onboarding 5, api_iter336 13, iter337 10, iter338 12, customer_import_release_a 8, sage_sicon_customer_import 7, sage_sicon_import_independent 13, sicon_onboarding_jun2026 3, and the 3 AFS shared-customer suites 11+15+8. New suite tests/test_release_ab_iter339.py: 7 of 9 pass. Verified: (1) Create path: when another org holds the link, the result is action 'conflict' with pulse_asset_id None. An open conflict is recorded for c2, c2 gets no asset, there is still exactly 1 link, and c1's link is byte-identical. Calling upsert_link directly without reassign returns 'conflict' and does not change the link. (2) The onboarding apply route sets applied_at, and a second apply returns 409 without starting a run. (3) In the engine, a second run_onboarding with the same preview ends 'failed' with 'already imported', and the preview's consumed_by equals the first apply. A record without an id is held as an open noid: conflict, and only the record with a Sicon id is created. (4) When _apply_site_decision raises, decide_site returns the proposal to 'proposed'. (5) Over HTTP and in the UI, the Review Centre shows Sicon proposed sites as source 'Sicon sub-location' with ref 'Sicon location <id>'. (6) _attach_case_equipment in the Pulse workspace sets customer_org_id and customer_site_id from the customer-owned asset. 2 tests fail on a remaining HIGH cross-tenant defect, in the 'conflict' bucket path; details below. Frontend smoke (admin token minted): Review Centre loads, the 'Proposed operational site' filter shows the seeded row with Confirm site / Not a site buttons, Import Centre ci-company-input is 'Pulse Fitness' with maxlength 40, and there are no page errors.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "utils/sicon_import.apply_equipment_record (bucket=='conflict') -> utils/sicon_links.set_status",
+        "issue": "Cross-tenant link re-ownership is still possible. Org c2 has an asset with the same serial but a different model, so classify gives 'conflict'. apply_equipment_record then calls links.set_status(seid, 'conflict', organization_id=c2). set_status uses _key_for_write (connection-scoped, no organisation filter) and does $set organization_id=c2 on c1's link. That link keeps pulse_entity_id = c1's asset id but now belongs to c2. On c2's next sync, get_link returns the link (it is now c2's), classify says 'linked' to c1's asset, and apply runs equipment.update_one({id: c1 asset}) with no org filter. That writes Sicon-synced fields, Sicon ids and resolved site/link fields onto the other customer's asset; the result was action 'updated' on c1's asset id. The admin 'ignored' resolutions (routes/sicon.py:1010, utils/sicon_onboarding.py:618) call the same set_status, so they re-own the link the same way. Fix: in set_status, never change organization_id (or any field) on a link whose organization_id differs from the caller's, unless an explicit admin reassign is requested. In apply_equipment_record's conflict and linked/match branches, also scope equipment.update_one by organization_id=org_id. Tests: test_cross_tenant_conflict_bucket_does_not_mutate_other_org_link, test_cross_tenant_conflict_then_resync_no_write_to_other_org_asset.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "utils/sicon_import.apply_equipment_record (bucket=='match')",
+        "issue": "Org c2 has an asset with the same serial while c1 holds the Sicon id link. upsert_link correctly leaves c1's link alone. But apply still returns action 'linked' and updates c2's asset with Sicon ids (including sicon_equipment_id), and records no conflict. The match is reported as successful, but no link exists, and c2's asset now carries another tenant's Sicon id. Detect the conflict result from upsert_link and record a conflict instead."
+      },
+      {
+        "endpoint": "POST /api/sicon/read/onboarding/{run_id}/apply",
+        "issue": "applied_at is claimed before _start_onboarding. If that then fails (400 Sicon not configured, or 409 'A Sicon sync is already running'), the preview is used up and the user has to run a new preview. Release the claim if _start_onboarding raises."
+      },
+      {
+        "endpoint": "utils/sicon_onboarding._equipment_phase tally",
+        "issue": "run.tally counts by the classification bucket, so a 'new' record that apply turns into a conflict (OTHER_ORG) is still counted as created. The run counts overstate what was imported."
+      },
+      {
+        "endpoint": "routes/customer_account_import._attach_site_equipment",
+        "issue": "Equipment is matched by org_id + sicon_sub_location_id, without filtering on sicon_source. Equipment from a different Sicon connection with the same numeric sub-location id could be attached. Low risk."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Review Centre table", "issues": ["The Details column text (e.g. 'Sicon sub-location') is very light grey on white, so contrast is low."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_release_ab_iter339.py", "/app/backend/tests/test_release_ab_iter338.py", "/app/test_reports/pytest/pytest_iter339.xml"],
+  "action_items": [
+    "HIGH: make links.set_status (and every link writer) refuse to change organization_id or status on a link owned by another org, unless an explicit admin reassign is requested. Scope equipment.update_one in apply_equipment_record by organization_id. Rerun test_release_ab_iter339.py.",
+    "Match path: when upsert_link returns conflict (another org's link), record a conflict, return action 'conflict', and do not stamp sicon_equipment_id on the local asset.",
+    "Release applied_at if _start_onboarding raises after the claim.",
+    "Tally onboarding equipment by the actual apply result, not the classification bucket."
+  ],
+  "critical_code_review_comments": [
+    "sicon_links.set_status upserts organization_id from the caller onto a connection-scoped key. It is the last link writer without the OTHER_ORG guard.",
+    "apply_equipment_record linked/match branch: db.equipment.update_one({'id': asset_id}) has no organization_id filter, so any wrong link becomes a cross-tenant write.",
+    "reserve_link: a released reservation from another org (pulse_entity_id '') can be re-claimed and re-owned. This is probably acceptable, but it should be a deliberate choice."
+  ],
+  "updated_files": ["/app/backend/tests/test_release_ab_iter339.py"],
+  "success_rate": {"backend": "iter338 12/12; iter339 7/9; regression 107/107", "frontend": "100% (smoke)"},
+  "seed_data_creation": "Only temporary TST data was created: orgs TST-x/y/z/v-*, links TSTY/TSTZ/TSTW/TSTV*, TSTpv-/TSTcn*/TSTdf-/TSTrl-/TSTi- docs, and UI proposed site TSTui339-site. All of it was removed by id or tag; a post-run check found 0 left.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run each file alone: pytest tests/test_release_ab_iter339.py -p no:cacheprovider. The 2 failing tests encode the expected behaviour for the set_status re-ownership defect. UI: mint a token with utils.auth.create_token(admin id), put it in localStorage 'token' and the ga_session cookie, then open /master-admin?section=onboarding&tab=review and click the 'Proposed operational site' chip. test_sage_sicon_customer_import.py takes about 4 minutes.",
+  "rca of the issue": "The iter338 fix added the OTHER_ORG guard to reserve_link and upsert_link, but not to set_status. Repro: c1 creates Sicon id X. c2 has an asset with the same serial and a different model, so classify gives 'conflict', and set_status re-owns X's link to c2 while it still points at c1's asset. c2's next sync classifies X as 'linked' to c1's asset, and the unscoped update_one writes c2's data onto it. Mitigation: guard set_status against foreign-org links, and add an org filter to equipment updates."
+}

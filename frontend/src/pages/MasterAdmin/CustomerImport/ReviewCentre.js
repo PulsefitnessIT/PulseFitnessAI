@@ -66,7 +66,7 @@ export default function ReviewCentre({ onOpenJob }) {
                 <td className="p-2 font-medium">{it.type}</td>
                 <td className="p-2 font-mono">{it.ref}</td>
                 <td className="p-2">{it.name}</td>
-                <td className="p-2 text-zinc-600">{it.detail}<span className="block text-zinc-400">{it.source}{it.owner ? ` · ${it.owner}` : ''}</span></td>
+                <td className="p-2 text-zinc-600">{it.detail}<span className="block text-zinc-500">{it.source}{it.owner ? ` · ${it.owner}` : ''}</span></td>
                 <td className="p-2 text-zinc-600">{it.resolve}</td>
                 <td className="p-2 whitespace-nowrap">
                   {it.site_id && <><Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => site(it.site_id, 'confirm')} data-testid={`rc-site-confirm-${i}`}>Confirm site</Button>

@@ -243,6 +243,11 @@ async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
     are queued for review instead."""
     seid = norm.get("sicon_equipment_id")
     bucket = classification["bucket"]
+    if seid is not None and await links.held_by_other_org(links.ENTITY_EQUIPMENT, seid, org_id):
+        # the Sicon id belongs to another customer's asset: never stamp it on this org's asset or re-own the link
+        await _record_conflict(org_id, norm, {"bucket": "conflict", "candidates": [], "reasons": [
+            "This Sicon equipment id already belongs to another customer's asset (moved between customers?) — review"]}, run_id)
+        return {"action": "conflict", "pulse_asset_id": None}
 
     if bucket == "conflict":
         await _record_conflict(org_id, norm, classification, run_id)
@@ -263,7 +268,7 @@ async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
                                          {f: norm.get(f) for f in (*SICON_SYNCED_FIELDS, "model")}, run_id))
         linkfields = await _resolve_equipment_links(org_id, norm, existing)
         setdoc.update(linkfields)
-        await db.equipment.update_one({"id": asset_id}, {"$set": setdoc})
+        await db.equipment.update_one({"id": asset_id, "organization_id": org_id}, {"$set": setdoc})
         if seid is not None:
             await links.upsert_link(links.ENTITY_EQUIPMENT, seid, "equipment", asset_id,
                                     organization_id=org_id, sync_status="linked")

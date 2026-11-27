@@ -39642,3 +39642,4 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Cases reference the customer-owned asset.
 - Live acceptance procedure: memory/LIVE_ACCEPTANCE_SAGE_SICON.md.
 - Tests: 149 import/onboarding tests plus 105 of 106 Sicon tests passing; the one Sicon failure passes when run alone.
+- Iteration 339 follow-up: links owned by another org are never re-statused or re-owned (set_status / held_by_other_org). Equipment updates are scoped by organization_id. Final rerun: 134 import/onboarding tests plus 48 Sicon/identity tests passing.

@@ -189,6 +189,16 @@ async def upsert_link(external_entity_type: str, external_id: str,
 OTHER_ORG = "__held_by_another_organisation__"
 
 
+async def held_by_other_org(external_entity_type: str, external_id: str, organization_id: Optional[str]) -> bool:
+    """True when this connection's link for the id is owned by a different organisation (the Pulse workspace excepted)."""
+    if not organization_id:
+        return False
+    key = await _key_for_write(external_entity_type, external_id, organization_id, None)
+    cur = await db.sicon_external_links.find_one(key, {"_id": 0, "organization_id": 1, "pulse_entity_id": 1})
+    return bool(cur and cur.get("pulse_entity_id") and cur.get("organization_id") not in (None, organization_id)
+                and not await is_pulse_workspace(organization_id))
+
+
 async def reserve_link(external_entity_type: str, external_id: str, pulse_entity_type: str, pulse_entity_id: str,
                        organization_id: Optional[str] = None) -> str:
     """Atomically claim an external id for a record about to be created. Returns the owning Pulse id: ours if we won,
@@ -236,6 +246,9 @@ async def set_status(external_entity_type: str, external_id: str, sync_status: s
         setdoc["organization_id"] = organization_id
     if reason:
         setdoc["status_reason"] = reason[:500]
+    cur = await db.sicon_external_links.find_one(key, {"_id": 0, "organization_id": 1})
+    if cur and organization_id and cur.get("organization_id") not in (None, organization_id):
+        return  # another organisation's link: never re-own or re-status it
     await db.sicon_external_links.update_one(key, {"$set": setdoc, "$setOnInsert": {"created_at": now}}, upsert=True)
 
 
